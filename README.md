@@ -6,15 +6,13 @@
 
 [English](README.en.md)
 
-アニメーション制作用デジタルタイムシート / Digital Timesheet for Anime Production
+アニメーション制作用デジタルタイムシート
 
-## 概要 / Overview
+## 概要
 
 DiTiS は、アニメーション制作で使用されるタイムシートをデジタル化したデスクトップアプリケーションです。Tauri 2.x フレームワークで構築されており、After Effects との連携機能を備えています。
 
-DiTiS is a desktop application that digitizes the timesheets used in anime production. Built with the Tauri 2.x framework, it features integration with After Effects.
-
-## 主な機能 / Features
+## 主な機能
 
 - **スプレッドシート形式のタイムシート** - テンキー・WASD等、アニメ制作に特化した操作体系
 - **After Effects連携** - タイムリマップの送受信、ExtendScript出力
@@ -27,15 +25,13 @@ DiTiS is a desktop application that digitizes the timesheets used in anime produ
 - **マルチシート** - タブで複数シートを管理（ドラッグ&ドロップ並べ替え）
 - **クロスプラットフォーム** - Windows / macOS / Linux
 
-## インストール / Installation
+## インストール
 
 [Releases](https://github.com/MisakiAkatsuki/ditis/releases) ページから最新のインストーラーをダウンロードしてください。
 
-Download the latest installer from the [Releases](https://github.com/MisakiAkatsuki/ditis/releases) page.
-
 ---
 
-## キーボードショートカット / Keyboard Shortcuts
+## キーボードショートカット
 
 ### ファイル操作
 
@@ -113,9 +109,9 @@ Download the latest installer from the [Releases](https://github.com/MisakiAkats
 
 ---
 
-## メニュー構成 / Menu Structure
+## メニュー構成
 
-### ファイル (File)
+### ファイル
 
 | メニュー項目 | 説明 |
 |---|---|
@@ -128,14 +124,14 @@ Download the latest installer from the [Releases](https://github.com/MisakiAkats
 | すべてのシートを閉じる | 全シートを閉じる |
 | 終了 | アプリケーションを終了 |
 
-### 編集 (Edit)
+### 編集
 
 | メニュー項目 | 説明 |
 |---|---|
 | 元に戻す (Ctrl+Z) | 直前の操作を取り消し（最大500段階） |
 | やり直し (Ctrl+Y) | 取り消した操作を再実行 |
 
-### シート (Sheet)
+### シート
 
 | メニュー項目 | 説明 |
 |---|---|
@@ -150,7 +146,7 @@ Download the latest installer from the [Releases](https://github.com/MisakiAkats
 | AEからタイムリマップを取得 | AEのタイムリマップを読み込み |
 | シートを初期化 | シートのデータを全消去 |
 
-### 表示 (View)
+### 表示
 
 | メニュー項目 | 説明 |
 |---|---|
@@ -173,7 +169,7 @@ Download the latest installer from the [Releases](https://github.com/MisakiAkats
 | 選択をスクロール中央に | セル選択時に自動スクロール |
 | ページを再読み込み | 画面を再描画 |
 
-### ヘルプ (Help)
+### ヘルプ
 
 | メニュー項目 | 説明 |
 |---|---|
@@ -184,7 +180,7 @@ Download the latest installer from the [Releases](https://github.com/MisakiAkats
 
 ---
 
-## 右クリックメニュー / Context Menu
+## 右クリックメニュー
 
 ### セル右クリック
 
@@ -218,7 +214,7 @@ Download the latest installer from the [Releases](https://github.com/MisakiAkats
 
 ---
 
-## 対応ファイル形式 / Supported File Formats
+## 対応ファイル形式
 
 | 形式 | 拡張子 | 読込 | 書込 | 説明 |
 |---|---|---|---|---|
@@ -229,7 +225,7 @@ Download the latest installer from the [Releases](https://github.com/MisakiAkats
 
 ---
 
-## After Effects連携 / AE Integration
+## After Effects連携
 
 ### 直接送信 (`Ctrl+E`)
 タイムシートのデータをAEのアクティブコンポジションに送信します。
@@ -254,7 +250,7 @@ AEのアクティブレイヤーからタイムリマップを読み込みます
 
 ---
 
-## タイムシート記号 / Timesheet Symbols
+## タイムシート記号
 
 | 記号 | 意味 |
 |---|---|
@@ -266,10 +262,10 @@ AEのアクティブレイヤーからタイムリマップを読み込みます
 
 ---
 
-## ライセンス / License
+## ライセンス
 
 [LICENSE](LICENSE) を参照してください。
 
-## 作者 / Author
+## 作者
 
-あかつきみさき (Misaki Akatsuki) / SUNRISE MOON
+あかつきみさき / SUNRISE MOON
