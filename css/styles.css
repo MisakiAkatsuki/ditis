@@ -1253,6 +1253,16 @@ td.inserted-cell {
     background: var(--header-gradient-2);
 }
 
+.dialog-btn-extra {
+    background: transparent;
+    color: var(--text-secondary, #888);
+    border: 1px solid var(--text-secondary, #888);
+}
+
+.dialog-btn-extra:hover {
+    background: rgba(128,128,128,0.15);
+}
+
 .dialog-checkbox {
     display: flex;
     align-items: center;

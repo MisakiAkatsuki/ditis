@@ -418,10 +418,14 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     
     match app.updater().map_err(|e| e.to_string())?.check().await {
         Ok(Some(update)) => {
-            update.download_and_install(|_chunk_length, _content_length| {
-                // Progress callback - could emit events here
+            let app_clone = app.clone();
+            update.download_and_install(move |chunk, total| {
+                let _ = app_clone.emit("update-download-progress", serde_json::json!({
+                    "downloaded": chunk,
+                    "total": total
+                }));
             }, || {
-                // Download completed callback
+                // Download completed
             })
             .await
             .map_err(|e| format!("Failed to install update: {}", e))?;
@@ -972,6 +976,7 @@ pub fn run() {
   
   tauri::Builder::default()
     .plugin(tauri_plugin_updater::Builder::new().build())
+    .plugin(tauri_plugin_process::init())
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_fs::init())
     .manage(menu_items)

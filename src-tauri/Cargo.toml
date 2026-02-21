@@ -1,6 +1,6 @@
 [package]
 name = "ditis"
-version = "26.222.2"
+version = "26.222.3"
 description = "DiTiS - Digital Timesheet for anime production"
 authors = ["DiTiS Project"]
 license = "MIT"
@@ -26,6 +26,7 @@ tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 sysinfo = "0.30"
 
 [target.'cfg(windows)'.dependencies]

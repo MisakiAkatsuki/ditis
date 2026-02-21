@@ -21,6 +21,7 @@ function showDialog(options) {
     const contentEl = document.getElementById('dialog-content');
     const okBtn = document.getElementById('dialog-ok-btn');
     const cancelBtn = document.getElementById('dialog-cancel-btn');
+    const extraBtn = document.getElementById('dialog-extra-btn');
     const closeBtn = document.getElementById('dialog-close-btn');
     
     titleEl.textContent = options.title || 'ダイアログ';
@@ -33,6 +34,13 @@ function showDialog(options) {
     } else {
         cancelBtn.style.display = '';
     }
+
+    if (options.extraText) {
+        extraBtn.textContent = options.extraText;
+        extraBtn.style.display = '';
+    } else {
+        extraBtn.style.display = 'none';
+    }
     
     let handleKeydown;
     
@@ -40,6 +48,7 @@ function showDialog(options) {
         overlay.style.display = 'none';
         okBtn.onclick = null;
         cancelBtn.onclick = null;
+        extraBtn.onclick = null;
         closeBtn.onclick = null;
         if (handleKeydown) {
             document.removeEventListener('keydown', handleKeydown);
@@ -60,6 +69,13 @@ function showDialog(options) {
     cancelBtn.onclick = () => {
         if (options.onCancel) {
             options.onCancel();
+        }
+        closeDialog();
+    };
+
+    extraBtn.onclick = () => {
+        if (options.onExtra) {
+            options.onExtra();
         }
         closeDialog();
     };
@@ -632,6 +648,7 @@ async function showUpdateDialog(currentVersion, updateInfo) {
         content: content,
         okText: i18n.t('updater.downloadNow'),
         cancelText: i18n.t('updater.remindLater'),
+        extraText: i18n.t('updater.ignoreVersion'),
         onOk: async () => {
             // Download and install
             const success = await window.UpdaterAPI.installUpdate();
@@ -652,17 +669,12 @@ async function showUpdateDialog(currentVersion, updateInfo) {
             }
         },
         onCancel: () => {
-            // Show "Ignore this version" option
-            showDialog({
-                title: i18n.t('updater.ignoreTitle'),
-                content: `<p>${i18n.t('updater.ignorePrompt', updateInfo.version)}</p>`,
-                okText: i18n.t('updater.ignoreVersion'),
-                cancelText: i18n.t('common.cancel'),
-                onOk: () => {
-                    window.UpdaterAPI.addIgnoredVersion(updateInfo.version);
-                    showErrorToast(i18n.t('updater.ignoreSuccess'), ErrorLevel.INFO);
-                }
-            });
+            // 「後でリマインド」→何もしない（次回起動時に再度表示）
+        },
+        onExtra: () => {
+            // 「このバージョンを無視」
+            window.UpdaterAPI.addIgnoredVersion(updateInfo.version);
+            showErrorToast(i18n.t('updater.ignoreSuccess'), ErrorLevel.INFO);
         }
     });
 }

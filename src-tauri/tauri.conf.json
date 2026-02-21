@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "DiTiS",
-  "version": "26.222.2",
+  "version": "26.222.3",
   "identifier": "com.ditis.application",
   "build": {
     "frontendDist": "../dist",
