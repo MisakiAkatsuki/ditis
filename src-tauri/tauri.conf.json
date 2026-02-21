@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "DiTiS",
-  "version": "26.222.0",
+  "version": "26.222.1",
   "identifier": "com.ditis.application",
   "build": {
     "frontendDist": "../dist",
@@ -29,7 +29,14 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "dmg", "app", "deb", "rpm", "appimage"],
+    "targets": [
+      "nsis",
+      "dmg",
+      "app",
+      "deb",
+      "rpm",
+      "appimage"
+    ],
     "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
