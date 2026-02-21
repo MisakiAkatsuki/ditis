@@ -131,7 +131,7 @@ async function checkForUpdates(forceCheck = false) {
             showErrorToast(errorMsg, ErrorLevel.WARNING);
         }
         
-        return null;
+        return false; // false = error (null = no update available)
     }
 }
 

@@ -1103,10 +1103,11 @@ window.handleMenuEvent = async function(menuId) {
                 if (updateInfo) {
                     const currentVersion = await window.UpdaterAPI.getCurrentVersion();
                     showUpdateDialog(currentVersion, updateInfo);
-                } else {
+                } else if (updateInfo === null) {
                     showErrorToast(i18n.t('updater.noUpdates'), ErrorLevel.INFO);
                     updateStatusBar(i18n.t('updater.noUpdates'));
                 }
+                // updateInfo === false はエラー（updater.jsでトースト表示済み）
             }
         },
         'auto-check-updates': async () => {
