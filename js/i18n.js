@@ -770,3 +770,6 @@ function updateAllUIText() {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { i18n, getCurrentLanguage, setLanguage, t, generateExtendScriptI18n, generateHelpHTML, updateAllUIText };
 }
+
+// ブラウザ環境でwindow.i18nとして公開
+window.i18n = { t };
