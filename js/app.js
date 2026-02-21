@@ -1089,7 +1089,10 @@ window.handleMenuEvent = async function(menuId) {
         'check-updates': async () => {
             // 手動で更新をチェック
             if (window.UpdaterAPI) {
-                const i18n = window.i18n || { t: (key) => key };
+                const i18n = window.i18n || { t: (key) => ({
+                    'updater.checking': '更新を確認中...',
+                    'updater.noUpdates': '最新バージョンを使用しています',
+                }[key] || key) };
                 updateStatusBar(i18n.t('updater.checking'));
                 
                 const updateInfo = await window.UpdaterAPI.checkForUpdates(true); // Force check

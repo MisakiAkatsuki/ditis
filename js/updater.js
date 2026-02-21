@@ -125,8 +125,8 @@ async function checkForUpdates(forceCheck = false) {
         // Only show error if manual check
         if (forceCheck) {
             const errorMsg = error.toString().includes('Could not fetch')
-                ? (window.i18n ? window.i18n.t('updater.noRelease') : 'No releases found. This app may not have published releases yet.')
-                : (window.i18n ? window.i18n.t('updater.checkFailed') : 'Failed to check for updates');
+                ? (window.i18n ? window.i18n.t('updater.noRelease') : 'リリースが見つかりません。このアプリはまだ公開リリースがない可能性があります。')
+                : (window.i18n ? window.i18n.t('updater.checkFailed') : '更新の確認に失敗しました');
             
             showErrorToast(errorMsg, ErrorLevel.WARNING);
         }
