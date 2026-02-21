@@ -83,22 +83,22 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Remove .sig files from release
+      - name: Remove .sig files and publish release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
           TAG="${{ github.ref_name }}"
-          RELEASE_ID=$(gh api repos/$GH_REPO/releases/tags/$TAG --jq '.id')
-          gh api repos/$GH_REPO/releases/$RELEASE_ID/assets --jq '.[] | select(.name | endswith(".sig")) | .id' \
-            | xargs -I{} gh api -X DELETE repos/$GH_REPO/releases/assets/{}
-
-      - name: Publish release (un-draft)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          TAG="${{ github.ref_name }}"
-          RELEASE_ID=$(gh api repos/$GH_REPO/releases/tags/$TAG --jq '.id')
+          # ドラフトリリースはタグ検索できないのでリスト取得してフィルタ
+          RELEASE_ID=$(gh api repos/$GH_REPO/releases \
+            --jq ".[] | select(.tag_name == \"$TAG\") | .id")
+          echo "Release ID: $RELEASE_ID"
+          
+          # .sig ファイルを削除
+          gh api repos/$GH_REPO/releases/$RELEASE_ID/assets \
+            --jq '.[] | select(.name | endswith(".sig")) | .id' \
+            | xargs -r -I{} gh api -X DELETE repos/$GH_REPO/releases/assets/{}
+          
+          # ドラフトを公開
           gh api -X PATCH repos/$GH_REPO/releases/$RELEASE_ID \
             --field draft=false
