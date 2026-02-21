@@ -277,7 +277,9 @@ function parseTdtsFile(fileContent, fileName) {
         // フィールドからレイヤーを作成
         if (timeTable.fields && timeTable.fields.length > 0) {
             const field = timeTable.fields[0]; // fieldId=4を使用
-            const fieldHeader = timeTable.timeTableHeaders.find(h => h.fieldId === field.fieldId);
+            const fieldHeader = timeTable.timeTableHeaders
+                ? timeTable.timeTableHeaders.find(h => h.fieldId === field.fieldId)
+                : null;
             
             if (field.tracks && fieldHeader) {
                 field.tracks.forEach((track, trackIndex) => {

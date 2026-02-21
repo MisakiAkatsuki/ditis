@@ -1269,7 +1269,7 @@ pub fn run() {
           eprintln!("[Rust] 言語メニュー処理完了");
         }
         
-        let window = app.get_webview_window("main").unwrap();
+        if let Some(window) = app.get_webview_window("main") {
         
         // JavaScriptにメニューIDを送信
         eprintln!("[Rust] JavaScriptを呼び出し: {}", menu_id);
@@ -1283,6 +1283,7 @@ pub fn run() {
         match window.eval(&script) {
           Ok(_) => eprintln!("[Rust] JavaScript呼び出し成功"),
           Err(e) => eprintln!("[Rust] JavaScript呼び出しエラー: {:?}", e),
+        }
         }
       });
 

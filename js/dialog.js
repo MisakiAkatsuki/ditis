@@ -55,9 +55,9 @@ function showDialog(options) {
         }
     };
     
-    okBtn.onclick = () => {
+    okBtn.onclick = async () => {
         if (options.onOk) {
-            const result = options.onOk();
+            const result = await options.onOk();
             if (result !== false) {
                 closeDialog();
             }

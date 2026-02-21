@@ -29,12 +29,19 @@ function repositionToasts() {
  * @param {number} duration - 表示時間（ミリ秒）
  */
 function showErrorToast(message, level = ErrorLevel.ERROR, duration = 5000) {
+    // 最大5件に制限：超過時は最古のトーストを削除
+    const existing = document.querySelectorAll('.error-toast');
+    if (existing.length >= 5) {
+        existing[0].remove();
+        repositionToasts();
+    }
+
     const toast = document.createElement('div');
     toast.className = `error-toast error-${level}`;
     toast.textContent = message;
 
-    const existing = document.querySelectorAll('.error-toast');
-    const offset = 20 + Array.from(existing).reduce((sum, el) => sum + el.offsetHeight + 8, 0);
+    const currentToasts = document.querySelectorAll('.error-toast');
+    const offset = 20 + Array.from(currentToasts).reduce((sum, el) => sum + el.offsetHeight + 8, 0);
 
     // スタイルを適用
     Object.assign(toast.style, {
