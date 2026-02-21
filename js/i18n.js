@@ -179,7 +179,7 @@ const i18n = {
         // About & Credits
         about: {
             title: 'DiTiS - v2026.02.22',
-            description: 'Digital Timesheet for Anime Production\nアニメーション制作用デジタルタイムシート\n\n開発: あかつきみさき (SUNRISE MOON)\n\nリリース: 2025年1月'
+            description: 'Digital Timesheet for Anime Production\nアニメーション制作用デジタルタイムシート\n\n開発: あかつきみさき (SUNRISE MOON)'
         },
         
         credits: {
@@ -441,7 +441,7 @@ const i18n = {
         // About & Credits
         about: {
             title: 'DiTiS - v2026.02.22',
-            description: 'Digital Timesheet for Anime Production\nアニメーション制作用デジタルタイムシート\n\nDeveloped by: Misaki Akatsuki (SUNRISE MOON)\n\nRelease: January 2025'
+            description: 'Digital Timesheet for Anime Production\nアニメーション制作用デジタルタイムシート\n\nDeveloped by: Misaki Akatsuki (SUNRISE MOON)'
         },
         
         credits: {
