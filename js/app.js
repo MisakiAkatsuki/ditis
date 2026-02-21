@@ -1084,7 +1084,10 @@ window.handleMenuEvent = async function(menuId) {
         },
         'show-about': () => {
             const about = i18n[getCurrentLanguage()].about;
-            alert(`${about.title}\n\n${about.description}`);
+            const ver = window.DITIS_VERSION || 'v2026.02.22';
+            const build = window.DITIS_BUILD ?? '';
+            const title = `DiTiS - ${ver} (build ${build})`;
+            alert(`${title}\n\n${about.description}`);
         },
         'check-updates': async () => {
             // 手動で更新をチェック
