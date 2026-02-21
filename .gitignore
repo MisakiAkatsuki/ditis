@@ -1,0 +1,67 @@
+# Dependencies
+node_modules/
+
+# Rust build artifacts
+src-tauri/target/
+
+# Old/archived files
+old/
+
+# Signing keys (NEVER commit)
+keys
+keys.pub
+
+# OS generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+logs/
+*.log
+
+# Build output
+dist/
+
+# Test outputs
+test-output*.txt
+test-wasd*.txt
+test-render.html
+
+# Temp/backup files
+*.json.bak
+*.backup
+*.tmp
+*.bak
+
+# Session files
+.copilot/
+
+# 開発時の内部ドキュメント・スクリプト（リポジトリ不要）
+CHANGELOG.md
+docs/
+tools/sts-parser/
+
+# Sample data files
+*.ditis
+
+# AE関連（不要ファイル）
+website_sample.aep
+website_sample2.aep
+website_sample2.aepログ/
+Adobe After Effects 自動保存/
+
+# website（別リポジトリ管理）
+website/
+
+# Copilot内部ファイル
+AGENTS.md
+
+# Test result files
+test/test-result*
+test/*.png

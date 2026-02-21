@@ -1,0 +1,76 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "DiTiS",
+  "version": "26.222.0",
+  "identifier": "com.ditis.application",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npx serve dist -l 1420 --no-clipboard",
+    "beforeBuildCommand": "node tools/bump-version.js && node tools/sync-dist.js"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "DiTiS - v2026.02.22",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 600,
+        "minHeight": 400,
+        "resizable": true,
+        "fullscreen": false,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src ipc: http://ipc.localhost https://github.com"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "dmg", "app", "deb", "rpm", "appimage"],
+    "createUpdaterArtifacts": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "ext": [
+          "ditis"
+        ],
+        "name": "DiTiS Timesheet",
+        "description": "DiTiS Digital Timesheet File",
+        "mimeType": "application/x-ditis"
+      }
+    ],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "languages": [
+          "Japanese"
+        ],
+        "installMode": "perMachine"
+      },
+      "wix": {
+        "language": [
+          "ja-JP",
+          "en-US"
+        ]
+      }
+    },
+    "publisher": "SUNRISE MOON"
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/MisakiAkatsuki/ditis/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDIxMzREODU5NUVCNTQ2QTMKUldTalJyVmVXZGcwSVdYK05FU1BIQVB5VjFqcU5YbjEvV2V4d0tKVWFaMVpqWjI3L1Qxc05rRkwK"
+    }
+  }
+}

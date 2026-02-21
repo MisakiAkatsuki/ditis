@@ -1,0 +1,42 @@
+{
+  "name": "ditis",
+  "version": "20260222",
+  "build": 0,
+  "description": "DiTiS - Digital Timesheet for anime production, converts to After Effects time remapping",
+  "main": "js/app.js",
+  "type": "module",
+  "keywords": [
+    "anime",
+    "timesheet",
+    "after-effects",
+    "animation",
+    "production"
+  ],
+  "author": "DiTiS Project",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MisakiAkatsuki/ditis.git"
+  },
+  "scripts": {
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "node test/comprehensive-test.js",
+    "version:sync": "node tools/bump-version.js",
+    "sync": "node tools/sync-dist.js",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "build:custom": "node fix-nsis-build.cjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.9.6",
+    "@vitest/ui": "^4.0.17",
+    "jsdom": "^27.4.0",
+    "puppeteer": "^24.35.0",
+    "serve": "^14.2.5",
+    "vitest": "^4.0.17"
+  }
+}

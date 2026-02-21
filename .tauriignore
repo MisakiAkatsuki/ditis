@@ -1,0 +1,10 @@
+src-tauri/
+node_modules/
+test/
+.git/
+.vscode/
+*.log
+*.md
+package.json
+package-lock.json
+vitest.config.js

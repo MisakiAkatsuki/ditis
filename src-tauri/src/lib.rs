@@ -1,0 +1,1285 @@
+use tauri::menu::{MenuBuilder, SubmenuBuilder, MenuItemBuilder, PredefinedMenuItem, CheckMenuItemBuilder, CheckMenuItem};
+use tauri::{Manager, Runtime, Emitter};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+// メニューテキスト定義
+struct MenuTexts {
+    file: String,
+    file_new: String,
+    file_open: String,
+    file_save: String,
+    file_save_as: String,
+    file_export_jsx: String,
+    file_close: String,
+    file_close_all: String,
+    file_print: String,
+    file_quit: String,
+    edit: String,
+    edit_undo: String,
+    edit_redo: String,
+    sheet: String,
+    sheet_settings: String,
+    sheet_change_duration: String,
+    sheet_change_fps: String,
+    sheet_change_frame_page: String,
+    sheet_change_columns: String,
+    sheet_reset_column_names: String,
+    sheet_send_to_ae: String,
+    sheet_get_from_ae: String,
+    sheet_clear: String,
+    view: String,
+    view_reload: String,
+    view_frame_display: String,
+    view_frame_all: String,
+    view_frame_odd: String,
+    view_frame_even: String,
+    view_header_mode: String,
+    view_header_detail: String,
+    view_header_simple: String,
+    view_display_size: String,
+    view_size_xsmall: String,
+    view_size_small: String,
+    view_size_normal: String,
+    view_size_large: String,
+    view_size_xlarge: String,
+    view_language: String,
+    view_language_ja: String,
+    view_language_en: String,
+    view_reset: String,
+    view_theme: String,
+    view_theme_light: String,
+    view_theme_dark: String,
+    view_theme_green: String,
+    view_always_on_top: String,
+    view_auto_scroll: String,
+    sheet_new_sheet_dialog: String,
+    view_intermediate_headers: String,
+    #[allow(dead_code)]
+    edit_ae_settings: String,
+    #[allow(dead_code)]
+    edit_ae_empty_blind: String,
+    #[allow(dead_code)]
+    edit_ae_empty_timeremap: String,
+    help: String,
+    help_show: String,
+    help_check_updates: String,
+    help_auto_check_updates: String,
+    help_about: String,
+    #[allow(dead_code)]
+    debug: String,
+    #[allow(dead_code)]
+    debug_mode: String,
+    #[allow(dead_code)]
+    debug_export_logs: String,
+}
+
+impl MenuTexts {
+    fn new(lang: &str) -> Self {
+        if lang == "en" {
+            Self {
+                file: "File".to_string(),
+                file_new: "New".to_string(),
+                file_open: "Open".to_string(),
+                file_save: "Save".to_string(),
+                file_save_as: "Save As...".to_string(),
+                file_export_jsx: "Export as ExtendScript".to_string(),
+                file_close: "Close".to_string(),
+                file_close_all: "Close All Sheets".to_string(),
+                file_print: "Print...".to_string(),
+                file_quit: "Quit".to_string(),
+                edit: "Edit".to_string(),
+                edit_undo: "Undo".to_string(),
+                edit_redo: "Redo".to_string(),
+                sheet: "Sheet".to_string(),
+                sheet_settings: "Sheet Settings".to_string(),
+                sheet_change_duration: "Change Duration".to_string(),
+                sheet_change_fps: "Change Frame Rate".to_string(),
+                sheet_change_frame_page: "Change Frames per Page".to_string(),
+                sheet_change_columns: "Change Column Count".to_string(),
+                sheet_reset_column_names: "Reset Column Names".to_string(),
+                sheet_send_to_ae: "Send to After Effects".to_string(),
+                sheet_get_from_ae: "Get Time Remap from AE".to_string(),
+                sheet_clear: "Clear Sheet".to_string(),
+                view: "View".to_string(),
+                view_reload: "Reload Page".to_string(),
+                view_frame_display: "Row Header: Frames".to_string(),
+                view_frame_all: "All Frames".to_string(),
+                view_frame_odd: "Odd Frames Only".to_string(),
+                view_frame_even: "Even Frames Only".to_string(),
+                view_header_mode: "Row Header: Format".to_string(),
+                view_header_detail: "Timesheet Mode".to_string(),
+                view_header_simple: "Sequential Mode".to_string(),
+                view_display_size: "Display Size".to_string(),
+                view_size_xsmall: "Extra Small".to_string(),
+                view_size_small: "Small".to_string(),
+                view_size_normal: "Normal".to_string(),
+                view_size_large: "Large".to_string(),
+                view_size_xlarge: "Extra Large".to_string(),
+                view_language: "Language".to_string(),
+                view_language_ja: "日本語".to_string(),
+                view_language_en: "English".to_string(),
+                view_reset: "Reset View Settings".to_string(),
+                view_theme: "Theme".to_string(),
+                view_theme_light: "Light Theme".to_string(),
+                view_theme_dark: "Dark Theme".to_string(),
+                view_theme_green: "Green Theme".to_string(),
+                view_always_on_top: "Always on Top".to_string(),
+                view_auto_scroll: "Center Selection on Scroll".to_string(),
+                sheet_new_sheet_dialog: "Show Dialog on New Sheet".to_string(),
+                view_intermediate_headers: "Show Frame Headers Between Columns".to_string(),
+                edit_ae_settings: "AE Export Settings".to_string(),
+                edit_ae_empty_blind: "Empty Cell: Venetian Blinds".to_string(),
+                edit_ae_empty_timeremap: "Empty Cell: Time Remap".to_string(),
+                help: "Help".to_string(),
+                help_show: "Help".to_string(),
+                help_check_updates: "Check for Updates".to_string(),
+                help_auto_check_updates: "Check for updates on startup".to_string(),
+                help_about: "About".to_string(),
+                debug: "Debug".to_string(),
+                debug_mode: "Debug Mode".to_string(),
+                debug_export_logs: "Export Logs".to_string(),
+            }
+        } else {
+            // 日本語（デフォルト）
+            Self {
+                file: "ファイル".to_string(),
+                file_new: "新規作成".to_string(),
+                file_open: "開く".to_string(),
+                file_save: "保存".to_string(),
+                file_save_as: "名前を付けて保存...".to_string(),
+                file_export_jsx: "ExtendScriptとして出力".to_string(),
+                file_close: "閉じる".to_string(),
+                file_close_all: "すべてのシートを閉じる".to_string(),
+                file_print: "印刷...".to_string(),
+                file_quit: "終了".to_string(),
+                edit: "編集".to_string(),
+                edit_undo: "元に戻す".to_string(),
+                edit_redo: "やり直し".to_string(),
+                sheet: "シート".to_string(),
+                sheet_settings: "シート設定".to_string(),
+                sheet_change_duration: "尺を変更".to_string(),
+                sheet_change_fps: "フレームレートを変更".to_string(),
+                sheet_change_frame_page: "ページ辺りのコマ数を変更".to_string(),
+                sheet_change_columns: "列数を変更".to_string(),
+                sheet_reset_column_names: "列名を初期化".to_string(),
+                sheet_send_to_ae: "After Effectsに送信".to_string(),
+                sheet_get_from_ae: "After Effectsからタイムリマップを取得".to_string(),
+                sheet_clear: "シートを初期化".to_string(),
+                view: "表示".to_string(),
+                view_reload: "ページを再読み込み".to_string(),
+                view_frame_display: "行ヘッダー：表示するコマ".to_string(),
+                view_frame_all: "すべてのコマ".to_string(),
+                view_frame_odd: "奇数コマのみ".to_string(),
+                view_frame_even: "偶数コマのみ".to_string(),
+                view_header_mode: "行ヘッダー：表示形式".to_string(),
+                view_header_detail: "タイムシート式".to_string(),
+                view_header_simple: "通し番号式".to_string(),
+                view_display_size: "表示サイズ".to_string(),
+                view_size_xsmall: "極小".to_string(),
+                view_size_small: "小".to_string(),
+                view_size_normal: "標準".to_string(),
+                view_size_large: "大".to_string(),
+                view_size_xlarge: "特大".to_string(),
+                view_language: "言語 / Language".to_string(),
+                view_language_ja: "日本語".to_string(),
+                view_language_en: "English".to_string(),
+                view_reset: "表示設定をリセット".to_string(),
+                view_theme: "テーマ".to_string(),
+                view_theme_light: "ライトテーマ".to_string(),
+                view_theme_dark: "ダークテーマ".to_string(),
+                view_theme_green: "グリーンテーマ".to_string(),
+                view_always_on_top: "常に前面に表示".to_string(),
+                view_auto_scroll: "スクロール時に選択を中央表示".to_string(),
+                sheet_new_sheet_dialog: "新規シート作成時にダイアログを表示".to_string(),
+                view_intermediate_headers: "列間にコマヘッダーを表示".to_string(),
+                edit_ae_settings: "AE送信設定".to_string(),
+                edit_ae_empty_blind: "空セル: ブラインドエフェクト".to_string(),
+                edit_ae_empty_timeremap: "空セル: タイムリマップ".to_string(),
+                help: "ヘルプ".to_string(),
+                help_show: "ヘルプ".to_string(),
+                help_check_updates: "更新を確認".to_string(),
+                help_auto_check_updates: "起動時に更新を確認".to_string(),
+                help_about: "このソフトについて".to_string(),
+                debug: "デバッグ".to_string(),
+                debug_mode: "デバッグモード".to_string(),
+                debug_export_logs: "ログを出力".to_string(),
+            }
+        }
+    }
+}
+
+// グローバルなメニューアイテム参照を保存
+struct MenuItems<R: Runtime> {
+    items: Mutex<HashMap<String, CheckMenuItem<R>>>,
+}
+
+impl<R: Runtime> MenuItems<R> {
+    fn new() -> Self {
+        Self {
+            items: Mutex::new(HashMap::new()),
+        }
+    }
+
+    fn insert(&self, id: String, item: CheckMenuItem<R>) {
+        self.items.lock().unwrap().insert(id, item);
+    }
+
+    fn get(&self, id: &str) -> Option<CheckMenuItem<R>> {
+        self.items.lock().unwrap().get(id).cloned()
+    }
+}
+
+
+/// ファイルパスの拡張子を検証（許可された拡張子のみ）
+fn validate_file_path(path: &str) -> Result<(), String> {
+    let allowed_extensions = [".ditis", ".json", ".sts", ".tdts", ".xdts", ".jsx"];
+    let path_lower = path.to_lowercase();
+    if !allowed_extensions.iter().any(|ext| path_lower.ends_with(ext)) {
+        return Err(format!("許可されていないファイル形式です: {}", path));
+    }
+    // パストラバーサル防止
+    if path.contains("..") {
+        return Err("不正なパスが含まれています".to_string());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn save_file(path: String, contents: String) -> Result<(), String> {
+    validate_file_path(&path)?;
+    std::fs::write(&path, contents).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn load_file(path: String) -> Result<String, String> {
+    validate_file_path(&path)?;
+    std::fs::read_to_string(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn load_binary_file(path: String) -> Result<Vec<u8>, String> {
+    validate_file_path(&path)?;
+    std::fs::read(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn save_binary_file(path: String, contents: Vec<u8>) -> Result<(), String> {
+    validate_file_path(&path)?;
+    std::fs::write(&path, contents).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn show_in_folder(path: String) -> Result<(), String> {
+    // パスが空でないか、存在するかを検証
+    if path.is_empty() {
+        return Err("パスが空です".to_string());
+    }
+    let p = std::path::Path::new(&path);
+    if !p.exists() {
+        return Err(format!("パスが存在しません: {}", path));
+    }
+    
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .args(["/select,", &path])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .args(["-R", &path])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(std::path::Path::new(&path).parent().unwrap_or(std::path::Path::new(&path)))
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn update_menu_item_check(app: tauri::AppHandle<tauri::Wry>, menu_id: String, checked: bool) -> Result<(), String> {
+    // アプリの状態からメニューアイテムを取得（Arc<MenuItems>として登録されている）
+    let menu_items = app.state::<Arc<MenuItems<tauri::Wry>>>();
+    
+    // 排他的チェック処理（ラジオボタン的な動作）
+    // checkedがtrueの場合、同じグループの他のアイテムをfalseにする
+    if checked {
+        // フレームフィルターメニューの排他的チェック処理
+        if menu_id.starts_with("frame-filter-") {
+            if let Some(item) = menu_items.get("frame-filter-all") {
+                let _ = item.set_checked(false);
+            }
+            if let Some(item) = menu_items.get("frame-filter-odd") {
+                let _ = item.set_checked(false);
+            }
+            if let Some(item) = menu_items.get("frame-filter-even") {
+                let _ = item.set_checked(false);
+            }
+        }
+        
+        // ヘッダーモードメニューの排他的チェック処理
+        if menu_id.starts_with("header-mode-") {
+            if let Some(item) = menu_items.get("header-mode-detail") {
+                let _ = item.set_checked(false);
+            }
+            if let Some(item) = menu_items.get("header-mode-simple") {
+                let _ = item.set_checked(false);
+            }
+        }
+        
+        // フォントサイズメニューの排他的チェック処理
+        if menu_id.starts_with("font-size-") {
+            if let Some(item) = menu_items.get("font-size-xsmall") {
+                let _ = item.set_checked(false);
+            }
+            if let Some(item) = menu_items.get("font-size-small") {
+                let _ = item.set_checked(false);
+            }
+            if let Some(item) = menu_items.get("font-size-normal") {
+                let _ = item.set_checked(false);
+            }
+            if let Some(item) = menu_items.get("font-size-large") {
+                let _ = item.set_checked(false);
+            }
+            if let Some(item) = menu_items.get("font-size-xlarge") {
+                let _ = item.set_checked(false);
+            }
+        }
+        
+        // テーマメニューの排他的チェック処理
+        if menu_id.starts_with("theme-") {
+            if let Some(item) = menu_items.get("theme-light") {
+                let _ = item.set_checked(false);
+            }
+            if let Some(item) = menu_items.get("theme-dark") {
+                let _ = item.set_checked(false);
+            }
+            if let Some(item) = menu_items.get("theme-green") {
+                let _ = item.set_checked(false);
+            }
+        }
+        
+        // 言語メニューの排他的チェック処理
+        if menu_id.starts_with("language-") {
+            if let Some(item) = menu_items.get("language-ja") {
+                let _ = item.set_checked(false);
+            }
+            if let Some(item) = menu_items.get("language-en") {
+                let _ = item.set_checked(false);
+            }
+        }
+    }
+    
+    if let Some(item) = menu_items.get(&menu_id) {
+        item.set_checked(checked).map_err(|e| e.to_string())?;
+    } else {
+        let err_msg = format!("Menu item not found: {}", menu_id);
+        eprintln!("{}", err_msg);
+        return Err(err_msg);
+    }
+    
+    Ok(())
+}
+
+// Updater commands
+#[tauri::command]
+async fn check_for_updates(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    use tauri_plugin_updater::UpdaterExt;
+    
+    match app.updater().map_err(|e| e.to_string())?.check().await {
+        Ok(Some(update)) => {
+            Ok(serde_json::json!({
+                "available": true,
+                "version": update.version,
+                "date": update.date.map(|d| d.to_string()),
+                "body": update.body
+            }))
+        },
+        Ok(None) => {
+            Ok(serde_json::json!({
+                "available": false
+            }))
+        },
+        Err(e) => Err(format!("Failed to check for updates: {}", e))
+    }
+}
+
+#[tauri::command]
+async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_updater::UpdaterExt;
+    
+    match app.updater().map_err(|e| e.to_string())?.check().await {
+        Ok(Some(update)) => {
+            update.download_and_install(|_chunk_length, _content_length| {
+                // Progress callback - could emit events here
+            }, || {
+                // Download completed callback
+            })
+            .await
+            .map_err(|e| format!("Failed to install update: {}", e))?;
+            
+            Ok(())
+        },
+        Ok(None) => Err("No update available".to_string()),
+        Err(e) => Err(format!("Failed to check for updates: {}", e))
+    }
+}
+
+#[tauri::command]
+fn get_current_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+#[tauri::command]
+async fn rebuild_menu(
+    app: tauri::AppHandle<tauri::Wry>, 
+    lang: String,
+    theme: String,
+    frame_filter: String,
+    header_mode: String,
+    font_size: u32,
+    _debug_mode: bool,
+    always_on_top: bool,
+    auto_scroll: bool,
+    show_new_sheet_dialog: bool,
+    show_intermediate_headers: bool
+) -> Result<(), String> {
+    eprintln!("[rebuild_menu] 開始: lang={}, theme={}, frame_filter={}, header_mode={}, font_size={}, auto_scroll={}, show_new_sheet_dialog={}, show_intermediate_headers={}", 
+        lang, theme, frame_filter, header_mode, font_size, auto_scroll, show_new_sheet_dialog, show_intermediate_headers);
+    
+    let texts = MenuTexts::new(&lang);
+    let _window = app.get_webview_window("main").ok_or("Window not found")?;
+    
+    // MenuItemsへの参照を取得（Arc<MenuItems>として登録されている）
+    let menu_items_state = app.try_state::<Arc<MenuItems<tauri::Wry>>>();
+    
+    eprintln!("[rebuild_menu] メニューを再構築（MenuItems: {}）", 
+        if menu_items_state.is_some() { "更新あり" } else { "更新なし" });
+    
+    // CheckMenuItemを作成するヘルパークロージャ
+    let create_check_item = |id: &str, label: &str, checked: bool| -> Result<CheckMenuItem<tauri::Wry>, String> {
+        let item = CheckMenuItemBuilder::new(label).id(id).checked(checked).build(&app).map_err(|e| e.to_string())?;
+        // MenuItemsが登録されていれば保存
+        if let Some(ref menu_items) = menu_items_state {
+            menu_items.insert(id.to_string(), item.clone());
+            eprintln!("[rebuild_menu] メニューアイテム作成・保存: {} = {}", id, checked);
+        } else {
+            eprintln!("[rebuild_menu] メニューアイテム作成: {} = {}", id, checked);
+        }
+        Ok(item)
+    };
+    
+    // メニューを再構築
+    let menu = MenuBuilder::new(&app)
+        // ファイルメニュー
+        .item(&SubmenuBuilder::new(&app, &texts.file)
+          .item(&MenuItemBuilder::new(&texts.file_new).id("new-sheet").accelerator("Ctrl+N").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.file_open).id("open-file").accelerator("Ctrl+O").build(&app).map_err(|e| e.to_string())?)
+          .separator()
+          .item(&MenuItemBuilder::new(&texts.file_save).id("save-file").accelerator("Ctrl+S").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.file_save_as).id("save-as-file").accelerator("Ctrl+Shift+S").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.file_export_jsx).id("export-jsx").accelerator("Ctrl+Shift+E").build(&app).map_err(|e| e.to_string())?)
+          .separator()
+          .item(&MenuItemBuilder::new(&texts.file_close).id("close-file").accelerator("Ctrl+W").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.file_close_all).id("close-all-sheets").accelerator("Ctrl+Shift+W").build(&app).map_err(|e| e.to_string())?)
+          .separator()
+          .item(&MenuItemBuilder::new(&texts.file_print).id("print-sheet").accelerator("Ctrl+P").build(&app).map_err(|e| e.to_string())?)
+          .separator()
+          .item(&PredefinedMenuItem::quit(&app, Some(&texts.file_quit)).map_err(|e| e.to_string())?)
+          .build().map_err(|e| e.to_string())?)
+        // 編集メニュー
+        .item(&SubmenuBuilder::new(&app, &texts.edit)
+          .item(&MenuItemBuilder::new(&texts.edit_undo).id("undo").accelerator("Ctrl+Z").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.edit_redo).id("redo").accelerator("Ctrl+Y").build(&app).map_err(|e| e.to_string())?)
+          .build().map_err(|e| e.to_string())?)
+        // シートメニュー
+        .item(&SubmenuBuilder::new(&app, &texts.sheet)
+          .item(&MenuItemBuilder::new(&texts.sheet_send_to_ae).id("send-to-ae").accelerator("Ctrl+E").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.sheet_get_from_ae).id("get-from-ae").accelerator("Ctrl+I").build(&app).map_err(|e| e.to_string())?)
+          .separator()
+          .item(&MenuItemBuilder::new(&texts.sheet_settings).id("sheet-settings").accelerator("Ctrl+OemComma").build(&app).map_err(|e| e.to_string())?)
+          .item(&create_check_item("show-new-sheet-dialog", &texts.sheet_new_sheet_dialog, show_new_sheet_dialog)?)
+          .separator()
+          .item(&MenuItemBuilder::new(&texts.sheet_change_duration).id("change-duration").accelerator("Ctrl+Shift+D").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.sheet_change_fps).id("change-fps").accelerator("Ctrl+Shift+F").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.sheet_change_frame_page).id("change-frame-page").accelerator("Ctrl+Shift+P").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.sheet_change_columns).id("change-max-columns").accelerator("Ctrl+Shift+C").build(&app).map_err(|e| e.to_string())?)
+          .separator()
+          .item(&MenuItemBuilder::new(&texts.sheet_reset_column_names).id("reset-column-names").build(&app).map_err(|e| e.to_string())?)
+          .separator()
+          .item(&MenuItemBuilder::new(&texts.sheet_clear).id("clear-sheet").build(&app).map_err(|e| e.to_string())?)
+          .build().map_err(|e| e.to_string())?)
+        // 表示メニュー
+        .item(&SubmenuBuilder::new(&app, &texts.view)
+          .item(&create_check_item("auto-scroll", &texts.view_auto_scroll, auto_scroll)?)
+          .item(&create_check_item("always-on-top", &texts.view_always_on_top, always_on_top)?)
+          .separator()
+          .item(&SubmenuBuilder::new(&app, &texts.view_frame_display)
+            .item(&create_check_item("frame-filter-all", &texts.view_frame_all, frame_filter == "all")?)
+            .item(&create_check_item("frame-filter-odd", &texts.view_frame_odd, frame_filter == "odd")?)
+            .item(&create_check_item("frame-filter-even", &texts.view_frame_even, frame_filter == "even")?)
+            .build().map_err(|e| e.to_string())?)
+          .item(&SubmenuBuilder::new(&app, &texts.view_header_mode)
+            .item(&create_check_item("header-mode-detail", &texts.view_header_detail, header_mode == "detail")?)
+            .item(&create_check_item("header-mode-simple", &texts.view_header_simple, header_mode == "simple")?)
+            .build().map_err(|e| e.to_string())?)
+          .separator()
+          .item(&create_check_item("toggle-intermediate-headers", &texts.view_intermediate_headers, show_intermediate_headers)?)
+          .separator()
+          .item(&MenuItemBuilder::new(&texts.view_reset).id("reset-view-settings").build(&app).map_err(|e| e.to_string())?)
+          .separator()
+          .item(&SubmenuBuilder::new(&app, &texts.view_display_size)
+            .item(&create_check_item("font-size-xsmall", &texts.view_size_xsmall, font_size == 8)?)
+            .item(&create_check_item("font-size-small", &texts.view_size_small, font_size == 10)?)
+            .item(&create_check_item("font-size-normal", &texts.view_size_normal, font_size == 12)?)
+            .item(&create_check_item("font-size-large", &texts.view_size_large, font_size == 14)?)
+            .item(&create_check_item("font-size-xlarge", &texts.view_size_xlarge, font_size == 16)?)
+            .build().map_err(|e| e.to_string())?)
+          .item(&SubmenuBuilder::new(&app, &texts.view_theme)
+            .item(&create_check_item("theme-light", &texts.view_theme_light, theme == "light")?)
+            .item(&create_check_item("theme-dark", &texts.view_theme_dark, theme == "dark")?)
+            .item(&create_check_item("theme-green", &texts.view_theme_green, theme == "green")?)
+            .build().map_err(|e| e.to_string())?)
+          .item(&SubmenuBuilder::new(&app, &texts.view_language)
+            .item(&create_check_item("language-ja", &texts.view_language_ja, lang == "ja")?)
+            .item(&create_check_item("language-en", &texts.view_language_en, lang == "en")?)
+            .build().map_err(|e| e.to_string())?)
+          .separator()
+          .item(&MenuItemBuilder::new(&texts.view_reload).id("reload-page").accelerator("Ctrl+Shift+R").build(&app).map_err(|e| e.to_string())?)
+          .build().map_err(|e| e.to_string())?)
+        // ヘルプメニュー
+        .item(&SubmenuBuilder::new(&app, &texts.help)
+          .item(&MenuItemBuilder::new(&texts.help_show).id("show-help").accelerator("F1").build(&app).map_err(|e| e.to_string())?)
+          .separator()
+          .item(&MenuItemBuilder::new(&texts.help_check_updates).id("check-updates").build(&app).map_err(|e| e.to_string())?)
+          .item(&create_check_item("auto-check-updates", &texts.help_auto_check_updates, true)?)
+          .separator()
+          .item(&MenuItemBuilder::new(&texts.help_about).id("show-about").build(&app).map_err(|e| e.to_string())?)
+          .build().map_err(|e| e.to_string())?);
+    
+    // デバッグメニュー（デバッグビルドのみ表示）
+    #[cfg(debug_assertions)]
+    let menu = menu.item(&SubmenuBuilder::new(&app, &texts.debug)
+          .item(&create_check_item("toggle-debug", &texts.debug_mode, _debug_mode)?)
+          .item(&MenuItemBuilder::new(&texts.debug_export_logs).id("export-logs").build(&app).map_err(|e| e.to_string())?)
+          .build().map_err(|e| e.to_string())?);    
+    let menu = menu.build().map_err(|e| e.to_string())?;
+    
+    // メニューを設定
+    app.set_menu(menu).map_err(|e| e.to_string())?;
+    
+    eprintln!("[rebuild_menu] 完了");
+    Ok(())
+}
+
+#[tauri::command]
+async fn set_always_on_top<R: Runtime>(app: tauri::AppHandle<R>, always_on_top: bool) -> Result<(), String> {
+    println!("set_always_on_top called: {}", always_on_top);
+    
+    if let Some(window) = app.get_webview_window("main") {
+        window.set_always_on_top(always_on_top).map_err(|e| e.to_string())?;
+        println!("Always on top set to: {}", always_on_top);
+    }
+    
+    Ok(())
+}
+
+#[tauri::command]
+async fn set_window_title<R: Runtime>(app: tauri::AppHandle<R>, title: String) -> Result<(), String> {
+    println!("set_window_title called: {}", title);
+    
+    if let Some(window) = app.get_webview_window("main") {
+        window.set_title(&title).map_err(|e| e.to_string())?;
+        println!("Window title set to: {}", title);
+    }
+    
+    Ok(())
+}
+
+#[tauri::command]
+async fn execute_after_effects_script(script_content: String) -> Result<(), String> {
+    // 一時ファイルを作成
+    let temp_dir = std::env::temp_dir();
+    let temp_file = temp_dir.join("DiTiS_temp.jsx");
+    
+    // スクリプトを一時ファイルに書き込み
+    std::fs::write(&temp_file, script_content)
+        .map_err(|e| format!("一時ファイル作成エラー: {}", e))?;
+    
+    // Windows以外は未対応
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = std::fs::remove_file(&temp_file);
+        return Err("このOS環境ではサポートされていません".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let ae_info = find_active_after_effects()?;
+        println!("Using After Effects (PID: {}): {}", ae_info.pid, ae_info.exe_path);
+        let status = std::process::Command::new(&ae_info.exe_path)
+            .arg("-r")
+            .arg(&temp_file)
+            .status()
+            .map_err(|e| format!("After Effects実行エラー: {}", e))?;
+        let _ = std::fs::remove_file(&temp_file);
+        if status.success() {
+            Ok(())
+        } else {
+            Err(format!("After Effectsがスクリプトの実行に失敗しました。\nExitCode: {:?}", status.code()))
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+struct AfterEffectsInfo {
+    pid: u32,
+    exe_path: String,
+}
+
+#[cfg(target_os = "windows")]
+fn find_active_after_effects() -> Result<AfterEffectsInfo, String> {
+    use windows::Win32::Foundation::{HWND, LPARAM, BOOL};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        GetForegroundWindow, EnumWindows, GetWindowThreadProcessId, IsWindowVisible,
+    };
+    use sysinfo::System;
+    use std::collections::HashMap;
+    
+    // 実行中のAfterFX.exeプロセスを取得
+    let mut system = System::new_all();
+    system.refresh_all();
+    
+    let mut ae_processes: HashMap<u32, String> = HashMap::new();
+    
+    for (pid, process) in system.processes() {
+        let process_name = process.name();
+        
+        if process_name.eq_ignore_ascii_case("AfterFX.exe") || process_name.eq_ignore_ascii_case("AfterFX") {
+            if let Some(exe_path) = process.exe() {
+                let pid_u32 = pid.as_u32();
+                ae_processes.insert(pid_u32, exe_path.to_string_lossy().to_string());
+                println!("Found running After Effects (PID: {}): {}", pid_u32, exe_path.display());
+            }
+        }
+    }
+    
+    if ae_processes.is_empty() {
+        return Err("起動中のAfter Effectsが見つかりませんでした".to_string());
+    }
+    
+    // 単一のAEプロセスの場合はそれを使用
+    if ae_processes.len() == 1 {
+        let (pid, exe_path) = ae_processes.into_iter().next().unwrap();
+        return Ok(AfterEffectsInfo { pid, exe_path });
+    }
+    
+    // 複数のAEプロセスがある場合、アクティブなウィンドウを探す
+    unsafe {
+        // まず、フォアグラウンドウィンドウをチェック
+        let foreground_hwnd = GetForegroundWindow();
+        if !foreground_hwnd.is_invalid() {
+            let mut pid: u32 = 0;
+            GetWindowThreadProcessId(foreground_hwnd, Some(&mut pid as *mut u32));
+            if let Some(exe_path) = ae_processes.get(&pid) {
+                println!("Foreground window is After Effects (PID: {})", pid);
+                return Ok(AfterEffectsInfo { pid, exe_path: exe_path.clone() });
+            }
+        }
+        
+        // フォアグラウンドがAEでない場合、Z-orderで最前面のAEウィンドウを探す
+        let ae_pids_clone = ae_processes.keys().copied().collect::<Vec<u32>>();
+        // 未使用の変数を削除（将来的な機能拡張のため保持）
+        
+        // EnumWindowsのコールバック用の構造体
+        struct EnumData {
+            ae_pids: Vec<u32>,
+            found_pid: Option<u32>,
+        }
+        
+        let mut enum_data = EnumData {
+            ae_pids: ae_pids_clone,
+            found_pid: None,
+        };
+        
+        extern "system" fn enum_window_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
+            unsafe {
+                let data = &mut *(lparam.0 as *mut EnumData);
+                
+                // 可視ウィンドウのみチェック
+                if IsWindowVisible(hwnd).as_bool() {
+                    let mut pid: u32 = 0;
+                    GetWindowThreadProcessId(hwnd, Some(&mut pid as *mut u32));
+                    
+                    // AEプロセスのウィンドウか確認
+                    if data.ae_pids.contains(&pid) {
+                        data.found_pid = Some(pid);
+                        return BOOL(0); // 列挙を停止
+                    }
+                }
+                
+                BOOL(1) // 列挙を続ける
+            }
+        }
+        
+        let lparam = LPARAM(&mut enum_data as *mut EnumData as isize);
+        let _ = EnumWindows(Some(enum_window_proc), lparam);
+        
+        if let Some(pid) = enum_data.found_pid {
+            if let Some(exe_path) = ae_processes.get(&pid) {
+                println!("Found active After Effects by Z-order (PID: {})", pid);
+                return Ok(AfterEffectsInfo { pid, exe_path: exe_path.clone() });
+            }
+        }
+        
+        // どれも見つからない場合は最初のAEを使用
+        let (pid, exe_path) = ae_processes.into_iter().next().unwrap();
+        println!("Using first After Effects process (PID: {})", pid);
+        Ok(AfterEffectsInfo { pid, exe_path })
+    }
+}
+
+/// AEからタイムリマップデータを取得する
+/// 1. TCPサーバーを起動
+/// 2. JSXを生成してAEで実行
+/// 3. AEからのSocket接続を待機してデータを受信
+#[tauri::command]
+async fn get_timeremap_from_ae() -> Result<String, String> {
+    use std::net::TcpListener;
+    
+    const PORT: u16 = 31715;  // DiTiS = 31715
+    
+    eprintln!("[get_timeremap_from_ae] 開始");
+    
+    // 1. TCPサーバーを起動
+    let listener = TcpListener::bind(format!("127.0.0.1:{}", PORT))
+        .map_err(|e| format!("サーバー起動エラー: {}", e))?;
+    
+    // タイムアウト設定（30秒）
+    listener.set_nonblocking(false).ok();
+    
+    eprintln!("[get_timeremap_from_ae] TCPサーバー起動: port {}", PORT);
+    
+    // 2. JSXを生成
+    let jsx = generate_get_timeremap_jsx(PORT);
+    
+    // 3. 一時ファイルに保存
+    let temp_dir = std::env::temp_dir();
+    let temp_file = temp_dir.join("ditis_get_timeremap.jsx");
+    std::fs::write(&temp_file, &jsx)
+        .map_err(|e| format!("一時ファイル作成エラー: {}", e))?;
+    
+    eprintln!("[get_timeremap_from_ae] JSX生成完了: {:?}", temp_file);
+    
+    // 4. After Effectsを検出してJSXを実行 / 接続待機 / データ受信（Windows専用）
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = std::fs::remove_file(&temp_file);
+        return Err("このOS環境ではサポートされていません".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::io::Read;
+        use std::time::Duration;
+        let ae_info = find_active_after_effects()?;
+        eprintln!("[get_timeremap_from_ae] AE実行: {}", ae_info.exe_path);
+
+        let _child = std::process::Command::new(&ae_info.exe_path)
+            .arg("-r")
+            .arg(&temp_file)
+            .spawn()
+            .map_err(|e| format!("After Effects実行エラー: {}", e))?;
+
+        // 5. 接続待機（タイムアウト付き）
+        let accept_result = std::thread::spawn(move || {
+            listener.set_nonblocking(false).ok();
+            let start = std::time::Instant::now();
+            let timeout = Duration::from_secs(30);
+            loop {
+                listener.set_nonblocking(true).ok();
+                match listener.accept() {
+                    Ok((stream, _)) => return Ok(stream),
+                    Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        if start.elapsed() > timeout {
+                            return Err("接続タイムアウト: After Effectsからの応答がありませんでした".to_string());
+                        }
+                        std::thread::sleep(Duration::from_millis(100));
+                    }
+                    Err(e) => return Err(format!("接続エラー: {}", e)),
+                }
+            }
+        }).join().map_err(|_| "スレッドエラー".to_string())??;
+
+        let mut stream = accept_result;
+        eprintln!("[get_timeremap_from_ae] AEから接続を受信");
+
+        // 6. データ受信
+        stream.set_read_timeout(Some(Duration::from_secs(10))).ok();
+        let mut response = Vec::new();
+        let mut buf = [0u8; 4096];
+        loop {
+            match stream.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => response.extend_from_slice(&buf[..n]),
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
+                Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => break,
+                Err(e) => return Err(format!("データ受信エラー: {}", e)),
+            }
+        }
+
+        let response = String::from_utf8(response)
+            .map_err(|e| format!("UTF-8変換エラー: {}", e))?;
+        let _ = std::fs::remove_file(&temp_file);
+        eprintln!("[get_timeremap_from_ae] データ受信完了: {} bytes", response.len());
+        Ok(response)
+    }
+}
+
+/// タイムリマップ取得用のJSXを生成
+fn generate_get_timeremap_jsx(port: u16) -> String {
+    format!(r#"(function() {{
+    var DITIS_PORT = {};
+    
+    // 文字列をエスケープ（JSON用）
+    function escapeString(str) {{
+        if (str == null) return "";
+        str = String(str);
+        return str.replace(/\\/g, "\\\\")
+                  .replace(/"/g, '\\"')
+                  .replace(/\n/g, "\\n")
+                  .replace(/\r/g, "\\r")
+                  .replace(/\t/g, "\\t");
+    }}
+    
+    // エラー送信
+    function sendError(message) {{
+        var socket = new Socket();
+        socket.encoding = "UTF-8";
+        if (socket.open("127.0.0.1:" + DITIS_PORT)) {{
+            socket.write('{{"error":"' + escapeString(message) + '"}}');
+            socket.close();
+        }} else {{
+            alert("DiTiSに接続できませんでした: " + message);
+        }}
+    }}
+    
+    // データ送信（手動JSON生成）
+    function sendData(fps, duration, compName, layers) {{
+        var json = '{{';
+        json += '"fps":' + fps + ',';
+        json += '"duration":' + duration + ',';
+        json += '"compName":"' + escapeString(compName) + '",';
+        json += '"layers":[';
+        
+        for (var i = 0; i < layers.length; i++) {{
+            if (i > 0) json += ',';
+            var layer = layers[i];
+            json += '{{';
+            json += '"layerName":"' + escapeString(layer.name) + '",';
+            json += '"layerIndex":' + layer.index + ',';
+            json += '"keyframes":[';
+            
+            for (var k = 0; k < layer.keyframes.length; k++) {{
+                if (k > 0) json += ',';
+                var kf = layer.keyframes[k];
+                json += '{{"time":' + kf.time + ',"value":' + kf.value + '}}';
+            }}
+            
+            json += ']}}';
+        }}
+        
+        json += ']}}';
+        
+        var socket = new Socket();
+        socket.encoding = "UTF-8";
+        if (socket.open("127.0.0.1:" + DITIS_PORT)) {{
+            socket.write(json);
+            socket.close();
+        }} else {{
+            alert("DiTiSに接続できませんでした");
+        }}
+    }}
+    
+    try {{
+        var comp = app.project.activeItem;
+        if (!comp || !(comp instanceof CompItem)) {{
+            sendError("コンポジションを選択してください");
+            return;
+        }}
+        
+        var layers = comp.selectedLayers;
+        if (layers.length === 0) {{
+            sendError("レイヤーを選択してください");
+            return;
+        }}
+        
+        var result = [];
+        var hasTimeRemap = false;
+        
+        for (var i = 0; i < layers.length; i++) {{
+            var layer = layers[i];
+            var timeRemap = layer.property("ADBE Time Remapping");
+            
+            if (!timeRemap || timeRemap.numKeys === 0) {{
+                continue;  // タイムリマップなし
+            }}
+            
+            hasTimeRemap = true;
+            var keyframes = [];
+            
+            for (var k = 1; k <= timeRemap.numKeys; k++) {{
+                keyframes.push({{
+                    time: timeRemap.keyTime(k),
+                    value: timeRemap.keyValue(k)
+                }});
+            }}
+            
+            result.push({{
+                name: layer.name,
+                index: layer.index,
+                keyframes: keyframes
+            }});
+        }}
+        
+        if (!hasTimeRemap) {{
+            sendError("選択したレイヤーにタイムリマップが設定されていません");
+            return;
+        }}
+        
+        sendData(comp.frameRate, comp.duration, comp.name, result);
+        
+    }} catch (e) {{
+        sendError("エラー: " + e.toString());
+    }}
+}})();
+"#, port)
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+  // メニューアイテム参照を保存するための構造体を初期化（setup前に登録）
+  let menu_items: Arc<MenuItems<tauri::Wry>> = Arc::new(MenuItems::new());
+  let menu_items_for_setup = menu_items.clone();
+  
+  tauri::Builder::default()
+    .plugin(tauri_plugin_updater::Builder::new().build())
+    .plugin(tauri_plugin_dialog::init())
+    .plugin(tauri_plugin_fs::init())
+    .manage(menu_items)
+    .invoke_handler(tauri::generate_handler![
+        save_file,
+        load_file,
+        load_binary_file,
+        save_binary_file,
+        show_in_folder,
+        update_menu_item_check,
+        rebuild_menu,
+        set_always_on_top,
+        set_window_title,
+        execute_after_effects_script,
+        get_timeremap_from_ae,
+        check_for_updates,
+        install_update,
+        get_current_version
+    ])
+    .setup(move |app| {
+      if cfg!(debug_assertions) {
+        app.handle().plugin(
+          tauri_plugin_log::Builder::default()
+            .level(log::LevelFilter::Info)
+            .build(),
+        )?;
+      }
+
+      // menu_items_for_setupを使用（Builderで既にmanage済み）
+      let menu_items_for_closure = menu_items_for_setup.clone();
+
+      // CheckMenuItemを作成して保存するヘルパー関数
+      let create_check_item = |id: &str, label: &str, checked: bool| -> Result<_, tauri::Error> {
+        let item = CheckMenuItemBuilder::new(label).id(id).checked(checked).build(app)?;
+        menu_items_for_closure.insert(id.to_string(), item.clone());
+        Ok(item)
+      };
+
+      // ネイティブメニューバーの構築
+      let menu = MenuBuilder::new(app)
+        // ファイルメニュー
+        .item(&SubmenuBuilder::new(app, "ファイル")
+          .item(&MenuItemBuilder::new("新規作成").id("new-sheet").accelerator("Ctrl+N").build(app)?)
+          .item(&MenuItemBuilder::new("開く").id("open-file").accelerator("Ctrl+O").build(app)?)
+          .separator()
+          .item(&MenuItemBuilder::new("保存").id("save-file").accelerator("Ctrl+S").build(app)?)
+          .item(&MenuItemBuilder::new("名前を付けて保存...").id("save-as-file").accelerator("Ctrl+Shift+S").build(app)?)
+          .item(&MenuItemBuilder::new("ExtendScriptとして出力").id("export-jsx").accelerator("Ctrl+Shift+E").build(app)?)
+          .separator()
+          .item(&MenuItemBuilder::new("閉じる").id("close-file").accelerator("Ctrl+W").build(app)?)
+          .item(&MenuItemBuilder::new("すべてのシートを閉じる").id("close-all-sheets").accelerator("Ctrl+Shift+W").build(app)?)
+          .separator()
+          .item(&MenuItemBuilder::new("印刷...").id("print-sheet").accelerator("Ctrl+P").build(app)?)
+          .separator()
+          .item(&PredefinedMenuItem::quit(app, Some("終了"))?)
+          .build()?)
+        // 編集メニュー
+        .item(&SubmenuBuilder::new(app, "編集")
+          .item(&MenuItemBuilder::new("元に戻す").id("undo").accelerator("Ctrl+Z").build(app)?)
+          .item(&MenuItemBuilder::new("やり直し").id("redo").accelerator("Ctrl+Y").build(app)?)
+          .build()?)
+        // シートメニュー
+        .item(&SubmenuBuilder::new(app, "シート")
+          .item(&MenuItemBuilder::new("After Effectsに送信").id("send-to-ae").accelerator("Ctrl+E").build(app)?)
+          .item(&MenuItemBuilder::new("After Effectsからタイムリマップを取得").id("get-from-ae").accelerator("Ctrl+I").build(app)?)
+          .separator()
+          .item(&MenuItemBuilder::new("シート設定").id("sheet-settings").accelerator("Ctrl+OemComma").build(app)?)
+          .item(&create_check_item("show-new-sheet-dialog", "新規シート作成時にダイアログを表示", true)?)
+          .separator()
+          .item(&MenuItemBuilder::new("尺を変更").id("change-duration").accelerator("Ctrl+Shift+D").build(app)?)
+          .item(&MenuItemBuilder::new("フレームレートを変更").id("change-fps").accelerator("Ctrl+Shift+F").build(app)?)
+          .item(&MenuItemBuilder::new("ページ辺りのコマ数を変更").id("change-frame-page").accelerator("Ctrl+Shift+P").build(app)?)
+          .item(&MenuItemBuilder::new("列数を変更").id("change-max-columns").accelerator("Ctrl+Shift+C").build(app)?)
+          .separator()
+          .item(&MenuItemBuilder::new("列名を初期化").id("reset-column-names").build(app)?)
+          .separator()
+          .item(&MenuItemBuilder::new("シートを初期化").id("clear-sheet").build(app)?)
+          .build()?)
+        // 表示メニュー
+        .item(&SubmenuBuilder::new(app, "表示")
+          .item(&create_check_item("auto-scroll", "スクロール時に選択を中央表示", true)?)
+          .item(&create_check_item("always-on-top", "常に前面に表示", false)?)
+          .separator()
+          .item(&SubmenuBuilder::new(app, "行ヘッダー：表示するコマ")
+            .item(&create_check_item("frame-filter-all", "すべてのコマ", true)?)
+            .item(&create_check_item("frame-filter-odd", "奇数コマのみ", false)?)
+            .item(&create_check_item("frame-filter-even", "偶数コマのみ", false)?)
+            .build()?)
+          .item(&SubmenuBuilder::new(app, "行ヘッダー：表示形式")
+            .item(&create_check_item("header-mode-detail", "タイムシート式", true)?)
+            .item(&create_check_item("header-mode-simple", "通し番号式", false)?)
+            .build()?)
+          .separator()
+          .item(&create_check_item("toggle-intermediate-headers", "列間にコマヘッダーを表示", false)?)
+          .separator()
+          .item(&MenuItemBuilder::new("表示設定をリセット").id("reset-view-settings").build(app)?)
+          .separator()
+          .item(&SubmenuBuilder::new(app, "表示サイズ")
+            .item(&create_check_item("font-size-xsmall", "極小", false)?)
+            .item(&create_check_item("font-size-small", "小", false)?)
+            .item(&create_check_item("font-size-normal", "標準", true)?)
+            .item(&create_check_item("font-size-large", "大", false)?)
+            .item(&create_check_item("font-size-xlarge", "特大", false)?)
+            .build()?)
+          .item(&SubmenuBuilder::new(app, "テーマ")
+            .item(&create_check_item("theme-light", "ライトテーマ", true)?)
+            .item(&create_check_item("theme-dark", "ダークテーマ", false)?)
+            .item(&create_check_item("theme-green", "グリーンテーマ", false)?)
+            .build()?)
+          .item(&SubmenuBuilder::new(app, "言語 / Language")
+            .item(&create_check_item("language-ja", "日本語", true)?)
+            .item(&create_check_item("language-en", "English", false)?)
+            .build()?)
+          .separator()
+          .item(&MenuItemBuilder::new("ページを再読み込み").id("reload-page").accelerator("Ctrl+Shift+R").build(app)?)
+          .build()?)
+        // ヘルプメニュー
+        .item(&SubmenuBuilder::new(app, "ヘルプ")
+          .item(&MenuItemBuilder::new("ヘルプ").id("show-help").accelerator("F1").build(app)?)
+          .separator()
+          .item(&MenuItemBuilder::new("更新を確認").id("check-updates").build(app)?)
+          .item(&create_check_item("auto-check-updates", "起動時に更新を確認", true)?)
+          .separator()
+          .item(&MenuItemBuilder::new("このソフトについて").id("show-about").build(app)?)
+          .build()?);
+      
+      // デバッグメニュー（デバッグビルドのみ表示）
+      #[cfg(debug_assertions)]
+      let menu = menu.item(&SubmenuBuilder::new(app, "デバッグ")
+          .item(&create_check_item("toggle-debug", "デバッグモード", false)?)
+          .item(&MenuItemBuilder::new("ログを出力").id("export-logs").build(app)?)
+          .build()?);
+      
+      let menu = menu.build()?;
+
+      app.set_menu(menu)?;
+
+      // コマンドライン引数からファイルパスを取得（ファイル関連付けからの起動時）
+      let args: Vec<String> = std::env::args().collect();
+      if args.len() > 1 {
+        let file_path = args[1].clone();
+        // .ditisまたは.jsonファイルの場合のみ処理
+        if file_path.ends_with(".ditis") || file_path.ends_with(".json") {
+          eprintln!("[起動] ファイル関連付けからの起動: {}", file_path);
+          // ウィンドウの準備ができたらイベントでファイルパスを送信
+          let app_handle = app.handle().clone();
+          let file_path_for_closure = file_path.clone();
+          std::thread::spawn(move || {
+            // ウィンドウの読み込み完了を待つ
+            std::thread::sleep(std::time::Duration::from_millis(500));
+            let _ = app_handle.emit("open-file", file_path_for_closure.clone());
+            // 再試行
+            std::thread::sleep(std::time::Duration::from_millis(1000));
+            let _ = app_handle.emit("open-file", file_path_for_closure);
+          });
+        }
+      }
+
+      // メニューイベントハンドラ
+      app.on_menu_event(move |app, event| {
+        let menu_id = event.id().as_ref();
+        
+        // 最新のMenuItemsを取得（Arc<MenuItems>として登録されている）
+        let menu_items_state = app.state::<Arc<MenuItems<tauri::Wry>>>();
+        
+        // フレームフィルターメニューの排他的チェック処理
+        if menu_id.starts_with("frame-filter-") {
+          // すべてのフレームフィルターをfalseに
+          if let Some(item) = menu_items_state.get("frame-filter-all") {
+            let _ = item.set_checked(false);
+          }
+          if let Some(item) = menu_items_state.get("frame-filter-odd") {
+            let _ = item.set_checked(false);
+          }
+          if let Some(item) = menu_items_state.get("frame-filter-even") {
+            let _ = item.set_checked(false);
+          }
+          
+          // クリックされた項目だけtrueに
+          if let Some(item) = menu_items_state.get(menu_id) {
+            let _ = item.set_checked(true);
+          }
+        }
+        
+        // ヘッダーモードメニューの排他的チェック処理
+        if menu_id.starts_with("header-mode-") {
+          if let Some(item) = menu_items_state.get("header-mode-detail") {
+            let _ = item.set_checked(false);
+          }
+          if let Some(item) = menu_items_state.get("header-mode-simple") {
+            let _ = item.set_checked(false);
+          }
+          
+          if let Some(item) = menu_items_state.get(menu_id) {
+            let _ = item.set_checked(true);
+          }
+        }
+        
+        // フォントサイズメニューの排他的チェック処理
+        if menu_id.starts_with("font-size-") {
+          if let Some(item) = menu_items_state.get("font-size-xsmall") {
+            let _ = item.set_checked(false);
+          }
+          if let Some(item) = menu_items_state.get("font-size-small") {
+            let _ = item.set_checked(false);
+          }
+          if let Some(item) = menu_items_state.get("font-size-normal") {
+            let _ = item.set_checked(false);
+          }
+          if let Some(item) = menu_items_state.get("font-size-large") {
+            let _ = item.set_checked(false);
+          }
+          if let Some(item) = menu_items_state.get("font-size-xlarge") {
+            let _ = item.set_checked(false);
+          }
+          
+          if let Some(item) = menu_items_state.get(menu_id) {
+            let _ = item.set_checked(true);
+          }
+        }
+        
+        // テーマメニューの排他的チェック処理
+        if menu_id.starts_with("theme-") {
+          eprintln!("[Rust] テーマメニュー処理開始: {}", menu_id);
+          if let Some(item) = menu_items_state.get("theme-light") {
+            eprintln!("[Rust] theme-light: false");
+            match item.set_checked(false) {
+              Ok(_) => eprintln!("[Rust] theme-light チェック解除成功"),
+              Err(e) => eprintln!("[Rust] theme-light チェック解除失敗: {}", e),
+            }
+          } else {
+            eprintln!("[Rust] theme-light が MenuItems に存在しません");
+          }
+          if let Some(item) = menu_items_state.get("theme-dark") {
+            eprintln!("[Rust] theme-dark: false");
+            match item.set_checked(false) {
+              Ok(_) => eprintln!("[Rust] theme-dark チェック解除成功"),
+              Err(e) => eprintln!("[Rust] theme-dark チェック解除失敗: {}", e),
+            }
+          } else {
+            eprintln!("[Rust] theme-dark が MenuItems に存在しません");
+          }
+          if let Some(item) = menu_items_state.get("theme-green") {
+            eprintln!("[Rust] theme-green: false");
+            match item.set_checked(false) {
+              Ok(_) => eprintln!("[Rust] theme-green チェック解除成功"),
+              Err(e) => eprintln!("[Rust] theme-green チェック解除失敗: {}", e),
+            }
+          } else {
+            eprintln!("[Rust] theme-green が MenuItems に存在しません");
+          }
+          
+          if let Some(item) = menu_items_state.get(menu_id) {
+            eprintln!("[Rust] {}: true", menu_id);
+            match item.set_checked(true) {
+              Ok(_) => eprintln!("[Rust] {} チェック設定成功", menu_id),
+              Err(e) => eprintln!("[Rust] {} チェック設定失敗: {}", menu_id, e),
+            }
+          } else {
+            eprintln!("[Rust] {} が MenuItems に存在しません", menu_id);
+          }
+          eprintln!("[Rust] テーマメニュー処理完了");
+        }
+        
+        // 言語メニューの排他的チェック処理
+        if menu_id.starts_with("language-") {
+          eprintln!("[Rust] 言語メニュー処理開始: {}", menu_id);
+          if let Some(item) = menu_items_state.get("language-ja") {
+            match item.set_checked(false) {
+              Ok(_) => eprintln!("[Rust] language-ja チェック解除成功"),
+              Err(e) => eprintln!("[Rust] language-ja チェック解除失敗: {}", e),
+            }
+          }
+          if let Some(item) = menu_items_state.get("language-en") {
+            match item.set_checked(false) {
+              Ok(_) => eprintln!("[Rust] language-en チェック解除成功"),
+              Err(e) => eprintln!("[Rust] language-en チェック解除失敗: {}", e),
+            }
+          }
+          
+          if let Some(item) = menu_items_state.get(menu_id) {
+            match item.set_checked(true) {
+              Ok(_) => eprintln!("[Rust] {} チェック設定成功", menu_id),
+              Err(e) => eprintln!("[Rust] {} チェック設定失敗: {}", menu_id, e),
+            }
+          }
+          eprintln!("[Rust] 言語メニュー処理完了");
+        }
+        
+        let window = app.get_webview_window("main").unwrap();
+        
+        // JavaScriptにメニューIDを送信
+        eprintln!("[Rust] JavaScriptを呼び出し: {}", menu_id);
+        
+        // コンテキストメニューを即座に閉じてから、メニューアクションを実行
+        let script = format!(
+          "if (typeof closeAllContextMenus === 'function') {{ closeAllContextMenus(); }} setTimeout(function() {{ if (window.handleMenuEvent) {{ window.handleMenuEvent('{}'); }} }}, 0);",
+          menu_id
+        );
+        
+        match window.eval(&script) {
+          Ok(_) => eprintln!("[Rust] JavaScript呼び出し成功"),
+          Err(e) => eprintln!("[Rust] JavaScript呼び出しエラー: {:?}", e),
+        }
+      });
+
+      Ok(())
+    })
+    .run(tauri::generate_context!())
+    .expect("error while running tauri application");
+}
