@@ -73,7 +73,7 @@ jobs:
             - **macOS (Apple Silicon)**: `*_aarch64.dmg`
             - **macOS (Intel)**: `*_x64.dmg`
             - **Linux**: `*_amd64.AppImage`
-          releaseDraft: false
+          releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
 
@@ -92,3 +92,13 @@ jobs:
           RELEASE_ID=$(gh api repos/$GH_REPO/releases/tags/$TAG --jq '.id')
           gh api repos/$GH_REPO/releases/$RELEASE_ID/assets --jq '.[] | select(.name | endswith(".sig")) | .id' \
             | xargs -I{} gh api -X DELETE repos/$GH_REPO/releases/assets/{}
+
+      - name: Publish release (un-draft)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          RELEASE_ID=$(gh api repos/$GH_REPO/releases/tags/$TAG --jq '.id')
+          gh api -X PATCH repos/$GH_REPO/releases/$RELEASE_ID \
+            --field draft=false
