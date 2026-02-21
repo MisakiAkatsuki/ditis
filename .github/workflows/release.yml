@@ -93,12 +93,16 @@ jobs:
           RELEASE_ID=$(gh api repos/$GH_REPO/releases \
             --jq ".[] | select(.tag_name == \"$TAG\") | .id")
           echo "Release ID: $RELEASE_ID"
-          
+          if [ -z "$RELEASE_ID" ]; then
+            echo "::error::Release not found for tag $TAG"
+            exit 1
+          fi
+
           # .sig ファイルを削除
           gh api repos/$GH_REPO/releases/$RELEASE_ID/assets \
             --jq '.[] | select(.name | endswith(".sig")) | .id' \
             | xargs -r -I{} gh api -X DELETE repos/$GH_REPO/releases/assets/{}
-          
+
           # ドラフトを公開
           gh api -X PATCH repos/$GH_REPO/releases/$RELEASE_ID \
             --field draft=false

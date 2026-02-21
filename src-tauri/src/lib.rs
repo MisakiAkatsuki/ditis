@@ -416,6 +416,9 @@ async fn check_for_updates(app: tauri::AppHandle) -> Result<serde_json::Value, S
 async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     use tauri_plugin_updater::UpdaterExt;
     
+    // Note: check() is called again here because the Update object cannot be
+    // serialized across IPC. The window between check_for_updates and this call
+    // is typically short, so version mismatch risk is minimal.
     match app.updater().map_err(|e| e.to_string())?.check().await {
         Ok(Some(update)) => {
             let app_clone = app.clone();

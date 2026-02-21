@@ -1106,8 +1106,10 @@ window.handleMenuEvent = async function(menuId) {
                 } else if (updateInfo === null) {
                     showErrorToast(i18n.t('updater.noUpdates'), ErrorLevel.INFO);
                     updateStatusBar(i18n.t('updater.noUpdates'));
+                } else {
+                    // false = エラー（updater.jsでトースト表示済み）
+                    updateStatusBar(i18n.t('status.ready'));
                 }
-                // updateInfo === false はエラー（updater.jsでトースト表示済み）
             }
         },
         'auto-check-updates': async () => {

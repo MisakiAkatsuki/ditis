@@ -650,23 +650,34 @@ async function showUpdateDialog(currentVersion, updateInfo) {
         cancelText: i18n.t('updater.remindLater'),
         extraText: i18n.t('updater.ignoreVersion'),
         onOk: async () => {
-            // Download and install
+            // ダウンロード中はボタンを無効化
+            const okBtn = document.getElementById('dialog-ok-btn');
+            const cancelBtn = document.getElementById('dialog-cancel-btn');
+            const extraBtn = document.getElementById('dialog-extra-btn');
+            if (okBtn) { okBtn.disabled = true; okBtn.textContent = i18n.t('updater.checking'); }
+            if (cancelBtn) cancelBtn.disabled = true;
+            if (extraBtn) extraBtn.disabled = true;
+
             const success = await window.UpdaterAPI.installUpdate();
+
+            // ダイアログを閉じてから再起動ダイアログへ
+            const overlay = document.getElementById('custom-dialog-overlay');
+            if (overlay) overlay.style.display = 'none';
+
             if (success) {
                 showErrorToast(i18n.t('updater.installSuccess'), ErrorLevel.INFO);
-                
-                // Restart prompt
                 showDialog({
                     title: i18n.t('updater.restartTitle'),
                     content: `<p>${i18n.t('updater.restartPrompt')}</p>`,
                     okText: i18n.t('updater.restartNow'),
                     cancelText: i18n.t('updater.restartLater'),
                     onOk: () => {
-                        // Restart app
                         window.__TAURI__.process.relaunch();
                     }
                 });
             }
+            // onOkがPromiseを返すためcloseDialogが呼ばれないようfalseを返す
+            return false;
         },
         onCancel: () => {
             // 「後でリマインド」→何もしない（次回起動時に再度表示）
