@@ -44,6 +44,35 @@ function selectA1(retryCount = 0) {
 }
 
 /**
+ * 座標配列から選択を復元する（DOM再構築後のリトライ対応）
+ * @param {Array<{frame, layerId}>} coords - 復元する座標一覧
+ * @param {number} retryCount - リトライ回数
+ */
+function restoreSelectionCoords(coords, retryCount = 0) {
+    if (!coords || coords.length === 0) {
+        selectA1();
+        return;
+    }
+    clearSelection();
+    let restored = 0;
+    coords.forEach(pos => {
+        const cell = getCellElement(pos.frame, pos.layerId);
+        if (cell) {
+            cell.classList.add('selected');
+            AppState.selectedCells.push({ cell, frame: pos.frame, layerId: pos.layerId });
+            restored++;
+        }
+    });
+    if (restored === 0) {
+        if (retryCount < 3) {
+            requestAnimationFrame(() => restoreSelectionCoords(coords, retryCount + 1));
+        } else {
+            selectA1(); // フォールバック
+        }
+    }
+}
+
+/**
  * セルを選択する
  * @param {HTMLElement} cell - セル要素
  * @param {number} frame - フレーム番号

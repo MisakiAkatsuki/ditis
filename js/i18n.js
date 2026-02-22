@@ -32,7 +32,14 @@ const i18n = {
             edit: {
                 title: '編集',
                 undo: '元に戻す (Ctrl+Z)',
-                redo: 'やり直し (Ctrl+Y)'
+                redo: 'やり直し (Ctrl+Y)',
+                reopenLastFile: '起動時に前回のシート状態を復元する',
+                aeKeyframeVersionChange: 'コピーするキーフレームデータのバージョンを変更',
+                aeKeyframeVersionLabel: 'AEバージョン',
+                aeKeyframeVersionHint: '現在: {0}（例: 9.0）',
+                aeKeyframeVersionPrompt: 'バージョンを入力してください（例: 9.0）\n現在: {0}',
+                aeKeyframeVersionInvalid: 'バージョン番号は数値（例: 9.0）で入力してください',
+                aeKeyframeVersionChanged: 'キーフレームデータバージョンを {0} に変更しました'
             },
             // シートメニュー
             sheet: {
@@ -83,30 +90,6 @@ const i18n = {
                 autoCheckUpdates: '起動時に更新を確認',
                 about: 'このソフトについて'
             },
-            // 更新機能
-            updater: {
-                title: '更新の確認',
-                available: 'が使用できます。',
-                currentVersion: '現在のバージョン',
-                releaseDate: 'リリース日',
-                downloadPrompt: 'DiTiSのウェブサイトに移動してダウンロードしますか？',
-                downloadNow: '今すぐダウンロード',
-                remindLater: '後で通知',
-                ignoreTitle: 'この更新を無視',
-                ignorePrompt: 'バージョン {0} の更新通知を今後表示しませんか？',
-                ignoreVersion: 'この更新を無視',
-                ignoreSuccess: 'この更新を無視リストに追加しました',
-                checkFailed: '更新の確認に失敗しました',
-                noRelease: 'リリースが見つかりません。このアプリはまだ公開リリースがない可能性があります。',
-                installFailed: '更新のインストールに失敗しました',
-                installSuccess: '更新をダウンロードしました',
-                restartTitle: '再起動が必要です',
-                restartPrompt: '更新を適用するにはアプリを再起動してください。',
-                restartNow: '今すぐ再起動',
-                restartLater: '後で再起動',
-                noUpdates: '最新バージョンを使用しています',
-                checking: '更新を確認中...'
-            },
             // デバッグメニュー
             debug: {
                 title: 'デバッグ',
@@ -117,6 +100,31 @@ const i18n = {
             },
             exportExtendScript: 'ExtendScriptを出力',
             exportToAE: 'After Effectsに送信'
+        },
+        
+        // 更新機能
+        updater: {
+            title: '更新の確認',
+            available: 'が使用できます。',
+            currentVersion: '現在のバージョン',
+            releaseDate: 'リリース日',
+            downloadPrompt: 'DiTiSのウェブサイトに移動してダウンロードしますか？',
+            downloadNow: '今すぐダウンロード',
+            remindLater: '後で通知',
+            ignoreTitle: 'この更新を無視',
+            ignorePrompt: 'バージョン {0} の更新通知を今後表示しませんか？',
+            ignoreVersion: 'この更新を無視',
+            ignoreSuccess: 'この更新を無視リストに追加しました',
+            checkFailed: '更新の確認に失敗しました',
+            noRelease: 'リリースが見つかりません。このアプリはまだ公開リリースがない可能性があります。',
+            installFailed: '更新のインストールに失敗しました',
+            installSuccess: '更新をダウンロードしました',
+            restartTitle: '再起動が必要です',
+            restartPrompt: '更新を適用するにはアプリを再起動してください。',
+            restartNow: '今すぐ再起動',
+            restartLater: '後で再起動',
+            noUpdates: '最新バージョンを使用しています',
+            checking: '更新を確認中...'
         },
         
         // コンテキストメニュー
@@ -294,7 +302,14 @@ const i18n = {
             edit: {
                 title: 'Edit',
                 undo: 'Undo (Ctrl+Z)',
-                redo: 'Redo (Ctrl+Y)'
+                redo: 'Redo (Ctrl+Y)',
+                reopenLastFile: 'Restore Previous Session on Startup',
+                aeKeyframeVersionChange: 'Change Keyframe Data Version for Copy',
+                aeKeyframeVersionLabel: 'AE Version',
+                aeKeyframeVersionHint: 'Current: {0} (e.g. 9.0)',
+                aeKeyframeVersionPrompt: 'Enter version number (e.g. 9.0)\nCurrent: {0}',
+                aeKeyframeVersionInvalid: 'Please enter a number (e.g. 9.0)',
+                aeKeyframeVersionChanged: 'Keyframe data version changed to {0}'
             },
             // Sheet menu
             sheet: {
@@ -345,30 +360,6 @@ const i18n = {
                 autoCheckUpdates: 'Check for updates on startup',
                 about: 'About'
             },
-            // Updater
-            updater: {
-                title: 'Update Available',
-                available: 'is available.',
-                currentVersion: 'Current version',
-                releaseDate: 'Release date',
-                downloadPrompt: 'Go to DiTiS website to download?',
-                downloadNow: 'Download Now',
-                remindLater: 'Remind Later',
-                ignoreTitle: 'Ignore This Update',
-                ignorePrompt: 'Do you want to ignore version {0} updates?',
-                ignoreVersion: 'Ignore This Update',
-                ignoreSuccess: 'Added to ignore list',
-                checkFailed: 'Failed to check for updates',
-                noRelease: 'No releases found. This app may not have published releases yet.',
-                installFailed: 'Failed to install update',
-                installSuccess: 'Update downloaded successfully',
-                restartTitle: 'Restart Required',
-                restartPrompt: 'Please restart the app to apply the update.',
-                restartNow: 'Restart Now',
-                restartLater: 'Restart Later',
-                noUpdates: 'You are using the latest version',
-                checking: 'Checking for updates...'
-            },
             // Debug menu
             debug: {
                 title: 'Debug',
@@ -379,6 +370,31 @@ const i18n = {
             },
             exportExtendScript: 'Export ExtendScript',
             exportToAE: 'Send to After Effects'
+        },
+        
+        // Updater
+        updater: {
+            title: 'Update Available',
+            available: 'is available.',
+            currentVersion: 'Current version',
+            releaseDate: 'Release date',
+            downloadPrompt: 'Go to DiTiS website to download?',
+            downloadNow: 'Download Now',
+            remindLater: 'Remind Later',
+            ignoreTitle: 'Ignore This Update',
+            ignorePrompt: 'Do you want to ignore version {0} updates?',
+            ignoreVersion: 'Ignore This Update',
+            ignoreSuccess: 'Added to ignore list',
+            checkFailed: 'Failed to check for updates',
+            noRelease: 'No releases found. This app may not have published releases yet.',
+            installFailed: 'Failed to install update',
+            installSuccess: 'Update downloaded successfully',
+            restartTitle: 'Restart Required',
+            restartPrompt: 'Please restart the app to apply the update.',
+            restartNow: 'Restart Now',
+            restartLater: 'Restart Later',
+            noUpdates: 'You are using the latest version',
+            checking: 'Checking for updates...'
         },
         
         // Context menu

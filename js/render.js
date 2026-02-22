@@ -723,6 +723,11 @@ function renderSpreadsheetImmediate(forceFullRender = false) {
                 });
             }
         });
+
+        // 復元できなかった場合はリトライ
+        if (AppState.selectedCells.length === 0) {
+            requestAnimationFrame(() => restoreSelectionCoords(selectedPositions));
+        }
     }
     
     // セルイベントの設定

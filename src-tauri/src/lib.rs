@@ -15,6 +15,9 @@ struct MenuTexts {
     file_close_all: String,
     file_print: String,
     file_quit: String,
+    file_recent: String,
+    file_recent_empty: String,
+    file_clear_recent: String,
     edit: String,
     edit_undo: String,
     edit_redo: String,
@@ -54,6 +57,8 @@ struct MenuTexts {
     view_always_on_top: String,
     view_auto_scroll: String,
     sheet_new_sheet_dialog: String,
+    edit_reopen_last_file: String,
+    edit_ae_keyframe_version_change: String,
     view_intermediate_headers: String,
     #[allow(dead_code)]
     edit_ae_settings: String,
@@ -88,6 +93,9 @@ impl MenuTexts {
                 file_close_all: "Close All Sheets".to_string(),
                 file_print: "Print...".to_string(),
                 file_quit: "Quit".to_string(),
+                file_recent: "Open Recent Files".to_string(),
+                file_recent_empty: "No Recent Files".to_string(),
+                file_clear_recent: "Clear Recent Files".to_string(),
                 edit: "Edit".to_string(),
                 edit_undo: "Undo".to_string(),
                 edit_redo: "Redo".to_string(),
@@ -127,6 +135,8 @@ impl MenuTexts {
                 view_always_on_top: "Always on Top".to_string(),
                 view_auto_scroll: "Center Selection on Scroll".to_string(),
                 sheet_new_sheet_dialog: "Show Dialog on New Sheet".to_string(),
+                edit_reopen_last_file: "Restore Previous Session on Startup".to_string(),
+                edit_ae_keyframe_version_change: "Change Keyframe Data Version for Copy".to_string(),
                 view_intermediate_headers: "Show Frame Headers Between Columns".to_string(),
                 edit_ae_settings: "AE Export Settings".to_string(),
                 edit_ae_empty_blind: "Empty Cell: Venetian Blinds".to_string(),
@@ -153,6 +163,9 @@ impl MenuTexts {
                 file_close_all: "すべてのシートを閉じる".to_string(),
                 file_print: "印刷...".to_string(),
                 file_quit: "終了".to_string(),
+                file_recent: "最近使用したファイルを開く".to_string(),
+                file_recent_empty: "最近使用したファイルはありません".to_string(),
+                file_clear_recent: "履歴をクリア".to_string(),
                 edit: "編集".to_string(),
                 edit_undo: "元に戻す".to_string(),
                 edit_redo: "やり直し".to_string(),
@@ -192,6 +205,8 @@ impl MenuTexts {
                 view_always_on_top: "常に前面に表示".to_string(),
                 view_auto_scroll: "スクロール時に選択を中央表示".to_string(),
                 sheet_new_sheet_dialog: "新規シート作成時にダイアログを表示".to_string(),
+                edit_reopen_last_file: "起動時に前回のシート状態を復元する".to_string(),
+                edit_ae_keyframe_version_change: "コピーするキーフレームデータのバージョンを変更".to_string(),
                 view_intermediate_headers: "列間にコマヘッダーを表示".to_string(),
                 edit_ae_settings: "AE送信設定".to_string(),
                 edit_ae_empty_blind: "空セル: ブラインドエフェクト".to_string(),
@@ -457,7 +472,9 @@ async fn rebuild_menu(
     always_on_top: bool,
     auto_scroll: bool,
     show_new_sheet_dialog: bool,
-    show_intermediate_headers: bool
+    show_intermediate_headers: bool,
+    reopen_last_file: bool,
+    recent_files: Vec<String>
 ) -> Result<(), String> {
     eprintln!("[rebuild_menu] 開始: lang={}, theme={}, frame_filter={}, header_mode={}, font_size={}, auto_scroll={}, show_new_sheet_dialog={}, show_intermediate_headers={}", 
         lang, theme, frame_filter, header_mode, font_size, auto_scroll, show_new_sheet_dialog, show_intermediate_headers);
@@ -484,12 +501,30 @@ async fn rebuild_menu(
         Ok(item)
     };
     
+    // 「最近使用したファイル」サブメニューを構築
+    let recent_submenu = {
+        let mut b = SubmenuBuilder::new(&app, &texts.file_recent);
+        if recent_files.is_empty() {
+            b = b.item(&MenuItemBuilder::new(&texts.file_recent_empty).id("recent-file-empty").build(&app).map_err(|e| e.to_string())?);
+        } else {
+            for (i, path) in recent_files.iter().enumerate().take(10) {
+                let filename = path.split(['/', '\\']).last().unwrap_or(path.as_str()).to_string();
+                let label = format!("{}. {}", i + 1, filename);
+                let id = format!("recent-file-{}", i);
+                b = b.item(&MenuItemBuilder::new(&label).id(&id).build(&app).map_err(|e| e.to_string())?);
+            }
+            b = b.separator().item(&MenuItemBuilder::new(&texts.file_clear_recent).id("clear-recent-files").build(&app).map_err(|e| e.to_string())?);
+        }
+        b.build().map_err(|e| e.to_string())?
+    };
+
     // メニューを再構築
     let menu = MenuBuilder::new(&app)
         // ファイルメニュー
         .item(&SubmenuBuilder::new(&app, &texts.file)
           .item(&MenuItemBuilder::new(&texts.file_new).id("new-sheet").accelerator("Ctrl+N").build(&app).map_err(|e| e.to_string())?)
           .item(&MenuItemBuilder::new(&texts.file_open).id("open-file").accelerator("Ctrl+O").build(&app).map_err(|e| e.to_string())?)
+          .item(&recent_submenu)
           .separator()
           .item(&MenuItemBuilder::new(&texts.file_save).id("save-file").accelerator("Ctrl+S").build(&app).map_err(|e| e.to_string())?)
           .item(&MenuItemBuilder::new(&texts.file_save_as).id("save-as-file").accelerator("Ctrl+Shift+S").build(&app).map_err(|e| e.to_string())?)
@@ -506,6 +541,9 @@ async fn rebuild_menu(
         .item(&SubmenuBuilder::new(&app, &texts.edit)
           .item(&MenuItemBuilder::new(&texts.edit_undo).id("undo").accelerator("Ctrl+Z").build(&app).map_err(|e| e.to_string())?)
           .item(&MenuItemBuilder::new(&texts.edit_redo).id("redo").accelerator("Ctrl+Y").build(&app).map_err(|e| e.to_string())?)
+          .separator()
+          .item(&create_check_item("reopen-last-file", &texts.edit_reopen_last_file, reopen_last_file)?)
+          .item(&MenuItemBuilder::new(&texts.edit_ae_keyframe_version_change).id("change-ae-keyframe-version").build(&app).map_err(|e| e.to_string())?)
           .build().map_err(|e| e.to_string())?)
         // シートメニュー
         .item(&SubmenuBuilder::new(&app, &texts.sheet)
@@ -1040,6 +1078,8 @@ pub fn run() {
         .item(&SubmenuBuilder::new(app, "編集")
           .item(&MenuItemBuilder::new("元に戻す").id("undo").accelerator("Ctrl+Z").build(app)?)
           .item(&MenuItemBuilder::new("やり直し").id("redo").accelerator("Ctrl+Y").build(app)?)
+          .separator()
+          .item(&create_check_item("reopen-last-file", "起動時に前回のシート状態を復元する", false)?)
           .build()?)
         // シートメニュー
         .item(&SubmenuBuilder::new(app, "シート")
@@ -1129,9 +1169,6 @@ pub fn run() {
           let file_path_for_closure = file_path.clone();
           std::thread::spawn(move || {
             // ウィンドウの読み込み完了を待つ
-            std::thread::sleep(std::time::Duration::from_millis(500));
-            let _ = app_handle.emit("open-file", file_path_for_closure.clone());
-            // 再試行
             std::thread::sleep(std::time::Duration::from_millis(1000));
             let _ = app_handle.emit("open-file", file_path_for_closure);
           });

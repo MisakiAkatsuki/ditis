@@ -21,16 +21,14 @@
  */
 function createNewSheet(name) {
     const sheet = {
-        id: Date.now(),
         name: name || `Sheet${AppState.sheets.length + 1}`,
+        fps: 24,
         layers: [],
         frames: 144,
-        framePageSize: 144, // フレームページサイズ（左ヘッダーの折り返し）
+        framePageSize: 144,
         data: {},
-        visibleColumns: 26,
-        visibleRows: 144,
-        insertedFrames: [], // 挿入されたフレームを記録
-        disabledFrames: [] // 無効化されたフレームを記録
+        insertedFrames: [],
+        disabledFrames: []
     };
     
     // A-Zまでのレイヤーを作成
@@ -62,14 +60,12 @@ async function createNewSheetWithDialog() {
     if (!settings) return null;
     
     const sheet = {
-        id: Date.now(),
         name: settings.name,
+        fps: settings.fps || 24,
         layers: [],
         frames: settings.frames,
         framePageSize: settings.framePageSize || settings.frames,
         data: {},
-        visibleColumns: 26,
-        visibleRows: settings.frames,
         insertedFrames: [],
         disabledFrames: []
     };
@@ -83,7 +79,7 @@ async function createNewSheetWithDialog() {
     }
     
     // 初期データ
-    for (let i = 1; i <= sheet.visibleRows; i++) {
+    for (let i = 1; i <= sheet.frames; i++) {
         sheet.data[i] = {};
         sheet.layers.forEach(layer => {
             sheet.data[i][layer.id] = '';
@@ -91,11 +87,6 @@ async function createNewSheetWithDialog() {
     }
     
     AppState.sheets.push(sheet);
-    
-    // FPSが変わった場合は更新
-    if (settings.fps !== AppState.fps) {
-        AppState.fps = settings.fps;
-    }
     
     return sheet;
 }
@@ -113,16 +104,13 @@ async function editCurrentSheetSettings() {
     // シート名更新
     sheet.name = settings.name;
     
-    // FPS更新
-    if (settings.fps !== AppState.fps) {
-        AppState.fps = settings.fps;
-    }
+    // FPS更新（シート単位）
+    sheet.fps = settings.fps || sheet.fps || 24;
     
     // 尺更新
     if (settings.frames !== sheet.frames) {
         const oldFrames = sheet.frames;
         sheet.frames = settings.frames;
-        sheet.visibleRows = settings.frames;
         
         // フレーム数が増えた場合は空データを追加
         for (let frame = oldFrames + 1; frame <= settings.frames; frame++) {
@@ -209,12 +197,27 @@ function getCurrentSheet() {
  * @param {number} index - 切り替え先のシートインデックス
  */
 function switchSheet(index) {
+    // 現在のシートの選択座標を保存
+    const currentSheet = getCurrentSheet();
+    if (currentSheet && AppState.selectedCells.length > 0) {
+        currentSheet.selectionCoords = AppState.selectedCells.map(s => ({ frame: s.frame, layerId: s.layerId }));
+    }
+    
     AppState.currentSheetIndex = index;
     renderTabs();
-    renderSpreadsheet(true); // シート切り替え時は全体レンダリング
     clearSelection();
-    updateWindowTitle(); // ファイルパス表示を更新
-    updateDurationDisplay(); // タイム表示を更新
+    renderSpreadsheet(true);
+    
+    // 切り替え先シートの選択を復元（なければA1）
+    const newSheet = getCurrentSheet();
+    if (newSheet?.selectionCoords?.length > 0) {
+        restoreSelectionCoords(newSheet.selectionCoords);
+    } else {
+        selectA1();
+    }
+    
+    updateWindowTitle();
+    updateDurationDisplay();
 }
 
 /**
@@ -274,9 +277,26 @@ function renderTabs() {
     AppState.sheets.forEach((sheet, index) => {
         const tab = document.createElement('div');
         tab.className = 'sheet-tab' + (index === AppState.currentSheetIndex ? ' active' : '');
-        tab.textContent = sheet.name;
         tab.dataset.index = index;
         tab.draggable = true;
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'sheet-tab-name';
+        nameSpan.textContent = sheet.name;
+        tab.appendChild(nameSpan);
+        
+        const closeBtn = document.createElement('span');
+        closeBtn.className = 'tab-close';
+        closeBtn.textContent = '×';
+        closeBtn.title = '閉じる';
+        closeBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await closeFileByIndex(index);
+        });
+        closeBtn.addEventListener('mousedown', (e) => {
+            e.stopPropagation(); // ドラッグ開始を防ぐ
+        });
+        tab.appendChild(closeBtn);
         
         // クリック: シート切り替え
         tab.addEventListener('click', () => {

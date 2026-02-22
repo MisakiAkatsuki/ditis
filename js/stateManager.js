@@ -318,7 +318,10 @@ function saveToLocalStorage() {
         headerDisplayMode: AppState.headerDisplayMode,
         showIntermediateHeaders: AppState.showIntermediateHeaders,
         autoScrollToSelection: AppState.autoScrollToSelection,
-        showNewSheetDialog: AppState.showNewSheetDialog
+        showNewSheetDialog: AppState.showNewSheetDialog,
+        reopenLastFile: AppState.reopenLastFile,
+        aeKeyframeVersion: AppState.aeKeyframeVersion,
+        recentFiles: AppState.recentFiles || []
     };
     
     try {
@@ -346,7 +349,7 @@ function loadFromLocalStorage() {
             const data = JSON.parse(saved);
             AppState.sheets = data.sheets;
             AppState.currentSheetIndex = data.currentSheetIndex;
-            AppState.fps = data.fps;
+            // fps はシート単位で管理（後方互換: 旧データの root fps を各シートに配布）
             AppState.theme = data.theme || 'green';
             AppState.fontSize = data.fontSize || 12;
             AppState.frameFilter = data.frameFilter || 'all';
@@ -354,39 +357,14 @@ function loadFromLocalStorage() {
             AppState.showIntermediateHeaders = data.showIntermediateHeaders || false;
             AppState.autoScrollToSelection = data.autoScrollToSelection !== false;
             AppState.showNewSheetDialog = data.showNewSheetDialog || false;
+            AppState.reopenLastFile = data.reopenLastFile || false;
+            AppState.aeKeyframeVersion = data.aeKeyframeVersion || '9.0';
+            AppState.recentFiles = data.recentFiles || [];
             
             // 既存シートの列数と行数を復元
             AppState.sheets.forEach(sheet => {
-                // framesとvisibleRowsは保存された値を使用（デフォルトは144）
                 if (!sheet.frames) sheet.frames = 144;
-                if (!sheet.visibleRows) sheet.visibleRows = sheet.frames;
-                
-                // layer.idを文字列に修正（数値の場合は'L'+数値に変換）
-                const idMapping = {}; // 古いID → 新しいIDのマッピング
-                sheet.layers.forEach(layer => {
-                    if (typeof layer.id === 'number') {
-                        const oldId = layer.id;
-                        const newId = `L${layer.id}`;
-                        idMapping[oldId] = newId;
-                        layer.id = newId;
-                    }
-                });
-                
-                // データのキーも変換（数値キーを文字列キーに）
-                if (Object.keys(idMapping).length > 0) {
-                    Object.keys(sheet.data).forEach(frame => {
-                        const frameData = sheet.data[frame];
-                        Object.keys(idMapping).forEach(oldId => {
-                            if (frameData[oldId] !== undefined) {
-                                frameData[idMapping[oldId]] = frameData[oldId];
-                                delete frameData[oldId];
-                            }
-                        });
-                    });
-                }
-                
-                // visibleColumnsは保存されたlayersの数を使用
-                sheet.visibleColumns = sheet.layers.length;
+                if (typeof sheet.fps !== 'number') sheet.fps = 24;
                 
                 // insertedFramesが存在しない場合は初期化
                 if (!sheet.insertedFrames) {

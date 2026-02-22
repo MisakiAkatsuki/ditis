@@ -420,7 +420,7 @@ body {
 }
 
 .sheet-tab {
-    padding: 8px 16px;
+    padding: 8px 12px 8px 16px;
     background: var(--tab-bg);
     border: 1px solid var(--tab-border);
     border-bottom: none;
@@ -432,6 +432,13 @@ body {
     color: var(--text-primary);
     font-size: var(--tab-font-size);
     transition: opacity 0.2s, transform 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+.sheet-tab .tab-close {
+    margin-left: 4px;
 }
 
 .sheet-tab:hover {

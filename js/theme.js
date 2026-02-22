@@ -274,6 +274,8 @@ function updateMenuCheckmarks() {
         window.TauriAPI.updateMenuItemCheck('theme-dark', AppState.theme === 'dark').catch(err => {});
         window.TauriAPI.updateMenuItemCheck('theme-green', AppState.theme === 'green').catch(err => {});
         window.TauriAPI.updateMenuItemCheck('always-on-top', AppState.alwaysOnTop).catch(err => {});
+        window.TauriAPI.updateMenuItemCheck('show-new-sheet-dialog', AppState.showNewSheetDialog).catch(err => {});
+        window.TauriAPI.updateMenuItemCheck('reopen-last-file', AppState.reopenLastFile).catch(err => {});
         window.TauriAPI.updateMenuItemCheck('language-ja', currentLang === 'ja').catch(err => {});
         window.TauriAPI.updateMenuItemCheck('language-en', currentLang === 'en').catch(err => {});
     }

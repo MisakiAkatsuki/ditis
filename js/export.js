@@ -939,3 +939,66 @@ async function importTimeremapData(data) {
     updateStatusBar(`${data.layers.length}個のレイヤーを新しいシート「${data.compName}」としてインポートしました`);
     debugLog('ファイル', 'タイムリマップインポート完了', { layerCount: data.layers.length, sheetName: data.compName });
 }
+
+/**
+ * 指定レイヤーのキーフレームデータをAE形式でクリップボードにコピー
+ * 列ヘッダーの右ダブルクリックで呼び出す
+ * @param {string} layerId - レイヤーID ("L1"など)
+ */
+async function copyColumnKeyframeData(layerId) {
+    const sheet = getCurrentSheet();
+    const fps = sheet.fps || 24;
+    const aeVersion = AppState.aeKeyframeVersion || '9.0';
+    const layer = sheet.layers.find(l => l.id === layerId);
+    const layerName = layer ? layer.name : layerId;
+
+    // 非空セルのキーフレームを収集（フレーム順）
+    const keyframes = [];
+    const maxFrames = sheet.frames || 144;
+    for (let frame = 1; frame <= maxFrames; frame++) {
+        const value = sheet.data[frame]?.[layerId];
+        if (value !== undefined && value !== '' && value !== null) {
+            const celNum = parseInt(value);
+            if (!isNaN(celNum)) {
+                const aeFrame = frame - 1; // AEは0始まり
+                const seconds = (celNum - 1) / fps;
+                keyframes.push({ aeFrame, seconds });
+            }
+        }
+    }
+
+    if (keyframes.length === 0) {
+        showErrorToast('コピーするキーフレームデータがありません', ErrorLevel.WARNING, 3000);
+        return;
+    }
+
+    const fmtSec = (s) => {
+        if (s === 0) return '0';
+        return s.toFixed(7).replace(/\.?0+$/, '');
+    };
+
+    const lines = [
+        `Adobe After Effects ${aeVersion} Keyframe Data`,
+        '',
+        `\tUnits Per Second\t${fps}`,
+        '\tSource Width\t1280',
+        '\tSource Height\t720',
+        '\tSource Pixel Aspect Ratio\t1',
+        '\tComp Pixel Aspect Ratio\t1',
+        '',
+        'Layer',
+        'Time Remap',
+        '\tFrame\tseconds\t',
+        ...keyframes.map(kf => `\t${kf.aeFrame}\t${fmtSec(kf.seconds)}\t`),
+        '',
+        'End of Keyframe Data',
+        ''
+    ];
+
+    try {
+        await navigator.clipboard.writeText(lines.join('\n'));
+        showErrorToast(`「${layerName}」のキーフレームデータをコピーしました`, ErrorLevel.INFO, 3000);
+    } catch (err) {
+        showErrorToast('クリップボードへのコピーに失敗しました', ErrorLevel.ERROR, 3000);
+    }
+}

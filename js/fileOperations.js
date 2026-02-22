@@ -24,49 +24,87 @@
 // JSON形式 保存・読み込み
 // ========================================
 
-/**
- * レガシーファイルのlayerIDを文字列形式に移行
- * 数値ID(1,2,3)を文字列ID("L1","L2","L3")に変換し、sheet.dataのキーも更新
- */
-function migrateSheetLayerIds(sheet) {
-    if (!sheet || !sheet.layers) return;
-    
-    let needsMigration = false;
-    sheet.layers.forEach(layer => {
-        if (typeof layer.id === 'number') {
-            needsMigration = true;
-        }
-    });
-    
-    if (!needsMigration) return;
-    
-    // layer.id を文字列に変換
-    const idMap = {}; // oldId -> newId
-    sheet.layers.forEach(layer => {
-        if (typeof layer.id === 'number') {
-            const newId = `L${layer.id}`;
-            idMap[layer.id] = newId;
-            layer.id = newId;
-        }
-    });
-    
-    // sheet.data のキーも変換
-    if (sheet.data && Object.keys(idMap).length > 0) {
-        for (const frame in sheet.data) {
-            const frameData = sheet.data[frame];
-            for (const oldId in idMap) {
-                if (frameData.hasOwnProperty(oldId)) {
-                    frameData[idMap[oldId]] = frameData[oldId];
-                    delete frameData[oldId];
-                }
-            }
-        }
-    }
-}
 
-// 二重実行防止用のフラグと時間
+
 let lastSaveTime = 0;
 const SAVE_DEBOUNCE_MS = 500;
+
+/**
+ * 読み込んだシートの layers・data を内部形式に展開する
+ * layers: 名前配列 → [{id: "L1", name: "A"}, ...] 形式
+ * data: 列ごとの配列 → {frame: {layerId: value}} 形式
+ * @param {Object} sheet
+ */
+function loadSheetData(sheet) {
+    if (!sheet || !sheet.layers) return;
+
+    // layers が文字列配列の場合は {id, name} 形式に展開
+    if (sheet.layers.length === 0 || typeof sheet.layers[0] === 'string') {
+        sheet.layers = sheet.layers.map((name, i) => ({ id: `L${i + 1}`, name }));
+    }
+
+    // data の列ごと配列形式 → {frame: {layerId: value}} に展開
+    if (!sheet.data) return;
+    if (!Array.isArray(sheet.data)) return; // 想定外の形式はスキップ
+    const newData = {};
+    sheet.data.forEach((colArr, colIdx) => {
+        const layer = sheet.layers[colIdx];
+        if (!layer) return;
+        colArr.forEach((val, frameIdx) => {
+            const frame = frameIdx + 1;
+            if (!newData[frame]) newData[frame] = {};
+            newData[frame][layer.id] = val ?? '';
+        });
+    });
+    sheet.data = newData;
+}
+
+/**
+ * 保存用にシートを正規化したコピーを返す
+ * - layers を名前の配列に変換
+ * - data を列ごとの配列形式に変換（空列省略、末尾の空要素省略）
+ * - visibleRows / visibleColumns を除外
+ * @param {Object} sheet
+ * @returns {Object} 正規化されたシートオブジェクト
+ */
+function normalizeSheetForSave(sheet) {
+    const layerNames = sheet.layers.map(l => l.name);
+
+    // data を列ごとの配列に変換
+    // data[colIdx] = [frame1val, frame2val, ...] (末尾の空文字は省略)
+    const colArrays = sheet.layers.map(layer => {
+        const col = [];
+        for (let frame = 1; frame <= sheet.frames; frame++) {
+            col.push((sheet.data[frame] && sheet.data[frame][layer.id]) || '');
+        }
+        // 末尾の空文字を削除
+        let last = col.length - 1;
+        while (last >= 0 && col[last] === '') last--;
+        return col.slice(0, last + 1);
+    });
+
+    // 末尾の空列を削除
+    let lastCol = colArrays.length - 1;
+    while (lastCol >= 0 && colArrays[lastCol].length === 0) lastCol--;
+    const newData = colArrays.slice(0, lastCol + 1);
+
+    const { visibleRows, visibleColumns, id, filePath, ...rest } = sheet;
+    return { ...rest, layers: layerNames, data: newData };
+}
+
+/**
+ * .ditis 保存データを構築する
+ * @param {Object} sheet
+ * @returns {string} JSON文字列
+ */
+function buildDitisJson(sheet) {
+    const normalized = normalizeSheetForSave(sheet);
+    const data = {
+        version: '1.0',
+        sheets: [normalized]
+    };
+    return JSON.stringify(data, null, 2);
+}
 
 /**
  * 現在のタブのみをJSONファイルとして保存
@@ -124,19 +162,21 @@ async function saveToFile() {
                     // XDTS形式で保存
                     await saveXdtsFileInternal(filePath, currentSheet);
                 } else {
-                    // JSON形式で保存（現在のシートのみ）
-                    const data = {
-                        version: '1.0',
-                        fps: AppState.fps,
-                        sheets: [currentSheet]
-                    };
-                    const json = JSON.stringify(data, null, 2);
+                    // .ditis / .json 形式で保存（v1.1）
+                    const json = buildDitisJson(currentSheet);
                     await window.TauriAPI.saveFile(filePath, json);
                 }
                 
                 currentSheet.filePath = filePath;
+                addToRecentFiles(filePath);
+                // ファイル名（拡張子なし）をシート名に反映
+                const savedFileName = filePath.split(/[/\\]/).pop().replace(/\.[^.]+$/, '');
+                if (savedFileName) {
+                    currentSheet.name = savedFileName;
+                    renderTabs();
+                }
                 updateWindowTitle();
-                updateStatusBar(`シート「${sheetName}」を保存しました: ${filePath}`);
+                updateStatusBar(`シート「${currentSheet.name}」を保存しました: ${filePath}`);
                 showErrorToast(`保存しました: ${filePath}`, ErrorLevel.INFO, 3000);
             }
         } catch (error) {
@@ -145,12 +185,7 @@ async function saveToFile() {
         }
     } else {
         // ブラウザ版: 従来のダウンロード
-        const data = {
-            version: '1.0',
-            fps: AppState.fps,
-            sheets: [currentSheet]
-        };
-        const json = JSON.stringify(data, null, 2);
+        const json = buildDitisJson(currentSheet);
         const blob = new Blob([json], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const filename = `${sheetName}.ditis`;
@@ -205,19 +240,21 @@ async function saveAsFile() {
                     // XDTS形式で保存
                     await saveXdtsFileInternal(filePath, currentSheet);
                 } else {
-                    // JSON形式で保存
-                    const data = {
-                        version: '1.0',
-                        fps: AppState.fps,
-                        sheets: [currentSheet]
-                    };
-                    const json = JSON.stringify(data, null, 2);
+                    // .ditis / .json 形式で保存（v1.1）
+                    const json = buildDitisJson(currentSheet);
                     await window.TauriAPI.saveFile(filePath, json);
                 }
                 
                 currentSheet.filePath = filePath;
+                addToRecentFiles(filePath);
+                // ファイル名（拡張子なし）をシート名に反映
+                const savedFileName = filePath.split(/[/\\]/).pop().replace(/\.[^.]+$/, '');
+                if (savedFileName) {
+                    currentSheet.name = savedFileName;
+                    renderTabs();
+                }
                 updateWindowTitle();
-                updateStatusBar(`シート「${sheetName}」を保存しました: ${filePath}`);
+                updateStatusBar(`シート「${currentSheet.name}」を保存しました: ${filePath}`);
                 showErrorToast(`保存しました: ${filePath}`, ErrorLevel.INFO, 3000);
             }
         } catch (error) {
@@ -226,12 +263,7 @@ async function saveAsFile() {
         }
     } else {
         // ブラウザ版: ダウンロード
-        const data = {
-            version: '1.0',
-            fps: AppState.fps,
-            sheets: [currentSheet]
-        };
-        const json = JSON.stringify(data, null, 2);
+        const json = buildDitisJson(currentSheet);
         const blob = new Blob([json], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const filename = `${sheetName}.ditis`;
@@ -308,10 +340,6 @@ async function loadFromFileTauri() {
             handleValidationError('sheets', data.sheets, '配列');
             return;
         }
-        if (typeof data.fps !== 'number') {
-            handleValidationError('fps', data.fps, '数値');
-            return;
-        }
         
         // ファイルから読み込んだシートを新規タブとして追加
         debugLog('ファイル', `${data.sheets.length}個のシートを新規タブとして追加`);
@@ -319,7 +347,7 @@ async function loadFromFileTauri() {
         // 読み込んだシートを既存のシートの後ろに追加
         const startIndex = AppState.sheets.length;
         data.sheets.forEach((sheet, index) => {
-            migrateSheetLayerIds(sheet);
+            loadSheetData(sheet);
             // 最初のシートにのみファイルパスを設定（他はクリア）
             if (index === 0) {
                 sheet.filePath = filePath;
@@ -336,7 +364,9 @@ async function loadFromFileTauri() {
         
         saveHistory('ファイル読み込み');
         renderTabs();
-        renderSpreadsheet(true); // ファイル読み込み時は全体レンダリング
+        renderSpreadsheet(true);
+        selectA1();
+        addToRecentFiles(filePath);
         updateStatusBar(`${data.sheets.length}個のシートを追加しました`);
         updateWindowTitle();
         showErrorToast(`${data.sheets.length}個のシートを新規タブとして追加しました`, ErrorLevel.INFO, 3000);
@@ -366,10 +396,6 @@ function loadFromFile(e) {
                 handleValidationError('sheets', data.sheets, '配列');
                 return;
             }
-            if (typeof data.fps !== 'number') {
-                handleValidationError('fps', data.fps, '数値');
-                return;
-            }
             
             // ファイルから読み込んだシートを新規タブとして追加
             debugLog('ファイル', `${data.sheets.length}個のシートを新規タブとして追加`);
@@ -377,7 +403,7 @@ function loadFromFile(e) {
             // 読み込んだシートを既存のシートの後ろに追加
             const startIndex = AppState.sheets.length;
             data.sheets.forEach((sheet, index) => {
-                migrateSheetLayerIds(sheet);
+                loadSheetData(sheet);
                 // 最初のシートにのみファイル名を設定
                 if (index === 0) {
                     sheet.filePath = file.name;
@@ -438,14 +464,22 @@ async function showConfirmDialog(message) {
  * 現在のタブ（シート）を閉じる
  */
 async function closeFile() {
+    await closeFileByIndex(AppState.currentSheetIndex);
+}
+
+/**
+ * 指定インデックスのシートを閉じる（確認ダイアログあり）
+ */
+async function closeFileByIndex(index) {
     // 最後の1つのシートは閉じられない
     if (AppState.sheets.length === 1) {
         showErrorToast('最後のシートは閉じられません', ErrorLevel.WARNING, 3000);
         return;
     }
     
-    const currentSheet = getCurrentSheet();
-    const sheetName = currentSheet.name;
+    const sheet = AppState.sheets[index];
+    if (!sheet) return;
+    const sheetName = sheet.name;
     
     // 確認ダイアログ
     const confirmed = await showConfirmDialog(
@@ -458,12 +492,14 @@ async function closeFile() {
     
     debugLog('ファイル', `シート「${sheetName}」を閉じる`);
     
-    // 現在のシートを削除
-    AppState.sheets.splice(AppState.currentSheetIndex, 1);
+    // 指定シートを削除
+    AppState.sheets.splice(index, 1);
     
-    // インデックスを調整（削除後、前のシートを表示）
+    // インデックスを調整
     if (AppState.currentSheetIndex >= AppState.sheets.length) {
         AppState.currentSheetIndex = AppState.sheets.length - 1;
+    } else if (AppState.currentSheetIndex > index) {
+        AppState.currentSheetIndex--;
     }
     
     // 再描画
@@ -496,6 +532,7 @@ async function closeAllSheets() {
     // 再描画
     renderTabs();
     renderSpreadsheet(true);
+    selectA1();
     updateWindowTitle();
     updateStatusBar('すべてのシートを閉じました');
 }
@@ -513,6 +550,7 @@ async function createNewSheetWithPrompt() {
         saveHistory('シート作成');
         renderTabs();
         renderSpreadsheet(true);
+        selectA1();
         updateWindowTitle();
         updateDurationDisplay();
     } else {
@@ -523,6 +561,7 @@ async function createNewSheetWithPrompt() {
         saveHistory('シート作成');
         renderTabs();
         renderSpreadsheet(true);
+        selectA1();
         updateWindowTitle();
     }
 }
@@ -582,27 +621,25 @@ async function loadFileFromPath(filePath) {
         // シートを追加
         const startIndex = AppState.sheets.length;
         data.sheets.forEach((sheet, index) => {
-            migrateSheetLayerIds(sheet);
+            loadSheetData(sheet);
             // 最初のシートだけにfilePathを設定（他は個別ファイルとして保存させる）
             if (index === 0) {
                 sheet.filePath = filePath;
             } else {
-                sheet.filePath = null; // 別ファイルとして保存させる
+                sheet.filePath = null;
             }
             AppState.sheets.push(sheet);
         });
-        
-        if (data.fps) {
-            AppState.fps = data.fps;
-        }
         
         AppState.currentSheetIndex = startIndex; // 最初に読み込んだシートを選択
         
         renderTabs();
         renderSpreadsheet();
+        selectA1();
         updateWindowTitle();
         updateStatusBar(`ファイルを読み込みました: ${fileName}`);
         showErrorToast(`読み込みました: ${fileName}`, ErrorLevel.INFO, 3000);
+        addToRecentFiles(filePath);
         
         debugLog('ファイル', `ファイル関連付けから読み込み完了: ${fileName}`);
     } catch (error) {
@@ -614,14 +651,29 @@ async function loadFileFromPath(filePath) {
 // グローバルに公開（Rustから呼び出し可能にする）
 window.loadFileFromPath = loadFileFromPath;
 
+/**
+ * 最近使用したファイルリストに追加
+ * @param {string} filePath - 追加するファイルパス
+ */
+function addToRecentFiles(filePath) {
+    if (!filePath || !filePath.toLowerCase().endsWith('.ditis')) return;
+    const list = AppState.recentFiles || [];
+    const filtered = list.filter(p => p !== filePath);
+    AppState.recentFiles = [filePath, ...filtered].slice(0, 10);
+    saveToLocalStorage();
+    if (window.triggerMenuRebuild) {
+        window.triggerMenuRebuild();
+    }
+}
+
 // Tauriイベントリスナー（ファイル関連付けからの起動時）
 if (window.__TAURI__ && window.__TAURI__.event) {
     let lastOpenFilePath = null;
     let lastOpenFileTime = 0;
     window.__TAURI__.event.listen('open-file', (event) => {
         const now = Date.now();
-        // 同じファイルが1秒以内に再度開かれた場合は無視（重複イベント防止）
-        if (event.payload === lastOpenFilePath && now - lastOpenFileTime < 1000) return;
+        // 同じファイルが1.5秒以内に再度開かれた場合は無視（重複イベント防止）
+        if (event.payload === lastOpenFilePath && now - lastOpenFileTime < 1500) return;
         lastOpenFilePath = event.payload;
         lastOpenFileTime = now;
         const filePath = event.payload;

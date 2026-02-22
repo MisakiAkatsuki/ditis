@@ -41,7 +41,7 @@ window.handleMenuEvent = null; // プレースホルダー
 const AppState = {
     sheets: [],
     currentSheetIndex: 0,
-    fps: 24,
+    // fps は getCurrentSheet().fps に委譲（下部のgetter/setterで定義）
     history: [],
     historyIndex: -1,
     maxHistory: CONSTANTS.MAX_HISTORY,
@@ -83,6 +83,9 @@ const AppState = {
     showIntermediateHeaders: false, // 列間にフレームヘッダーを表示
     autoScrollToSelection: true, // カーソル位置に自動スクロール
     showNewSheetDialog: true, // 新規シート作成時にダイアログを表示
+    reopenLastFile: false, // 起動時に前回のシート状態を復元する
+    aeKeyframeVersion: '9.0', // クリップボードにコピーするキーフレームデータのAEバージョン
+    recentFiles: [], // 最近使用したファイル（最大10件）
     
     // 仮想スクロール用
     viewport: {
@@ -107,6 +110,20 @@ const AppState = {
 
 // テスト・デバッグ用にwindowオブジェクトに公開
 window.AppState = AppState;
+
+// fps は現在シートのfpsに委譲（シート単位管理）
+Object.defineProperty(AppState, 'fps', {
+    get() {
+        const sheet = this.sheets[this.currentSheetIndex];
+        return sheet ? (sheet.fps ?? 24) : 24;
+    },
+    set(v) {
+        const sheet = this.sheets[this.currentSheetIndex];
+        if (sheet) sheet.fps = v;
+    },
+    enumerable: true,
+    configurable: true
+});
 
 // ========================================
 // デバッグ機能
@@ -224,6 +241,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     loadFromLocalStorage();
+    // reopenLastFile=false の場合はシートデータをリセット（設定は保持）
+    if (!AppState.reopenLastFile) {
+        AppState.sheets = [];
+    }
     
     // initAppを非同期で実行
     initApp().then(() => {
@@ -316,6 +337,34 @@ async function initApp() {
 
 
 /**
+ * メニューを現在のAppStateで再構築するヘルパー関数
+ */
+async function triggerMenuRebuild() {
+    if (window.TauriAPI && window.TauriAPI.rebuildMenu) {
+        const currentLang = getCurrentLanguage ? getCurrentLanguage() : 'ja';
+        try {
+            await window.TauriAPI.rebuildMenu(
+                currentLang,
+                AppState.theme || 'green',
+                AppState.frameFilter || 'all',
+                AppState.headerDisplayMode || 'detail',
+                AppState.fontSize || 12,
+                AppState.debugMode || false,
+                AppState.alwaysOnTop || false,
+                AppState.autoScrollToSelection !== false,
+                AppState.showNewSheetDialog || false,
+                AppState.showIntermediateHeaders || false,
+                AppState.reopenLastFile || false,
+                AppState.recentFiles || []
+            );
+        } catch (error) {
+            console.warn('[triggerMenuRebuild] エラー:', error);
+        }
+    }
+}
+window.triggerMenuRebuild = triggerMenuRebuild;
+
+/**
  * 多言語UIテキストを初期化
  */
 async function initializeI18n() {
@@ -330,19 +379,7 @@ async function initializeI18n() {
         try {
             // setup完了を確実にするため少し待機
             await new Promise(resolve => setTimeout(resolve, 100));
-            
-            await window.TauriAPI.rebuildMenu(
-                currentLang,
-                AppState.theme || 'green',
-                AppState.frameFilter || 'all',
-                AppState.headerDisplayMode || 'detail',
-                AppState.fontSize || 12,
-                AppState.debugMode || false,
-                AppState.alwaysOnTop || false,
-                AppState.autoScrollToSelection !== false,
-                AppState.showNewSheetDialog || false,
-                AppState.showIntermediateHeaders || false
-            );
+            await triggerMenuRebuild();
         } catch (error) {
             console.error('[initializeI18n] メニュー再構築エラー:', error);
         }
@@ -915,6 +952,32 @@ window.handleMenuEvent = async function(menuId) {
                 await window.TauriAPI.updateMenuItemCheck('show-new-sheet-dialog', AppState.showNewSheetDialog);
             }
         },
+        'reopen-last-file': async () => {
+            AppState.reopenLastFile = !AppState.reopenLastFile;
+            saveToLocalStorage();
+            if (window.TauriAPI && window.TauriAPI.updateMenuItemCheck) {
+                await window.TauriAPI.updateMenuItemCheck('reopen-last-file', AppState.reopenLastFile);
+            }
+        },
+        'change-ae-keyframe-version': async () => {
+            const current = AppState.aeKeyframeVersion || '9.0';
+            const { t } = window.i18n;
+            const input = await showInputDialog(
+                t('menu.edit.aeKeyframeVersionChange'),
+                t('menu.edit.aeKeyframeVersionLabel'),
+                current,
+                t('menu.edit.aeKeyframeVersionHint', current)
+            );
+            if (input === null) return; // キャンセル
+            const trimmed = input.trim();
+            if (!/^\d+(\.\d)?$/.test(trimmed)) {
+                showErrorToast(t('menu.edit.aeKeyframeVersionInvalid'), ErrorLevel.WARNING, 3000);
+                return;
+            }
+            AppState.aeKeyframeVersion = trimmed;
+            saveToLocalStorage();
+            showErrorToast(t('menu.edit.aeKeyframeVersionChanged', trimmed), ErrorLevel.INFO, 2000);
+        },
         'toggle-intermediate-headers': async () => {
             AppState.showIntermediateHeaders = !AppState.showIntermediateHeaders;
             saveToLocalStorage();
@@ -928,75 +991,20 @@ window.handleMenuEvent = async function(menuId) {
                         resetViewSettings();
             
             // Tauriメニューを再構築（デフォルト設定で）
-            if (window.TauriAPI && window.TauriAPI.rebuildMenu) {
-                try {
-                    const currentLang = getCurrentLanguage();
-                    await window.TauriAPI.rebuildMenu(
-                        currentLang,
-                        AppState.theme || 'green',
-                        'all',
-                        'detail',
-                        12,
-                        AppState.debugMode || false,
-                        AppState.alwaysOnTop || false,
-                        AppState.autoScrollToSelection !== false,
-                        AppState.showNewSheetDialog || false,
-                        AppState.showIntermediateHeaders || false
-                    );
-                } catch (error) {
-                    console.warn('[メニュー] メニュー再構築エラー（無視）:', error);
-                }
-            }
+            await triggerMenuRebuild();
         },
         'language-ja': async () => {
             setLanguage('ja');
             updateAllUIText();
             updateStatusBar();
-            
-            if (window.TauriAPI && window.TauriAPI.rebuildMenu) {
-                try {
-                    await window.TauriAPI.rebuildMenu(
-                        'ja',
-                        AppState.theme || 'green',
-                        AppState.frameFilter || 'all',
-                        AppState.headerDisplayMode || 'detail',
-                        AppState.fontSize || 12,
-                        AppState.debugMode || false,
-                        AppState.alwaysOnTop || false,
-                        AppState.autoScrollToSelection !== false,
-                        AppState.showNewSheetDialog || false,
-                        AppState.showIntermediateHeaders || false
-                    );
-                } catch (error) {
-                    console.warn('[メニュー] メニュー再構築エラー（無視）:', error);
-                }
-            }
+            await triggerMenuRebuild();
         },
         'language-en': async () => {
             setLanguage('en');
             updateAllUIText();
             updateStatusBar();
-            
-            if (window.TauriAPI && window.TauriAPI.rebuildMenu) {
-                try {
-                    await window.TauriAPI.rebuildMenu(
-                        'en',
-                        AppState.theme || 'green',
-                        AppState.frameFilter || 'all',
-                        AppState.headerDisplayMode || 'detail',
-                        AppState.fontSize || 12,
-                        AppState.debugMode || false,
-                        AppState.alwaysOnTop || false,
-                        AppState.autoScrollToSelection !== false,
-                        AppState.showNewSheetDialog || false,
-                        AppState.showIntermediateHeaders || false
-                    );
-                                    } catch (error) {
-                    console.warn('[メニュー] メニュー再構築エラー（無視）:', error);
-                }
-            }
-            
-                    },
+            await triggerMenuRebuild();
+        },
         'theme-light': async () => {
                         setTheme('light');
                         
@@ -1139,8 +1147,23 @@ window.handleMenuEvent = async function(menuId) {
         },
         'export-logs': async () => {
             await exportDebugLogs();
+        },
+        'clear-recent-files': async () => {
+            AppState.recentFiles = [];
+            saveToLocalStorage();
+            await triggerMenuRebuild();
         }
     };
+
+    // recent-file-N ハンドラーを動的に登録
+    for (let i = 0; i < 10; i++) {
+        handlers[`recent-file-${i}`] = async () => {
+            const path = AppState.recentFiles && AppState.recentFiles[i];
+            if (path && window.loadFileFromPath) {
+                await window.loadFileFromPath(path);
+            }
+        };
+    }
     
     const handler = handlers[menuId];
     if (handler) {

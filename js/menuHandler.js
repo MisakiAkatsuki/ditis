@@ -91,6 +91,10 @@ function setupContextMenu() {
     }
     
     // 右クリックでメニュー表示
+    // 列ヘッダーの右ダブルクリック検出用
+    let _lastColRightClickTime = 0;
+    let _lastColRightClickLayerId = null;
+
     spreadsheet.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         
@@ -172,7 +176,19 @@ function setupContextMenu() {
         }
         // 列ヘッダーの上で右クリックした場合
         else if (targetColumnHeader) {
-            const layerId = targetColumnHeader.dataset.layerId; // "L1" などの文字列IDをそのまま使用
+            const layerId = targetColumnHeader.dataset.layerId;
+            
+            // 右ダブルクリック検出（400ms以内に同じ列ヘッダーを2回右クリック）
+            const now = Date.now();
+            if (layerId === _lastColRightClickLayerId && now - _lastColRightClickTime < 400) {
+                _lastColRightClickTime = 0;
+                _lastColRightClickLayerId = null;
+                contextMenu.style.display = 'none'; // 1回目のメニューを閉じる
+                copyColumnKeyframeData(layerId);
+                return;
+            }
+            _lastColRightClickTime = now;
+            _lastColRightClickLayerId = layerId;
             
             const sheet = getCurrentSheet();
             const maxRows = getMaxVisibleRows(sheet);
