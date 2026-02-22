@@ -1,0 +1,1365 @@
+/* カラーテーマ定義 */
+:root {
+    /* ライトモード */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f5f5;
+    --bg-tertiary: #f9f9f9;
+    --bg-hover: #e8e8e8;
+    --bg-disabled: #d0d0d0;
+    --bg-inserted: #fff5f5;
+    
+    --text-primary: #000000;
+    --text-secondary: #666666;
+    --text-tertiary: #999999;
+    --text-white: #ffffff;
+    
+    --border-normal: #999999;
+    --border-thick: #666666;
+    --border-light: #ccc;
+    --border-table: #333333;
+    
+    --selected-bg: #d4ebf7;
+    --selected-border: #4a90e2;
+    --anchor-border: #0066cc;
+    
+    --header-gradient-1: #667eea;
+    --header-gradient-2: #764ba2;
+    --header-shadow: rgba(0, 0, 0, 0.1);
+    
+    --inserted-text: #cc0000;
+    --dash-color: #000000;
+    --line-color: #999999;
+    
+    --tab-bg: #f5f5f5;
+    --tab-bg-active: #ffffff;
+    --tab-bg-hover: #e8e8e8;
+    --tab-border: #ccc;
+    
+    --toolbar-bg: #e0e0e0;
+    --button-bg: rgba(255, 255, 255, 0.2);
+    --button-border: rgba(255, 255, 255, 0.3);
+    --button-hover-bg: rgba(255, 255, 255, 0.3);
+    
+    --context-menu-bg: #ffffff;
+    --context-menu-hover: #f0f0f0;
+    --context-menu-border: #ccc;
+    --context-menu-shadow: rgba(0, 0, 0, 0.2);
+    
+    --scrollbar-track: #f1f1f1;
+    --scrollbar-thumb: #888;
+    --scrollbar-thumb-hover: #555;
+    
+    --toast-info-bg: #e3f2fd;
+    --toast-info-border: #2196f3;
+    --toast-warning-bg: #fff3e0;
+    --toast-warning-border: #ff9800;
+    --toast-error-bg: #ffebee;
+    --toast-error-border: #f44336;
+    --toast-critical-bg: #fce4ec;
+    --toast-critical-border: #e91e63;
+    
+    --modal-bg: #ffffff;
+    --modal-overlay: rgba(0, 0, 0, 0.5);
+    --modal-shadow: rgba(0, 0, 0, 0.3);
+    --modal-title-border: #4CAF50;
+    
+    --status-bar-bg: #f5f5f5;
+    --status-bar-border: #ddd;
+    --status-bar-text: #666;
+    --status-bar-text-strong: #333;
+    
+    --button-default-bg: #f0f0f0;
+    --button-default-hover: #e0e0e0;
+    
+    --add-tab-btn-bg: #4caf50;
+    --add-tab-btn-hover: #45a049;
+    
+    --input-border-focus: #2196F3;
+    
+    --help-section-bg: #f9f9f9;
+    --help-section-text: #555;
+    --help-key-bg: #e0e0e0;
+    --help-desc-text: #666;
+    --help-divider: #eee;
+    
+    --close-btn-color: #aaa;
+    --close-btn-hover: #000;
+    
+    /* フォントサイズ（changeFontSize(12)と一致させること） */
+    --cell-font-size: 15px;
+    --header-font-size: 14px;
+    --dash-font-size: 16px;
+    --fps-font-size: 13px; /* render.jsのインラインスタイルで使用 */
+    --column-number-font-size: 10px; /* render.jsのインラインスタイルで使用 */
+    --row-label-font-size: 14px;
+    --tab-font-size: 14px;
+    --button-font-size: 14px;
+    --menu-font-size: 14px;
+    --modal-font-size: 14px;
+    --toast-font-size: 14px;
+    --help-font-size: 14px;
+    
+    /* セルサイズ（フォントサイズに連動） */
+    --cell-width: 38px;
+    --cell-height: 28px;
+    --cell-line-height: 14px;
+    --header-cell-width: 40px;
+    
+    /* 波線SVGのサイズとURL（JavaScriptで動的に更新） */
+    --wave-svg-height: 84px;
+    --wave-svg-url: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="84" viewBox="0 0 24 84"><path d="M 12 0 Q 0 10.5, 12 21 Q 24 31.5, 12 42 Q 0 52.5, 12 63 Q 24 73.5, 12 84" fill="none" stroke="%23999" stroke-width="1.5"/></svg>');
+}
+
+[data-theme="dark"] {
+    /* ダークモード */
+    --bg-primary: #1e1e1e;
+    --bg-secondary: #2d2d2d;
+    --bg-tertiary: #252525;
+    --bg-hover: #3a3a3a;
+    --bg-disabled: #4a4a4a;
+    --bg-inserted: #3d2626;
+    
+    --text-primary: #e0e0e0;
+    --text-secondary: #a0a0a0;
+    --text-tertiary: #707070;
+    --text-white: #ffffff;
+    
+    --border-normal: #555555;
+    --border-thick: #888888;
+    --border-light: #444444;
+    --border-table: #666666;
+    
+    --selected-bg: #2d4a66;
+    --selected-border: #5a9fd4;
+    --anchor-border: #4a8fd4;
+    
+    --header-gradient-1: #4a5a8a;
+    --header-gradient-2: #5a3a72;
+    --header-shadow: rgba(0, 0, 0, 0.3);
+    
+    --inserted-text: #ff6b6b;
+    --dash-color: #e0e0e0;
+    --line-color: #888888;
+    
+    --tab-bg: #252525;
+    --tab-bg-active: #1e1e1e;
+    --tab-bg-hover: #3a3a3a;
+    --tab-border: #444444;
+    
+    --toolbar-bg: #2d2d2d;
+    --button-bg: rgba(255, 255, 255, 0.1);
+    --button-border: rgba(255, 255, 255, 0.2);
+    --button-hover-bg: rgba(255, 255, 255, 0.2);
+    
+    --context-menu-bg: #2d2d2d;
+    --context-menu-hover: #3a3a3a;
+    --context-menu-border: #555555;
+    --context-menu-shadow: rgba(0, 0, 0, 0.5);
+    
+    --scrollbar-track: #2d2d2d;
+    --scrollbar-thumb: #555555;
+    --scrollbar-thumb-hover: #777777;
+    
+    --toast-info-bg: #1a3a4a;
+    --toast-info-border: #4a9fd4;
+    --toast-warning-bg: #4a3a1a;
+    --toast-warning-border: #d4a04a;
+    --toast-error-bg: #4a1a1a;
+    --toast-error-border: #d44a4a;
+    --toast-critical-bg: #4a1a2a;
+    --toast-critical-border: #d44a7a;
+    
+    --modal-bg: #2d2d2d;
+    --modal-overlay: rgba(0, 0, 0, 0.7);
+    --modal-shadow: rgba(0, 0, 0, 0.5);
+    --modal-title-border: #5a9a5a;
+    
+    --status-bar-bg: #252525;
+    --status-bar-border: #444444;
+    --status-bar-text: #a0a0a0;
+    --status-bar-text-strong: #e0e0e0;
+    
+    --button-default-bg: #3a3a3a;
+    --button-default-hover: #4a4a4a;
+    
+    --add-tab-btn-bg: #5a9a5a;
+    --add-tab-btn-hover: #4a8a4a;
+    
+    --input-border-focus: #4a9fd4;
+    
+    --help-section-bg: #252525;
+    --help-section-text: #a0a0a0;
+    --help-key-bg: #3a3a3a;
+    --help-desc-text: #a0a0a0;
+    --help-divider: #444444;
+    
+    --close-btn-color: #707070;
+    --close-btn-hover: #e0e0e0;
+    
+    /* フォントサイズ（changeFontSize(12)と一致させること） */
+    --cell-font-size: 15px;
+    --header-font-size: 14px;
+    --dash-font-size: 16px;
+    --fps-font-size: 13px;
+    --column-number-font-size: 10px;
+    --row-label-font-size: 14px;
+    --tab-font-size: 14px;
+    --button-font-size: 14px;
+    --menu-font-size: 14px;
+    --modal-font-size: 14px;
+    --toast-font-size: 14px;
+    --help-font-size: 14px;
+    
+    /* セルサイズ（ライトモードと同じ） */
+    --cell-width: 38px;
+    --cell-height: 28px;
+    --cell-line-height: 14px;
+    --header-cell-width: 40px;
+    
+    /* 波線SVGのサイズとURL（JavaScriptで動的に更新） */
+    --wave-svg-height: 84px;
+    --wave-svg-url: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="84" viewBox="0 0 24 84"><path d="M 12 0 Q 0 10.5, 12 21 Q 24 31.5, 12 42 Q 0 52.5, 12 63 Q 24 73.5, 12 84" fill="none" stroke="%23666" stroke-width="1.5"/></svg>');
+}
+
+[data-theme="green"] {
+    /* グリーンモード（タイムシートテーマ） */
+    --bg-primary: #d4e8cc;
+    --bg-secondary: #c2dab5;
+    --bg-tertiary: #cce3c0;
+    --bg-hover: #b5d0a5;
+    --bg-disabled: #95b085;
+    --bg-inserted: #ffe8d5;
+    
+    --text-primary: #1a3314;
+    --text-secondary: #2d4a27;
+    --text-tertiary: #4a6a3f;
+    --text-white: #ffffff;
+    
+    --border-normal: #5a8a4f;
+    --border-thick: #3a6a2f;
+    --border-light: #7aa872;
+    --border-table: #2d5a22;
+    
+    --selected-bg: #a8d098;
+    --selected-border: #5a8a4f;
+    --anchor-border: #3a6a2f;
+    
+    --header-gradient-1: #6b9a5f;
+    --header-gradient-2: #5a8a4f;
+    --header-shadow: rgba(45, 74, 39, 0.25);
+    
+    --inserted-text: #cc3f2f;
+    --dash-color: #1a3314;
+    --line-color: #5a8a4f;
+    
+    --tab-bg: #c2dab5;
+    --tab-bg-active: #d4e8cc;
+    --tab-bg-hover: #b5d0a5;
+    --tab-border: #7aa872;
+    
+    --toolbar-bg: #b5d5a8;
+    --button-bg: rgba(90, 138, 79, 0.2);
+    --button-border: rgba(90, 138, 79, 0.3);
+    --button-hover-bg: rgba(90, 138, 79, 0.35);
+    
+    --context-menu-bg: #e0f0d8;
+    --context-menu-hover: #cce3c0;
+    --context-menu-border: #7aa872;
+    --context-menu-shadow: rgba(45, 74, 39, 0.3);
+    
+    --scrollbar-track: #cce3c0;
+    --scrollbar-thumb: #7aa872;
+    --scrollbar-thumb-hover: #5a8a4f;
+    
+    --toast-info-bg: #b8d8a8;
+    --toast-info-border: #5a8a4f;
+    --toast-warning-bg: #ffe8b8;
+    --toast-warning-border: #d4a04a;
+    --toast-error-bg: #ffc8b8;
+    --toast-error-border: #c84a3f;
+    --toast-critical-bg: #ffb8c8;
+    --toast-critical-border: #d44a6a;
+    
+    --modal-bg: #e0f0d8;
+    --modal-overlay: rgba(45, 74, 39, 0.6);
+    --modal-shadow: rgba(45, 74, 39, 0.4);
+    --modal-title-border: #6b9a5f;
+    
+    --status-bar-bg: #cce3c0;
+    --status-bar-border: #95b085;
+    --status-bar-text: #3a6a2f;
+    --status-bar-text-strong: #1a3314;
+    
+    --button-default-bg: #b5d5a8;
+    --button-default-hover: #a5c598;
+    
+    --add-tab-btn-bg: #6b9a5f;
+    --add-tab-btn-hover: #5a8a4f;
+    
+    --input-border-focus: #5a8a4f;
+    
+    --help-section-bg: #cce3c0;
+    --help-section-text: #2d4a27;
+    --help-key-bg: #b5d5a8;
+    --help-desc-text: #3a6a2f;
+    --help-divider: #a5c598;
+    
+    --close-btn-color: #5a8a4f;
+    --close-btn-hover: #1a3314;
+    
+    /* フォントサイズ（changeFontSize(12)と一致させること） */
+    --cell-font-size: 15px;
+    --header-font-size: 14px;
+    --dash-font-size: 16px;
+    --fps-font-size: 13px;
+    --column-number-font-size: 10px;
+    --row-label-font-size: 14px;
+    --tab-font-size: 14px;
+    --button-font-size: 14px;
+    --menu-font-size: 14px;
+    --modal-font-size: 14px;
+    --toast-font-size: 14px;
+    --help-font-size: 14px;
+    
+    /* セルサイズ（ライトモードと同じ） */
+    --cell-width: 38px;
+    --cell-height: 28px;
+    --cell-line-height: 14px;
+    --header-cell-width: 40px;
+    
+    /* 波線SVGのサイズとURL（JavaScriptで動的に更新） */
+    --wave-svg-height: 84px;
+    --wave-svg-url: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="84" viewBox="0 0 24 84"><path d="M 12 0 Q 0 10.5, 12 21 Q 24 31.5, 12 42 Q 0 52.5, 12 63 Q 24 73.5, 12 84" fill="none" stroke="%235a8a4f" stroke-width="1.5"/></svg>');
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    overflow: hidden;
+}
+
+.app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* ヘッダー */
+.app-header {
+    background: linear-gradient(135deg, var(--header-gradient-1) 0%, var(--header-gradient-2) 100%);
+    color: var(--text-white);
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 10px var(--header-shadow);
+}
+
+.app-header h1 {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.header-controls {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.header-controls label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.header-controls select {
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: none;
+    font-size: var(--button-font-size);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.header-controls button {
+    padding: 6px 12px;
+    background: var(--button-bg);
+    color: var(--text-white);
+    border: 1px solid var(--button-border);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: var(--button-font-size);
+    transition: background 0.2s;
+}
+
+.header-controls button:hover {
+    background: var(--button-hover-bg);
+}
+
+/* タブバー */
+.tab-bar {
+    background: var(--toolbar-bg);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    border-bottom: 1px solid var(--border-light);
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.tabs-container {
+    display: flex;
+    gap: 2px;
+}
+
+.sheet-tab {
+    padding: 8px 12px 8px 16px;
+    background: var(--tab-bg);
+    border: 1px solid var(--tab-border);
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    cursor: move;
+    user-select: none;
+    white-space: nowrap;
+    position: relative;
+    color: var(--text-primary);
+    font-size: var(--tab-font-size);
+    transition: opacity 0.2s, transform 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+.sheet-tab .tab-close {
+    margin-left: 4px;
+}
+
+.sheet-tab:hover {
+    background: var(--tab-bg-hover);
+}
+
+.sheet-tab.active {
+    background: var(--tab-bg-active);
+    border-bottom: 2px solid var(--tab-bg-active);
+    margin-bottom: -1px;
+    font-weight: bold;
+}
+
+.sheet-tab.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+}
+
+.sheet-tab.drag-over {
+    border-left: 3px solid #4a90e2;
+    padding-left: 13px;
+}
+
+.tab {
+    padding: 8px 16px;
+    background: var(--tab-bg);
+    border: 1px solid var(--tab-border);
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    cursor: move;
+    user-select: none;
+    white-space: nowrap;
+    position: relative;
+    color: var(--text-primary);
+    font-size: var(--tab-font-size);
+}
+
+.tab:hover {
+    background: var(--tab-bg-hover);
+}
+
+.tab.active {
+    background: var(--tab-bg-active);
+    border-bottom: 2px solid var(--tab-bg-active);
+    margin-bottom: -1px;
+}
+
+.tab-close {
+    margin-left: 8px;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.tab-close:hover {
+    color: var(--text-primary);
+}
+
+.add-tab-btn {
+    padding: 4px 12px;
+    margin-left: 5px;
+    background: var(--button-default-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.add-tab-btn:hover {
+    background: var(--button-default-hover);
+}
+
+/* スプレッドシート */
+.spreadsheet-container {
+    flex: 1;
+    overflow: auto;
+    background: var(--bg-primary);
+    position: relative;
+}
+
+.spreadsheet {
+    display: inline-block;
+    padding-left: 10px;
+    /* min-widthを削除してコンテンツ幅に固定 */
+}
+
+table {
+    border-collapse: collapse;
+    background: var(--bg-primary);
+    table-layout: fixed;
+    user-select: none;
+    /* テーブル幅を固定（ウィンドウサイズに影響されない） */
+    width: auto;
+}
+
+th, td {
+    border: 1px solid var(--border-normal);
+    padding: var(--cell-padding, 2px 4px);
+    text-align: center;
+    width: var(--cell-width);
+    min-width: var(--cell-width);
+    max-width: var(--cell-width);
+    height: var(--cell-height);
+    position: relative;
+    user-select: none;
+    font-size: var(--cell-font-size);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    box-sizing: border-box;
+    line-height: var(--cell-line-height);
+    color: var(--text-primary);
+}
+
+th {
+    background: var(--bg-secondary);
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    font-size: var(--header-font-size);
+    padding: 1px 4px;
+    line-height: 12px;
+}
+
+th:hover {
+    background: var(--bg-hover);
+}
+
+th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 20;
+    width: var(--header-cell-width);
+    min-width: var(--header-cell-width);
+    max-width: var(--header-cell-width);
+    padding: 4px 2px;
+    font-size: var(--fps-font-size); /* fps部分の数字 */
+}
+
+td:first-child {
+    background: var(--bg-tertiary);
+    font-weight: 600;
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    cursor: pointer;
+    user-select: none;
+    width: var(--header-cell-width);
+    min-width: var(--header-cell-width);
+    max-width: var(--header-cell-width);
+    padding: 4px 2px;
+    font-size: var(--row-label-font-size);
+}
+
+td:first-child:hover {
+    background: var(--bg-hover);
+}
+
+th:hover {
+    background: var(--bg-hover);
+}
+
+td {
+    cursor: cell;
+}
+
+/* ヘッダーの下線を太く */
+thead th {
+    border-bottom: 2px solid var(--border-thick);
+}
+
+/* 6列ごとに太い縦線（ヘッダー含む）- 中間フレーム番号が無効時のみ */
+body:not(.intermediate-headers) th:nth-child(6n+1),
+body:not(.intermediate-headers) td:nth-child(6n+1) {
+    border-right: 2px solid var(--border-thick);
+}
+
+/* 6行ごとに太い横線（bold-rowクラスで制御） */
+tr.bold-row td {
+    border-bottom: 2px solid var(--border-thick);
+}
+
+/* 無効化された行 */
+tr.disabled-row td:not(.add-column-spacer) {
+    background: var(--bg-disabled) !important;
+}
+
+tr.disabled-row td.selected:not(.add-column-spacer) {
+    background: var(--selected-bg) !important;
+    filter: brightness(0.85);
+}
+
+/* fpsコーナーセル */
+.fps-corner-cell {
+    cursor: pointer;
+    user-select: none;
+}
+
+.fps-corner-cell:hover {
+    background: var(--bg-hover);
+}
+
+/* 列追加ボタン */
+.add-column-header {
+    cursor: pointer;
+    user-select: none;
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--text-secondary);
+    min-width: 28px;
+    width: 28px;
+    padding: 2px !important;
+}
+
+.add-column-header:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.add-column-spacer {
+    border: none !important;
+    background: transparent !important;
+    min-width: 28px;
+    width: 28px;
+    padding: 0 !important;
+}
+
+/* 中間フレーム番号列 */
+.intermediate-header {
+    width: var(--header-cell-width);
+    min-width: var(--header-cell-width);
+    max-width: var(--header-cell-width);
+    padding: 4px 2px !important;
+    border-left: 2px solid var(--border-thick) !important;
+    border-right: 2px solid var(--border-thick) !important;
+    background: var(--bg-secondary);
+}
+
+.intermediate-frame-number {
+    width: var(--header-cell-width);
+    min-width: var(--header-cell-width);
+    max-width: var(--header-cell-width);
+    padding: 4px 2px !important;
+    text-align: center;
+    font-weight: 600;
+    font-size: var(--row-label-font-size);
+    color: var(--text-primary);
+    background: var(--bg-tertiary) !important;
+    border-left: 2px solid var(--border-thick) !important;
+    border-right: 2px solid var(--border-thick) !important;
+    user-select: none;
+    pointer-events: none;
+}
+
+td.selected {
+    background: var(--selected-bg) !important;
+    box-sizing: border-box;
+}
+
+/* 波線セルが選択された時は背景色を表示 */
+td.wave-line.selected::after {
+    opacity: 0.3; /* 波線を半透明にして背景色を透過 */
+}
+
+/* アンカーセル（Shift選択の基点） */
+td.anchor {
+    outline: 2px solid var(--anchor-border) !important;
+    outline-offset: -2px;
+    z-index: 10;
+}
+
+td.editing {
+    padding: 0;
+    height: 28px;
+}
+
+td.editing input {
+    width: 100%;
+    height: 28px;
+    border: 2px solid var(--input-border-focus);
+    padding: 0 6px;
+    font-size: var(--cell-font-size);
+    text-align: center;
+    outline: none;
+    box-sizing: border-box;
+    margin: 0;
+    line-height: 24px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+td.dash-value {
+    color: var(--dash-color);
+    font-style: normal;
+    font-size: var(--dash-font-size);
+    font-weight: 600;
+}
+
+/* 縦線表示 */
+td.vertical-line-start {
+    position: relative;
+    z-index: 2;  /* 太線ボーダーより上に */
+}
+
+td.vertical-line-start::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 1.5px;
+    height: 50%;
+    background: var(--line-color);
+    transform: translateX(-50%);
+    z-index: 1;
+}
+
+td.vertical-line-continue {
+    position: relative;
+    z-index: 2;  /* 太線ボーダーより上に */
+}
+
+td.vertical-line-continue::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -1px;  /* 太線のボーダーを越えるため */
+    width: 1.5px;
+    height: calc(100% + 2px);  /* 上下のボーダーを越えるため */
+    background: var(--line-color);
+    transform: translateX(-50%);
+    z-index: 1;
+}
+
+td.vertical-line-end {
+    position: relative;
+    z-index: 2;  /* 太線ボーダーより上に */
+}
+
+td.vertical-line-end::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -1px;  /* 太線のボーダーを越えるため */
+    width: 1.5px;
+    height: calc(50% + 1px);  /* 上のボーダーを越えるため */
+    background: var(--line-color);
+    transform: translateX(-50%);
+    z-index: 1;
+}
+
+/* ×印表示（対角線） */
+td.cross-mark {
+    position: relative;
+}
+
+td.cross-mark::before,
+td.cross-mark::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 160%;
+    height: 1.5px;
+    background: var(--line-color);
+    z-index: 1;
+}
+
+td.cross-mark::before {
+    transform: translate(-50%, -50%) rotate(36.4deg);
+}
+
+td.cross-mark::after {
+    transform: translate(-50%, -50%) rotate(-36.4deg);
+}
+
+/* 編集中は×印を非表示 */
+td.cross-mark.editing::before,
+td.cross-mark.editing::after {
+    display: none;
+}
+
+/* 波線表示（縦方向・連続・大きな周期） */
+/* NOTE: SVG内の色コードはJavaScriptで動的に生成する必要があります */
+td.wave-line {
+    position: relative;
+    --wave-offset: 0px;
+}
+
+td.wave-line::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: calc(-1 * var(--wave-offset));
+    width: 24px;
+    height: calc(300% + 3px);  /* 境界線をカバー */
+    background-image: var(--wave-svg-url);
+    background-repeat: repeat-y;
+    background-size: 24px var(--wave-svg-height);
+    background-position: center 0;
+    transform: translateX(-50%);
+    z-index: 1;  /* 境界線より手前だがヘッダーより後ろ */
+    pointer-events: none;
+    clip-path: inset(0 0 0 0); /* セル範囲内に制限 */
+}
+
+/* 編集中は波線を非表示 */
+td.wave-line.editing::after {
+    display: none;
+}
+
+/* 挿入フレームの波線・クロスマーク背景色 */
+td.wave-line.inserted-cell,
+td.cross-mark.inserted-cell {
+    background: var(--bg-inserted);
+}
+
+/* 挿入セルでも選択時は選択色を優先 */
+td.wave-line.inserted-cell.selected,
+td.cross-mark.inserted-cell.selected {
+    background: var(--selected-bg) !important;
+}
+
+/* 挿入されたフレーム番号 */
+td.inserted-frame {
+    color: var(--inserted-text);
+    font-weight: 600;
+    background: var(--bg-inserted) !important;
+}
+
+td.inserted-cell {
+    background: var(--bg-inserted);
+}
+
+/* 右クリックメニュー */
+.context-menu {
+    position: fixed;
+    background: var(--context-menu-bg);
+    border: 1px solid var(--context-menu-border);
+    border-radius: 4px;
+    box-shadow: 0 2px 10px var(--context-menu-shadow);
+    z-index: 1000;
+    min-width: 180px;
+    padding: 4px 0;
+}
+
+.context-menu-item {
+    padding: 8px 16px;
+    cursor: pointer;
+    user-select: none;
+    font-size: var(--menu-font-size);
+    color: var(--text-primary);
+}
+
+.context-menu-item:hover {
+    background: var(--context-menu-hover);
+}
+
+.context-menu-divider {
+    height: 1px;
+    background: var(--border-light);
+    margin: 4px 0;
+}
+
+/* ステータスバー */
+.status-bar {
+    background: var(--status-bar-bg);
+    padding: 8px 20px;
+    border-top: 1px solid var(--status-bar-border);
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: var(--status-bar-text);
+}
+
+/* 情報バー（上部のタイム表示など） */
+.info-bar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 4px 12px;
+    background-color: var(--status-bar-bg);
+    border-bottom: 1px solid var(--status-bar-border);
+    font-size: 12px;
+    min-height: 28px;
+    align-items: center;
+}
+
+#duration-display {
+    font-weight: bold;
+    color: var(--status-bar-text-strong);
+    white-space: nowrap;
+}
+
+#cell-info {
+    font-weight: 500;
+    color: var(--status-bar-text-strong);
+}
+
+#undo-info {
+    font-size: 11px;
+    color: var(--status-bar-text);
+    opacity: 0.8;
+}
+
+/* スクロールバーのスタイル */
+.spreadsheet-container::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+.spreadsheet-container::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+}
+
+.spreadsheet-container::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 6px;
+}
+
+.spreadsheet-container::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+}
+
+/* アニメーション */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* レスポンシブ */
+@media (max-width: 768px) {
+    .app-header h1 {
+        font-size: 16px;
+    }
+}
+
+/* ヘルプダイアログ */
+.modal {
+    position: fixed;
+    z-index: 10000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--modal-overlay);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: var(--modal-bg);
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px var(--modal-shadow);
+    max-width: 800px;
+    max-height: 85vh;
+    overflow-y: auto;
+    position: relative;
+}
+
+.help-content h2 {
+    margin-bottom: 20px;
+    color: var(--text-primary);
+    font-size: 24px;
+    border-bottom: 2px solid var(--modal-title-border);
+    padding-bottom: 10px;
+}
+
+.help-section {
+    margin-bottom: 30px;
+}
+
+.help-section h3 {
+    margin-bottom: 15px;
+    color: var(--help-section-text);
+    font-size: 18px;
+}
+
+.shortcut-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.shortcut-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 8px;
+    background: var(--help-section-bg);
+    border-radius: 4px;
+}
+
+.shortcut-key {
+    display: inline-block;
+    padding: 4px 8px;
+    background: var(--help-key-bg);
+    border: 1px solid var(--border-light);
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: var(--help-font-size);
+    font-weight: bold;
+    width: 230px;
+    min-width: 230px;
+    flex-shrink: 0;
+    text-align: center;
+    white-space: nowrap;
+    margin-right: 16px;
+}
+
+.shortcut-desc {
+    flex: 1;
+    font-size: var(--help-font-size);
+    color: var(--help-desc-text);
+    line-height: 1.6;
+}
+
+.help-list {
+    list-style: none;
+    padding-left: 0;
+}
+
+.help-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--help-divider);
+    color: var(--text-primary);
+}
+
+.help-list li:last-child {
+    border-bottom: none;
+}
+
+.help-list strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.close-button {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 30px;
+    font-weight: bold;
+    color: var(--close-btn-color);
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.close-button:hover {
+    color: var(--close-btn-hover);
+}
+/* ================================
+   カスタムダイアログ
+   ================================ */
+
+.dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+}
+
+.custom-dialog {
+    background: var(--bg-primary);
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    min-width: 320px;
+    max-width: 500px;
+    overflow: hidden;
+}
+
+.dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--header-gradient-1);
+    color: white;
+}
+
+.dialog-title {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.dialog-close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    opacity: 0.8;
+}
+
+.dialog-close-btn:hover {
+    opacity: 1;
+}
+
+.dialog-content {
+    padding: 16px;
+}
+
+.dialog-field {
+    margin-bottom: 12px;
+}
+
+.dialog-field:last-child {
+    margin-bottom: 0;
+}
+
+.dialog-label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.dialog-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    font-size: 13px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    box-sizing: border-box;
+}
+
+.dialog-input:focus {
+    outline: none;
+    border-color: var(--selected-border);
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+.dialog-select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    font-size: 13px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+.dialog-select:focus {
+    outline: none;
+    border-color: var(--selected-border);
+}
+
+.dialog-row {
+    display: flex;
+    gap: 12px;
+}
+
+.dialog-row .dialog-field {
+    flex: 1;
+}
+
+.dialog-hint {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+}
+
+.dialog-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-light);
+}
+
+.dialog-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.dialog-btn-cancel {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+}
+
+.dialog-btn-cancel:hover {
+    background: var(--bg-hover);
+}
+
+.dialog-btn-ok {
+    background: var(--header-gradient-1);
+    color: white;
+}
+
+.dialog-btn-ok:hover {
+    background: var(--header-gradient-2);
+}
+
+.dialog-btn-extra {
+    background: transparent;
+    color: var(--text-secondary, #888);
+    border: 1px solid var(--text-secondary, #888);
+}
+
+.dialog-btn-extra:hover {
+    background: rgba(128,128,128,0.15);
+}
+
+.dialog-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.dialog-checkbox input {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.dialog-checkbox span {
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+/* ===== 印刷スタイル ===== */
+#print-container {
+    display: none;
+}
+@media print {
+    body > *:not(#print-container) {
+        display: none !important;
+    }
+    #print-container {
+        display: block !important;
+        padding: 10mm 5mm;
+    }
+    .page {
+        page-break-after: always;
+    }
+    .page:last-child {
+        page-break-after: avoid;
+    }
+    .page-title {
+        font-size: 10pt;
+        font-weight: bold;
+        margin-bottom: 4px;
+        font-family: monospace;
+    }
+    #print-container table {
+        border-collapse: collapse;
+        width: 100%;
+        table-layout: fixed;
+        font-family: 'Courier New', monospace;
+        font-size: 8pt;
+    }
+    #print-container th,
+    #print-container td {
+        border: 1px solid #666;
+        padding: 1px 2px;
+        text-align: center;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+    #print-container th.fc,
+    #print-container td.fc {
+        width: 32px;
+        background: #e0e0e0 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        font-size: 6.5pt;
+        white-space: nowrap;
+    }
+    #print-container th {
+        background: #c8c8c8 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    #print-container .sub {
+        font-size: 7pt;
+        color: #555;
+    }
+    #print-container tr.bold-row > td {
+        border-bottom: 2px solid #333;
+    }
+    #print-container thead {
+        display: table-header-group;
+    }
+    #print-container tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+    #print-container .ins {
+        color: #cc0000;
+    }
+    @page {
+        size: A4 portrait;
+        margin: 0;
+    }
+}

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="DiTiS - アニメ撮影用デジタルタイムシート - After Effectsタイムリマップ変換ツール">
+    <meta name="version" content="20260222">
+    <title>DiTiS - v2026.02.22</title>
+    <script>
+        // バージョン情報をグローバルに定義
+        window.DITIS_VERSION = 'v2026.02.22';
+        window.DITIS_BUILD = 1;
+    </script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- タブバー -->
+        <div class="tab-bar">
+            <div id="tabs-container" class="tabs-container"></div>
+            <button id="add-tab-btn" class="add-tab-btn" title="新規シート">+</button>
+        </div>
+
+        <!-- タイム表示 -->
+        <div class="info-bar">
+            <span id="duration-display" data-i18n-text="info.time">タイム: 6+0 (144f)</span>
+        </div>
+
+        <!-- スプレッドシート -->
+        <div class="spreadsheet-container">
+            <div id="spreadsheet" class="spreadsheet"></div>
+        </div>
+
+        <!-- ステータスバー -->
+        <div class="status-bar">
+            <span id="status-text">準備完了</span>
+            <span id="undo-info"></span>
+            <span id="duration-info"></span>
+            <span id="cell-info"></span>
+        </div>
+    </div>
+
+    <!-- ファイル入力（非表示） -->
+    <input type="file" id="file-input" accept=".json,.ditis,.sts,.tdts,.xdts" style="display:none">
+
+    <!-- ヘルプダイアログ -->
+    <div id="help-dialog" class="modal" style="display: none;">
+        <div class="modal-content help-content">
+            <span class="close-button" id="close-help">&times;</span>
+            <!-- コンテンツは動的に生成されます -->
+        </div>
+    </div>
+
+    <!-- スクリプトファイル -->
+    <script src="js/constants.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/errorHandler.js"></script>
+    <script src="js/i18n.js"></script>
+    <script src="js/dialog.js"></script>
+    <script src="js/updater.js"></script>
+    <script src="js/history.js"></script>
+    <script src="js/selection.js"></script>
+    <script src="js/export.js"></script>
+    <script src="js/render.js"></script>
+    <script src="js/edit.js"></script>
+    <script src="js/columnOps.js"></script>
+    <script src="js/frameOps.js"></script>
+    <script src="js/tauriApi.js"></script>
+    <script src="js/keyboard.js"></script>
+    <script src="js/sheetManager.js"></script>
+    <script src="js/parsers.js"></script>
+    <script src="js/fileOperations.js"></script>
+    <script src="js/menuHandler.js"></script>
+    <script src="js/stateManager.js"></script>
+    <script src="js/theme.js"></script>
+    <script src="js/print.js"></script>
+    <script src="js/app.js"></script>
+    
+    <!-- 右クリックメニュー（セル用） -->
+    <div id="context-menu" class="context-menu" style="display: none;">
+        <div class="context-menu-item" data-action="insert-here" data-i18n="contextMenu.insertHere">この位置に挿入</div>
+        <div class="context-menu-item" data-action="delete-frames" data-i18n="contextMenu.deleteFrames">行を削除</div>
+        <div class="context-menu-item" data-action="delete-content" data-i18n="contextMenu.deleteContent">セル内容を削除</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" data-action="copy" data-i18n="contextMenu.copy">コピー</div>
+        <div class="context-menu-item" data-action="cut" data-i18n="contextMenu.cut">カット</div>
+        <div class="context-menu-item" data-action="paste" data-i18n="contextMenu.paste">ペースト</div>
+    </div>
+    
+    <!-- 右クリックメニュー（タブ用） -->
+    <div id="tab-context-menu" class="context-menu" style="display: none;">
+        <div class="context-menu-item" data-action="rename-sheet" data-i18n="contextMenu.renameSheet">名前の変更</div>
+        <div class="context-menu-item" data-action="clear-sheet" data-i18n="menu.sheet.clearSheet">シートを初期化</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" data-action="close-sheet" data-i18n="contextMenu.closeSheet">このシートを閉じる</div>
+        <div class="context-menu-item" data-action="close-all-sheets" data-i18n="contextMenu.closeAllSheets">すべてのシートを閉じる</div>
+    </div>
+    
+    <!-- カスタムダイアログ -->
+    <div id="custom-dialog-overlay" class="dialog-overlay" style="display: none;">
+        <div id="custom-dialog" class="custom-dialog">
+            <div class="dialog-header">
+                <span id="dialog-title" class="dialog-title">ダイアログ</span>
+                <button id="dialog-close-btn" class="dialog-close-btn">×</button>
+            </div>
+            <div id="dialog-content" class="dialog-content">
+                <!-- 動的にコンテンツが挿入される -->
+            </div>
+            <div id="dialog-buttons" class="dialog-buttons">
+                <button id="dialog-extra-btn" class="dialog-btn dialog-btn-extra" style="display:none;">無視</button>
+                <button id="dialog-cancel-btn" class="dialog-btn dialog-btn-cancel">キャンセル</button>
+                <button id="dialog-ok-btn" class="dialog-btn dialog-btn-ok">OK</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
