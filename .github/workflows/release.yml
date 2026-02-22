@@ -1,10 +1,10 @@
 name: Release
 
-# タグ (例: DiTiS-v26.222.1) を push したときに自動ビルド＆リリース
+# タグ (例: 26.222.2) を push したときに自動ビルド＆リリース
 on:
   push:
     tags:
-      - 'DiTiS-v*'
+      - '[0-9]*'
 
 jobs:
   release:
