@@ -1,10 +1,10 @@
 name: Release
 
-# タグ (例: v26.2.22) を push したときに自動ビルド＆リリース
+# タグ (例: DiTiS-v26.222.1) を push したときに自動ビルド＆リリース
 on:
   push:
     tags:
-      - 'v*'
+      - 'DiTiS-v*'
 
 jobs:
   release:
@@ -64,9 +64,9 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'DiTiS ${{ github.ref_name }}'
+          releaseName: '${{ github.ref_name }}'
           releaseBody: |
-            ## DiTiS ${{ github.ref_name }}
+            ## ${{ github.ref_name }}
 
             ### ダウンロード
             - **Windows**: `*_x64-setup.exe`
