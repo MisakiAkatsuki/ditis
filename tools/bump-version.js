@@ -32,10 +32,10 @@ const yyyy = raw.slice(0, 4);        // "2026"
 const mm   = raw.slice(4, 6);        // "02"
 const dd   = raw.slice(6, 8);        // "22"
 const yy   = raw.slice(2, 4);        // "26"
-const mmdd = `${mm}${dd}`;           // "0222"
-const mmddNum = String(parseInt(mmdd)); // "222" (ゼロなし)
+const mNum  = String(parseInt(mm));  // "2" (ゼロなし)
+const dNum  = dd;                    // "22"
 
-const tauriVer   = `${yy}.${mmddNum}.${build}`;  // "26.222.0"  (Tauri/Cargo用)
+const tauriVer   = `${yy}.${mNum}.${dNum}.${build}`;  // "26.2.22.1" (Tauri/Cargo用)
 const displayVer = `v${yyyy}.${mm}.${dd}`; // "v2026.02.22" (表示用)
 
 // ─── 1. src-tauri/Cargo.toml ─────────────────────────────────────
