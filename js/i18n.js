@@ -178,7 +178,7 @@ const i18n = {
         error: {
             noLayers: 'コンポジションに適用できるレイヤーがありません',
             aeNotRunning: '起動中のAfter Effectsが見つかりませんでした',
-            aeDesktopOnly: 'After Effectsへのスクリプト送信はデスクトップ版でのみ利用可能です。\nExtendScriptファイルとして保存し、After Effectsで手動実行してください。'
+            aeDesktopOnly: 'After EffectsとのAE連携機能はWindows版でのみ利用可能です。\nExtendScriptファイルとして保存し、After Effectsで手動実行してください。'
         },
         
         // ダイアログタイトル
@@ -468,7 +468,7 @@ const i18n = {
         error: {
             noLayers: 'No applicable layers in composition',
             aeNotRunning: 'No running After Effects found',
-            aeDesktopOnly: 'Sending scripts to After Effects is only available in the desktop version.\nPlease save as an ExtendScript file and run manually in After Effects.'
+            aeDesktopOnly: 'After Effects integration is only available on Windows.\nPlease save as an ExtendScript file and run manually in After Effects.'
         },
         
         // Dialog titles
