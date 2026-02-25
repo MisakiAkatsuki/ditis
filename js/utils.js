@@ -239,7 +239,8 @@ function getLayerNameIndex(name) {
  */
 function getMaxVisibleRows(sheet) {
     if (!sheet) return CONSTANTS.MAX_VISIBLE_ROWS;
-    return sheet.visibleRows || CONSTANTS.MAX_VISIBLE_ROWS;
+    const visibleRows = sheet.visibleRows || CONSTANTS.MAX_VISIBLE_ROWS;
+    return Math.max(visibleRows, sheet.frames || 0);
 }
 
 /**
