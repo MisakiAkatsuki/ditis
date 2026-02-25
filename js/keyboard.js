@@ -332,34 +332,39 @@ function handleKeyboard(e) {
             return;
         }
         
-        // 数字キー（1-9、テンキーを除く）が押されたら、その列位置（画面上の左から何番目）の1コマ目を選択
-        // 0キーは10列目を選択
+        // 数字キー（1-9、テンキーを除く）が押されたら、モード設定に従って動作
+        // auto: NumLock ON → 列選択 / NumLock OFF → 数値入力
+        // column-select: 常に列選択
+        // number-input: 常に数値入力
         if (/^[0-9]$/.test(e.key) && !AppState.editingCell && e.code.startsWith('Digit')) {
             e.preventDefault();
-            const columnPosition = e.key === '0' ? 10 : parseInt(e.key);
-            
-            // 列が存在するかチェック
-            const sheet = getCurrentSheet();
-            if (columnPosition <= sheet.layers.length) {
-                // 画面上の位置（配列インデックス）から実際のlayerIdを取得
-                const layer = sheet.layers[columnPosition - 1]; // 0-based index
-                const layerId = layer.id;
-                const targetCell = getCellElement(1, layerId);
-                
-                if (targetCell) {
-                    clearSelection();
-                    selectCell(targetCell, 1, layerId);
-                    updateStatusBar();
-                    
-                    // セルまでスクロール
-                    scrollToSelectionIfEnabled(targetCell);
-                    
-                    debugLog('キー入力', `数字キー${e.key}で画面上${columnPosition}番目の列（${layer.name}）のF1を選択`);
+            const mode = AppState.numericKeyMode || 'auto';
+            const useColumnSelect = mode === 'column-select' ||
+                (mode === 'auto' && e.getModifierState('NumLock'));
+
+            if (useColumnSelect) {
+                const columnPosition = e.key === '0' ? 10 : parseInt(e.key);
+                const sheet = getCurrentSheet();
+                if (columnPosition <= sheet.layers.length) {
+                    const layer = sheet.layers[columnPosition - 1];
+                    const layerId = layer.id;
+                    const targetCell = getCellElement(1, layerId);
+                    if (targetCell) {
+                        clearSelection();
+                        selectCell(targetCell, 1, layerId);
+                        updateStatusBar();
+                        scrollToSelectionIfEnabled(targetCell);
+                        debugLog('キー入力', `数字キー${e.key}で画面上${columnPosition}番目の列（${layer.name}）のF1を選択`);
+                    } else {
+                        showErrorToast(`列${columnPosition}が見つかりません。`, ErrorLevel.WARNING);
+                    }
                 } else {
-                    showErrorToast(`列${columnPosition}が見つかりません。`, ErrorLevel.WARNING);
+                    showErrorToast(`列${columnPosition}は存在しません。現在の列数: ${sheet.layers.length}`, ErrorLevel.WARNING);
                 }
             } else {
-                showErrorToast(`列${columnPosition}は存在しません。現在の列数: ${sheet.layers.length}`, ErrorLevel.WARNING);
+                if (AppState.selectedCells.length > 0) {
+                    startEditingWithKey(AppState.selectedCells[0].cell, e.key);
+                }
             }
             return;
         }

@@ -258,7 +258,12 @@ async function updateTauriMenuCheckmarks() {
                 
         // 常に前面に表示
         await window.TauriAPI.updateMenuItemCheck('always-on-top', AppState.alwaysOnTop);
-                
+
+        // 数字キーモード
+        await window.TauriAPI.updateMenuItemCheck('numeric-key-mode-auto', (AppState.numericKeyMode || 'auto') === 'auto');
+        await window.TauriAPI.updateMenuItemCheck('numeric-key-mode-column', AppState.numericKeyMode === 'column-select');
+        await window.TauriAPI.updateMenuItemCheck('numeric-key-mode-input', AppState.numericKeyMode === 'number-input');
+            
             } catch (error) {
         console.error('[updateTauriMenuCheckmarks] エラー:', error);
     }
