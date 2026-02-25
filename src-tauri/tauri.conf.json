@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "DiTiS",
-  "version": "26.222.2",
+  "version": "26.225.0",
   "identifier": "com.ditis.application",
   "build": {
     "frontendDist": "../dist",
@@ -13,7 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "DiTiS - v2026.02.22",
+        "title": "DiTiS - v2026.02.25",
         "width": 1400,
         "height": 900,
         "minWidth": 600,

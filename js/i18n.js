@@ -8,7 +8,7 @@ const i18n = {
         // アプリケーション
         app: {
             title: 'DiTiS',
-            version: 'v2026.02.22',
+            version: 'v2026.02.25',
             newSheet: '新規シート'
         },
         
@@ -203,7 +203,7 @@ const i18n = {
         
         // About & Credits
         about: {
-            title: 'DiTiS - v2026.02.22',
+            title: 'DiTiS - v2026.02.25',
             description: 'Digital Timesheet for Anime Production\nアニメ撮影向けのデジタルタイムシートアプリ\n\n開発: あかつきみさき (SUNRISE MOON)'
         },
         
@@ -300,7 +300,7 @@ const i18n = {
         // Application
         app: {
             title: 'DiTiS',
-            version: 'v2026.02.22',
+            version: 'v2026.02.25',
             newSheet: 'New Sheet'
         },
         menu: {
@@ -493,7 +493,7 @@ const i18n = {
         
         // About & Credits
         about: {
-            title: 'DiTiS - v2026.02.22',
+            title: 'DiTiS - v2026.02.25',
             description: 'Digital Timesheet for Anime Production\nA digital timesheet app for anime production\n\nDeveloped by: Misaki Akatsuki (SUNRISE MOON)'
         },
         
