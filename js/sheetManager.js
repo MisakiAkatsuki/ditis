@@ -428,7 +428,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const action = e.target.dataset.action;
             if (!action) return;
             
-            if (action === 'rename-sheet') {
+            if (action === 'sheet-settings') {
+                if (currentTabContextIndex !== null) {
+                    AppState.currentSheetIndex = currentTabContextIndex;
+                    renderTabs();
+                    await editCurrentSheetSettings();
+                }
+            } else if (action === 'rename-sheet') {
                 if (currentTabContextIndex !== null) {
                     await renameSheet(currentTabContextIndex);
                 }
