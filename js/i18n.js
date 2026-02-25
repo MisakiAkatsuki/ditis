@@ -245,7 +245,7 @@ const i18n = {
                 shift: { key: 'Shift + 矢印', desc: '押下中: 選択範囲を上/左/下/右に拡張・縮小' },
                 shiftHome: { key: 'Shift + Home', desc: '選択セルより上を全選択' },
                 shiftEnd: { key: 'Shift + End', desc: '選択セルより下を全選択' },
-                numbers: { key: '1-9, 0', desc: '該当列の1コマ目に移動' },
+                numbers: { key: '1-9, 0（上段数字キー）', desc: '列選択モード時: 該当列の1コマ目に移動（編集メニューで切替可）' },
                 ctrlEnter: { key: 'Ctrl + Enter', desc: '次の列の先頭に移動' }
             },
             fileOps: {
@@ -257,6 +257,7 @@ const i18n = {
                 open: { key: 'Ctrl + O', desc: '開く' },
                 save: { key: 'Ctrl + S', desc: '保存（現在のタブのみ）' },
                 saveAs: { key: 'Ctrl + Shift + S', desc: '名前を付けて保存' },
+                sheetSettings: { key: 'Ctrl + ,', desc: 'シート設定を開く' },
                 sendAE: { key: 'Ctrl + E', desc: 'After Effectsに送信' },
                 exportJSX: { key: 'Ctrl + Shift + E', desc: 'ExtendScriptとして出力' },
                 importAE: { key: 'Ctrl + I', desc: 'After Effectsからタイムリマップを取得' },
@@ -280,6 +281,7 @@ const i18n = {
                 frameDouble: { key: 'ダブルクリック (行ヘッダー)', desc: 'コマ番号ジャンプ' },
                 frameRight: { key: '右クリック (行ヘッダー)', desc: '行メニュー表示' },
                 tabDouble: { key: 'タブダブルクリック', desc: 'シート名変更' },
+                tabRight: { key: '右クリック (タブ)', desc: 'シート設定・名前変更・閉じるメニュー表示' },
                 tabDrag: { key: 'タブドラッグ', desc: 'タブ並び替え' },
                 rightClick: { key: '右クリック', desc: 'コンテキストメニュー表示' }
             }
@@ -535,7 +537,7 @@ const i18n = {
                 shift: { key: 'Shift + Arrows', desc: 'While held: Extend/shrink selection' },
                 shiftHome: { key: 'Shift + Home', desc: 'Select all above current cell' },
                 shiftEnd: { key: 'Shift + End', desc: 'Select all below current cell' },
-                numbers: { key: '1-9, 0', desc: 'Jump to frame 1 of column' },
+                numbers: { key: '1-9, 0 (Number row)', desc: 'Column-select mode: Jump to frame 1 of column (switchable in Edit menu)' },
                 ctrlEnter: { key: 'Ctrl + Enter', desc: 'Move to top of next column' }
             },
             fileOps: {
@@ -547,6 +549,7 @@ const i18n = {
                 open: { key: 'Ctrl + O', desc: 'Open' },
                 save: { key: 'Ctrl + S', desc: 'Save (current tab)' },
                 saveAs: { key: 'Ctrl + Shift + S', desc: 'Save As' },
+                sheetSettings: { key: 'Ctrl + ,', desc: 'Open sheet settings' },
                 sendAE: { key: 'Ctrl + E', desc: 'Send to After Effects' },
                 exportJSX: { key: 'Ctrl + Shift + E', desc: 'Export as ExtendScript' },
                 importAE: { key: 'Ctrl + I', desc: 'Get timeremap from AE' },
@@ -570,6 +573,7 @@ const i18n = {
                 frameDouble: { key: 'Double-click (Row Header)', desc: 'Jump to frame number' },
                 frameRight: { key: 'Right-click (Row Header)', desc: 'Show row menu' },
                 tabDouble: { key: 'Tab Double-click', desc: 'Rename sheet' },
+                tabRight: { key: 'Right-click (Tab)', desc: 'Show sheet settings / rename / close menu' },
                 tabDrag: { key: 'Tab Drag', desc: 'Reorder tabs' },
                 rightClick: { key: 'Right-click', desc: 'Show context menu' }
             }
