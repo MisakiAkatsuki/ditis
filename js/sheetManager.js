@@ -111,6 +111,7 @@ async function editCurrentSheetSettings() {
     if (settings.frames !== sheet.frames) {
         const oldFrames = sheet.frames;
         sheet.frames = settings.frames;
+        sheet.visibleRows = settings.frames;
         
         // フレーム数が増えた場合は空データを追加
         for (let frame = oldFrames + 1; frame <= settings.frames; frame++) {

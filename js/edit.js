@@ -51,7 +51,7 @@ function startEditing(cell) {
         return;
     }
     
-    const maxRows = sheet.visibleRows || CONSTANTS.MAX_VISIBLE_ROWS;
+    const maxRows = getMaxVisibleRows(sheet);
     
     if (!validateFrame(frame, maxRows)) return;
     if (!validateLayerId(layerId, sheet.layers)) return;
@@ -135,7 +135,7 @@ function finishEditing(save) {
         return;
     }
     
-    const maxRows = sheet.visibleRows || CONSTANTS.MAX_VISIBLE_ROWS;
+    const maxRows = getMaxVisibleRows(sheet);
     if (!validateFrame(frame, maxRows)) {
         AppState.editingCell = null;
         return;
