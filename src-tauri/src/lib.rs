@@ -412,6 +412,19 @@ async fn update_menu_item_check(app: tauri::AppHandle<tauri::Wry>, menu_id: Stri
                 let _ = item.set_checked(false);
             }
         }
+        
+        // 数字キーモードメニューの排他的チェック処理
+        if menu_id.starts_with("numeric-key-mode-") {
+            if let Some(item) = menu_items.get("numeric-key-mode-auto") {
+                let _ = item.set_checked(false);
+            }
+            if let Some(item) = menu_items.get("numeric-key-mode-column") {
+                let _ = item.set_checked(false);
+            }
+            if let Some(item) = menu_items.get("numeric-key-mode-input") {
+                let _ = item.set_checked(false);
+            }
+        }
     }
     
     if let Some(item) = menu_items.get(&menu_id) {
@@ -1194,7 +1207,7 @@ pub fn run() {
           .item(&create_check_item("reopen-last-file", "起動時に前回のシート状態を復元する", false)?)
           .separator()
           .item(&SubmenuBuilder::new(app, "数字キーの動作")
-            .item(&create_check_item("numeric-key-mode-auto", "自動（NumLock連動）", true)?)
+            .item(&create_check_item("numeric-key-mode-auto", "自動（NumLock連動）", false)?)
             .item(&create_check_item("numeric-key-mode-column", "列選択", false)?)
             .item(&create_check_item("numeric-key-mode-input", "数値入力", false)?)
             .build()?)
@@ -1425,6 +1438,22 @@ pub fn run() {
             }
           }
           eprintln!("[Rust] 言語メニュー処理完了");
+        }
+        
+        // 数字キーモードメニューの排他的チェック処理
+        if menu_id.starts_with("numeric-key-mode-") {
+          if let Some(item) = menu_items_state.get("numeric-key-mode-auto") {
+            let _ = item.set_checked(false);
+          }
+          if let Some(item) = menu_items_state.get("numeric-key-mode-column") {
+            let _ = item.set_checked(false);
+          }
+          if let Some(item) = menu_items_state.get("numeric-key-mode-input") {
+            let _ = item.set_checked(false);
+          }
+          if let Some(item) = menu_items_state.get(menu_id) {
+            let _ = item.set_checked(true);
+          }
         }
         
         if let Some(window) = app.get_webview_window("main") {

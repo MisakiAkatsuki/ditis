@@ -962,29 +962,14 @@ window.handleMenuEvent = async function(menuId) {
         'numeric-key-mode-auto': async () => {
             AppState.numericKeyMode = 'auto';
             saveToLocalStorage();
-            if (window.TauriAPI && window.TauriAPI.updateMenuItemCheck) {
-                await window.TauriAPI.updateMenuItemCheck('numeric-key-mode-auto', true);
-                await window.TauriAPI.updateMenuItemCheck('numeric-key-mode-column', false);
-                await window.TauriAPI.updateMenuItemCheck('numeric-key-mode-input', false);
-            }
         },
         'numeric-key-mode-column': async () => {
             AppState.numericKeyMode = 'column-select';
             saveToLocalStorage();
-            if (window.TauriAPI && window.TauriAPI.updateMenuItemCheck) {
-                await window.TauriAPI.updateMenuItemCheck('numeric-key-mode-auto', false);
-                await window.TauriAPI.updateMenuItemCheck('numeric-key-mode-column', true);
-                await window.TauriAPI.updateMenuItemCheck('numeric-key-mode-input', false);
-            }
         },
         'numeric-key-mode-input': async () => {
             AppState.numericKeyMode = 'number-input';
             saveToLocalStorage();
-            if (window.TauriAPI && window.TauriAPI.updateMenuItemCheck) {
-                await window.TauriAPI.updateMenuItemCheck('numeric-key-mode-auto', false);
-                await window.TauriAPI.updateMenuItemCheck('numeric-key-mode-column', false);
-                await window.TauriAPI.updateMenuItemCheck('numeric-key-mode-input', true);
-            }
         },
         'change-ae-keyframe-version': async () => {
             const current = AppState.aeKeyframeVersion || '9.0';
