@@ -84,6 +84,7 @@ const AppState = {
     autoScrollToSelection: true, // カーソル位置に自動スクロール
     showNewSheetDialog: true, // 新規シート作成時にダイアログを表示
     reopenLastFile: false, // 起動時に前回のシート状態を復元する
+    numericKeyMode: 'auto', // 数字キーの動作: 'auto'|'column-select'|'number-input'
     aeKeyframeVersion: '9.0', // クリップボードにコピーするキーフレームデータのAEバージョン
     recentFiles: [], // 最近使用したファイル（最大10件）
     
@@ -355,6 +356,7 @@ async function triggerMenuRebuild() {
                 AppState.showNewSheetDialog || false,
                 AppState.showIntermediateHeaders || false,
                 AppState.reopenLastFile || false,
+                AppState.numericKeyMode || 'auto',
                 AppState.recentFiles || []
             );
         } catch (error) {
@@ -956,6 +958,18 @@ window.handleMenuEvent = async function(menuId) {
             if (window.TauriAPI && window.TauriAPI.updateMenuItemCheck) {
                 await window.TauriAPI.updateMenuItemCheck('reopen-last-file', AppState.reopenLastFile);
             }
+        },
+        'numeric-key-mode-auto': async () => {
+            AppState.numericKeyMode = 'auto';
+            saveToLocalStorage();
+        },
+        'numeric-key-mode-column': async () => {
+            AppState.numericKeyMode = 'column-select';
+            saveToLocalStorage();
+        },
+        'numeric-key-mode-input': async () => {
+            AppState.numericKeyMode = 'number-input';
+            saveToLocalStorage();
         },
         'change-ae-keyframe-version': async () => {
             const current = AppState.aeKeyframeVersion || '9.0';

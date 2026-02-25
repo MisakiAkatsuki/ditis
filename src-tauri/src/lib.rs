@@ -60,6 +60,10 @@ struct MenuTexts {
     edit_reopen_last_file: String,
     edit_ae_keyframe_version_change: String,
     view_intermediate_headers: String,
+    edit_numeric_key_mode: String,
+    edit_numeric_key_auto: String,
+    edit_numeric_key_column: String,
+    edit_numeric_key_input: String,
     #[allow(dead_code)]
     edit_ae_settings: String,
     #[allow(dead_code)]
@@ -140,6 +144,10 @@ impl MenuTexts {
                 edit_reopen_last_file: "Restore Previous Session on Startup".to_string(),
                 edit_ae_keyframe_version_change: "Change Keyframe Data Version for Copy".to_string(),
                 view_intermediate_headers: "Show Frame Headers Between Columns".to_string(),
+                edit_numeric_key_mode: "Number Key Behavior".to_string(),
+                edit_numeric_key_auto: "Auto (NumLock-linked)".to_string(),
+                edit_numeric_key_column: "Column Select".to_string(),
+                edit_numeric_key_input: "Number Input".to_string(),
                 edit_ae_settings: "AE Export Settings".to_string(),
                 edit_ae_empty_blind: "Empty Cell: Venetian Blinds".to_string(),
                 edit_ae_empty_timeremap: "Empty Cell: Time Remap".to_string(),
@@ -212,6 +220,10 @@ impl MenuTexts {
                 edit_reopen_last_file: "起動時に前回のシート状態を復元する".to_string(),
                 edit_ae_keyframe_version_change: "コピーするキーフレームデータのバージョンを変更".to_string(),
                 view_intermediate_headers: "列間にコマヘッダーを表示".to_string(),
+                edit_numeric_key_mode: "数字キーの動作".to_string(),
+                edit_numeric_key_auto: "自動（NumLock連動）".to_string(),
+                edit_numeric_key_column: "列選択".to_string(),
+                edit_numeric_key_input: "数値入力".to_string(),
                 edit_ae_settings: "AE送信設定".to_string(),
                 edit_ae_empty_blind: "空セル: ブラインドエフェクト".to_string(),
                 edit_ae_empty_timeremap: "空セル: タイムリマップ".to_string(),
@@ -400,6 +412,19 @@ async fn update_menu_item_check(app: tauri::AppHandle<tauri::Wry>, menu_id: Stri
                 let _ = item.set_checked(false);
             }
         }
+        
+        // 数字キーモードメニューの排他的チェック処理
+        if menu_id.starts_with("numeric-key-mode-") {
+            if let Some(item) = menu_items.get("numeric-key-mode-auto") {
+                let _ = item.set_checked(false);
+            }
+            if let Some(item) = menu_items.get("numeric-key-mode-column") {
+                let _ = item.set_checked(false);
+            }
+            if let Some(item) = menu_items.get("numeric-key-mode-input") {
+                let _ = item.set_checked(false);
+            }
+        }
     }
     
     if let Some(item) = menu_items.get(&menu_id) {
@@ -483,6 +508,7 @@ async fn rebuild_menu(
     show_new_sheet_dialog: bool,
     show_intermediate_headers: bool,
     reopen_last_file: bool,
+    numeric_key_mode: String,
     recent_files: Vec<String>
 ) -> Result<(), String> {
     eprintln!("[rebuild_menu] 開始: lang={}, theme={}, frame_filter={}, header_mode={}, font_size={}, auto_scroll={}, show_new_sheet_dialog={}, show_intermediate_headers={}", 
@@ -553,6 +579,12 @@ async fn rebuild_menu(
           .separator()
           .item(&create_check_item("reopen-last-file", &texts.edit_reopen_last_file, reopen_last_file)?)
           .item(&MenuItemBuilder::new(&texts.edit_ae_keyframe_version_change).id("change-ae-keyframe-version").build(&app).map_err(|e| e.to_string())?)
+          .separator()
+          .item(&SubmenuBuilder::new(&app, &texts.edit_numeric_key_mode)
+            .item(&create_check_item("numeric-key-mode-auto", &texts.edit_numeric_key_auto, numeric_key_mode == "auto")?)
+            .item(&create_check_item("numeric-key-mode-column", &texts.edit_numeric_key_column, numeric_key_mode == "column-select")?)
+            .item(&create_check_item("numeric-key-mode-input", &texts.edit_numeric_key_input, numeric_key_mode == "number-input")?)
+            .build().map_err(|e| e.to_string())?)
           .build().map_err(|e| e.to_string())?)
         // シートメニュー
         .item(&SubmenuBuilder::new(&app, &texts.sheet)
@@ -1173,6 +1205,12 @@ pub fn run() {
           .item(&MenuItemBuilder::new("やり直し").id("redo").accelerator("Ctrl+Y").build(app)?)
           .separator()
           .item(&create_check_item("reopen-last-file", "起動時に前回のシート状態を復元する", false)?)
+          .separator()
+          .item(&SubmenuBuilder::new(app, "数字キーの動作")
+            .item(&create_check_item("numeric-key-mode-auto", "自動（NumLock連動）", false)?)
+            .item(&create_check_item("numeric-key-mode-column", "列選択", false)?)
+            .item(&create_check_item("numeric-key-mode-input", "数値入力", false)?)
+            .build()?)
           .build()?)
         // シートメニュー
         .item(&SubmenuBuilder::new(app, "シート")
@@ -1400,6 +1438,22 @@ pub fn run() {
             }
           }
           eprintln!("[Rust] 言語メニュー処理完了");
+        }
+        
+        // 数字キーモードメニューの排他的チェック処理
+        if menu_id.starts_with("numeric-key-mode-") {
+          if let Some(item) = menu_items_state.get("numeric-key-mode-auto") {
+            let _ = item.set_checked(false);
+          }
+          if let Some(item) = menu_items_state.get("numeric-key-mode-column") {
+            let _ = item.set_checked(false);
+          }
+          if let Some(item) = menu_items_state.get("numeric-key-mode-input") {
+            let _ = item.set_checked(false);
+          }
+          if let Some(item) = menu_items_state.get(menu_id) {
+            let _ = item.set_checked(true);
+          }
         }
         
         if let Some(window) = app.get_webview_window("main") {

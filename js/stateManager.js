@@ -323,6 +323,7 @@ function saveToLocalStorage() {
         showNewSheetDialog: AppState.showNewSheetDialog,
         reopenLastFile: AppState.reopenLastFile,
         alwaysOnTop: AppState.alwaysOnTop,
+        numericKeyMode: AppState.numericKeyMode || 'auto',
         aeKeyframeVersion: AppState.aeKeyframeVersion,
         recentFiles: AppState.recentFiles || []
     };
@@ -367,6 +368,7 @@ function loadFromLocalStorage() {
             AppState.showNewSheetDialog = data.showNewSheetDialog || false;
             AppState.reopenLastFile = data.reopenLastFile || false;
             AppState.alwaysOnTop = data.alwaysOnTop || false;
+            AppState.numericKeyMode = data.numericKeyMode || 'auto';
             AppState.aeKeyframeVersion = data.aeKeyframeVersion || '9.0';
             AppState.recentFiles = data.recentFiles || [];
             
