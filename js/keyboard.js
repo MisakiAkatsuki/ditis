@@ -987,7 +987,30 @@ function handleKeyboard(e) {
             frame: s.frame,
             layerId: s.layerId
         }));
-        
+
+        // 空セルかつ直前フレームに数字がある場合、同じ値を引き継ぐ（ホールド連続入力）
+        let needRender = false;
+        cellsBeforeInput.forEach(s => {
+            const value = (sheet.data[s.frame] && sheet.data[s.frame][s.layerId]) || '';
+            if (value === '') {
+                const prevFrame = s.frame - 1;
+                if (prevFrame >= 1) {
+                    const prevValue = (sheet.data[prevFrame] && sheet.data[prevFrame][s.layerId]) || '';
+                    if (prevValue !== '' && /^\d+$/.test(prevValue)) {
+                        if (!sheet.data[s.frame]) sheet.data[s.frame] = {};
+                        sheet.data[s.frame][s.layerId] = prevValue;
+                        needRender = true;
+                    }
+                }
+            }
+        });
+
+        if (needRender) {
+            saveHistory('セル編集');
+            calculateSpecialDisplayCache(sheet);
+            renderSpreadsheetImmediate(true);
+        }
+
         if (AppState.selectedCells.length === 1) {
             // 単一選択：1つ下に移動
             moveCellSelection('ArrowDown');
