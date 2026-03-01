@@ -332,6 +332,9 @@ function handleKeyboard(e) {
         // スペースキー: 選択範囲を維持したまま下に移動
         if (e.key === ' ' && !AppState.editingCell) {
             e.preventDefault();
+            if (AppState.emptyCellMode) {
+                insertNullCell();
+            }
             moveSelectionDown();
             return;
         }
