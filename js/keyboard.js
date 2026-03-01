@@ -46,7 +46,7 @@ function getCellElement(frame, layerId) {
 }
 
 /**
- * 選択範囲の最初(上端)のセルに空セルマーカー(×)を挿入する
+ * 選択範囲の最初(上端)フレームの全セルに空セルマーカー(×)を挿入する
  * 上に数字があり、かつセルが空の場合のみ挿入する
  */
 function insertNullCell() {
@@ -54,24 +54,31 @@ function insertNullCell() {
     if (!sheet || AppState.selectedCells.length === 0) return;
 
     const sorted = [...AppState.selectedCells].sort((a, b) => a.frame - b.frame);
-    const topCell = sorted[0];
-    if (!sheet.data[topCell.frame]) sheet.data[topCell.frame] = {};
-    const oldValue = sheet.data[topCell.frame][topCell.layerId] || '';
+    const topFrame = sorted[0].frame;
+    // トップフレームの全選択セルを対象にする
+    const topCells = sorted.filter(s => s.frame === topFrame);
 
-    // 既に×が入っている場合はスキップ
-    if (oldValue === CONSTANTS.NULL_CELL) return;
-    // セルが空でない場合はスキップ（数字が入っているセルでは×にしない）
-    if (oldValue !== '') return;
-    // 上に数字がない場合はスキップ
-    let hasNumberAbove = false;
-    for (let f = topCell.frame - 1; f >= 1; f--) {
-        const v = (sheet.data[f] && sheet.data[f][topCell.layerId]) || '';
-        if (v !== '' && v !== CONSTANTS.NULL_CELL) { hasNumberAbove = true; break; }
-        if (v === '') break; // 空セルが続いたら断念
-    }
-    if (!hasNumberAbove) return;
+    let inserted = false;
+    topCells.forEach(topCell => {
+        if (!sheet.data[topCell.frame]) sheet.data[topCell.frame] = {};
+        const oldValue = sheet.data[topCell.frame][topCell.layerId] || '';
 
-    sheet.data[topCell.frame][topCell.layerId] = CONSTANTS.NULL_CELL;
+        if (oldValue === CONSTANTS.NULL_CELL) return;
+        if (oldValue !== '') return;
+
+        let hasNumberAbove = false;
+        for (let f = topCell.frame - 1; f >= 1; f--) {
+            const v = (sheet.data[f] && sheet.data[f][topCell.layerId]) || '';
+            if (v !== '' && v !== CONSTANTS.NULL_CELL) { hasNumberAbove = true; break; }
+            if (v === '') break;
+        }
+        if (!hasNumberAbove) return;
+
+        sheet.data[topCell.frame][topCell.layerId] = CONSTANTS.NULL_CELL;
+        inserted = true;
+    });
+
+    if (!inserted) return;
     saveHistory('空セルマーカー挿入');
     renderSpreadsheetImmediate();
 }
