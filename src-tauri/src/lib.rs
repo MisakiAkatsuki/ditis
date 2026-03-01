@@ -1324,7 +1324,8 @@ pub fn run() {
       if args.len() > 1 {
         let file_path = args[1].clone();
         // .ditisまたは.jsonファイルの場合のみ処理
-        if file_path.ends_with(".ditis") || file_path.ends_with(".json") {
+        if file_path.ends_with(".ditis") || file_path.ends_with(".json")
+          || file_path.ends_with(".sts") || file_path.ends_with(".tdts") || file_path.ends_with(".xdts") {
           eprintln!("[起動] ファイル関連付けからの起動: {}", file_path);
           // ウィンドウの準備ができたらイベントでファイルパスを送信
           let app_handle = app.handle().clone();

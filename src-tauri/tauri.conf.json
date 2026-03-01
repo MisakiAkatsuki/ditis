@@ -53,6 +53,30 @@
         "name": "DiTiS Timesheet",
         "description": "DiTiS Digital Timesheet File",
         "mimeType": "application/x-ditis"
+      },
+      {
+        "ext": [
+          "sts"
+        ],
+        "name": "STS Timesheet",
+        "description": "STS Digital Timesheet File",
+        "mimeType": "application/x-sts"
+      },
+      {
+        "ext": [
+          "tdts"
+        ],
+        "name": "Toei Digital Timesheet",
+        "description": "Toei Digital Timesheet File",
+        "mimeType": "application/x-tdts"
+      },
+      {
+        "ext": [
+          "xdts"
+        ],
+        "name": "XDTS Timesheet",
+        "description": "XDTS Digital Timesheet File",
+        "mimeType": "application/x-xdts"
       }
     ],
     "windows": {
