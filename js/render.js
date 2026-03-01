@@ -76,7 +76,7 @@ function calculateSpecialDisplayCache(sheet) {
         // 最初に数字が出現するフレームを探す
         for (let f = 1; f <= maxRows; f++) {
             const value = (sheet.data[f] && sheet.data[f][layerId]) || '';
-            if (value !== '' && value !== '-') {
+            if (value !== '' && value !== '-' && value !== CONSTANTS.NULL_CELL) {
                 layerCache.firstNumberFrame = f;
                 break;
             }

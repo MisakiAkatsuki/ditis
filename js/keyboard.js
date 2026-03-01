@@ -70,7 +70,7 @@ function insertNullCell() {
         for (let f = topCell.frame - 1; f >= 1; f--) {
             const v = (sheet.data[f] && sheet.data[f][topCell.layerId]) || '';
             if (v !== '' && v !== CONSTANTS.NULL_CELL) { hasNumberAbove = true; break; }
-            if (v === '') break;
+            if (v === '' || v === CONSTANTS.NULL_CELL) break;
         }
         if (!hasNumberAbove) return;
 
@@ -1039,7 +1039,8 @@ function handleKeyboard(e) {
             const prevFrame = s.frame - 1;
             if (prevFrame >= 1) {
                 const prevValue = (sheet.data[prevFrame] && sheet.data[prevFrame][s.layerId]) || '';
-                if (prevValue !== '' && /^\d+$/.test(prevValue)) {
+                const currentValue = (sheet.data[s.frame] && sheet.data[s.frame][s.layerId]) || '';
+                if (prevValue !== '' && /^\d+$/.test(prevValue) && currentValue !== CONSTANTS.NULL_CELL) {
                     if (!sheet.data[s.frame]) sheet.data[s.frame] = {};
                     sheet.data[s.frame][s.layerId] = prevValue;
                     needRender = true;

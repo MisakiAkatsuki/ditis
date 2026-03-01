@@ -670,6 +670,7 @@ function handlePlusMinusKey(key) {
         for (let f = frame - 1; f >= 1; f--) {
             const cellValue = (sheet.data[f] && sheet.data[f][layerId]) || '';
             if (AppState.debugMode) console.log(`  チェック: frame=${f}, 値="${cellValue}"`);
+            if (cellValue === CONSTANTS.NULL_CELL) break; // ×はシリーズ終端として扱う
             if (cellValue && cellValue !== '-' && cellValue !== '' && cellValue !== '0') {
                 const numValue = parseInt(cellValue);
                 if (!isNaN(numValue) && numValue !== 0) {

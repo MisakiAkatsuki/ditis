@@ -154,7 +154,7 @@ function fillDashToEnd() {
         if (!validateFrame(frame, maxRows)) return;
         if (!validateLayerId(layerId, sheet.layers)) return;
         const currentValue = (sheet.data[frame] && sheet.data[frame][layerId]) || '';
-        if (currentValue !== '') {
+        if (currentValue !== '' && currentValue !== CONSTANTS.NULL_CELL) {
             needFill = true;
             return;
         }
@@ -179,7 +179,7 @@ function fillDashToEnd() {
         // 現在のセルの値をチェック
         const currentValue = (sheet.data[frame] && sheet.data[frame][layerId]) || '';
         
-        if (currentValue !== '') {
+        if (currentValue !== '' && currentValue !== CONSTANTS.NULL_CELL) {
             // 数字がある場合：次のフレームから最後まで同じ値で埋める（「-」表示はrender.jsで制御）
             needFill = true;
             for (let f = frame + 1; f <= maxRows; f++) {
