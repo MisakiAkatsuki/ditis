@@ -687,9 +687,16 @@ function handlePlusMinusKey(key) {
         const selected = AppState.selectedCells[0];
         const frame = selected.frame;
         const layerId = selected.layerId;
-        
-        // 前のセルの値を取得（遡り検索）
-        const prevInfo = getPreviousValue(frame, layerId);
+
+        // 現在のセルに値があればそれを基準に±1（なければ前セルから遡り検索）
+        const currentCellValue = (sheet.data[frame] && sheet.data[frame][layerId]) || '';
+        const currentNum = currentCellValue !== '' ? parseInt(currentCellValue) : NaN;
+        let prevInfo;
+        if (!isNaN(currentNum) && currentNum > 0) {
+            prevInfo = { value: currentNum, frame };
+        } else {
+            prevInfo = getPreviousValue(frame, layerId);
+        }
         
         // 前のセルに有効な数値がない場合は何も入力せずに次のセルに移動
         if (prevInfo === null) {
