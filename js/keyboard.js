@@ -1049,21 +1049,6 @@ function handleKeyboard(e) {
         if (AppState.selectedCells.length === 1) {
             // 単一選択：1つ下に移動
             moveCellSelection('ArrowDown');
-            // 移動後のセルが空で、直前（移動前）のセルに数字があれば引き継ぐ
-            if (AppState.selectedCells.length === 1) {
-                const movedCell = AppState.selectedCells[0];
-                const movedValue = (sheet.data[movedCell.frame] && sheet.data[movedCell.frame][movedCell.layerId]) || '';
-                if (movedValue === '') {
-                    const aboveValue = (sheet.data[movedCell.frame - 1] && sheet.data[movedCell.frame - 1][movedCell.layerId]) || '';
-                    if (aboveValue !== '' && /^\d+$/.test(aboveValue)) {
-                        if (!sheet.data[movedCell.frame]) sheet.data[movedCell.frame] = {};
-                        sheet.data[movedCell.frame][movedCell.layerId] = aboveValue;
-                        saveHistory('セル編集');
-                        calculateSpecialDisplayCache(sheet);
-                        renderSpreadsheetImmediate(true);
-                    }
-                }
-            }
         } else {
             // 複数選択：選択範囲の高さ分下に移動
             // 移動前のセル情報を使用
