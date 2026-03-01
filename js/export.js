@@ -951,11 +951,15 @@ async function importTimeremapData(data) {
 async function copyColumnKeyframeData(layerId) {
     const sheet = getCurrentSheet();
     const fps = sheet.fps || 24;
+    if (fps <= 0) {
+        showErrorToast('FPSが不正です。シート設定を確認してください。', ErrorLevel.ERROR);
+        return;
+    }
     const aeVersion = AppState.aeKeyframeVersion || '9.0';
     const aeVersionNum = parseFloat(aeVersion) || 9.0;
     const layer = sheet.layers.find(l => l.id === layerId);
     const layerName = layer ? layer.name : layerId;
-    const maxFrames = sheet.frames || 144;
+    const maxFrames = sheet.frames ?? 144;
 
     // 全フレームの状態を解決（前フレームと同値はホールド扱い）
     // 注: sheet.dataの"-"はレンダリング時の表示のみで、実際のデータは数値が入っている
@@ -1021,7 +1025,7 @@ async function copyColumnKeyframeData(layerId) {
         if (allFrames) {
             // 全フレーム出力（holdも含む）
             if (r.state === 'number' || r.state === 'hold') {
-                const seconds = (r.celNum - 1) / fps;
+                const seconds = (r.celNum > 0) ? (r.celNum - 1) / fps : 0;
                 timeRemapKFs.push({ aeFrame: i, seconds });
             } else {
                 timeRemapKFs.push({ aeFrame: i, seconds: 0 });
@@ -1029,7 +1033,7 @@ async function copyColumnKeyframeData(layerId) {
         } else {
             // 変化点のみ出力（state:'number'のみ、ブラインド閉じ用emptyも含む）
             if (r.state === 'number') {
-                const seconds = (r.celNum - 1) / fps;
+                const seconds = (r.celNum > 0) ? (r.celNum - 1) / fps : 0;
                 timeRemapKFs.push({ aeFrame: i, seconds });
             } else if (r.state === 'empty' && i === endIdx) {
                 // ブラインド閉じ用に拡張した末尾emptyフレームもTime Remapキーを出力
