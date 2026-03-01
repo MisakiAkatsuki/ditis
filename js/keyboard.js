@@ -47,7 +47,7 @@ function getCellElement(frame, layerId) {
 
 /**
  * 選択範囲の最初(上端)のセルに空セルマーカー(×)を挿入する
- * 空セルモードがONの場合に下矢印キー押下時に呼ばれる
+ * 上に数字があり、かつセルが空の場合のみ挿入する
  */
 function insertNullCell() {
     const sheet = getCurrentSheet();
@@ -57,7 +57,20 @@ function insertNullCell() {
     const topCell = sorted[0];
     if (!sheet.data[topCell.frame]) sheet.data[topCell.frame] = {};
     const oldValue = sheet.data[topCell.frame][topCell.layerId] || '';
-    if (oldValue === CONSTANTS.NULL_CELL) return; // 既に×なら何もしない
+
+    // 既に×が入っている場合はスキップ
+    if (oldValue === CONSTANTS.NULL_CELL) return;
+    // セルが空でない場合はスキップ（数字が入っているセルでは×にしない）
+    if (oldValue !== '') return;
+    // 上に数字がない場合はスキップ
+    let hasNumberAbove = false;
+    for (let f = topCell.frame - 1; f >= 1; f--) {
+        const v = (sheet.data[f] && sheet.data[f][topCell.layerId]) || '';
+        if (v !== '' && v !== CONSTANTS.NULL_CELL) { hasNumberAbove = true; break; }
+        if (v === '') break; // 空セルが続いたら断念
+    }
+    if (!hasNumberAbove) return;
+
     sheet.data[topCell.frame][topCell.layerId] = CONSTANTS.NULL_CELL;
     saveHistory('空セルマーカー挿入');
     renderSpreadsheetImmediate();

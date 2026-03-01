@@ -258,11 +258,11 @@ function deleteSelection() {
         const oldValue = sheet.data[s.frame] ? sheet.data[s.frame][s.layerId] : '';
         if (!sheet.data[s.frame]) sheet.data[s.frame] = {};
 
-        // 空セルモードONかつ連続中（次が"-"）のセルを削除する場合は×に置き換え
+        // 空セルモードONかつ連続中（次のセルに値がある）のセルを削除する場合は×に置き換え
         const nextFrame = s.frame + 1;
         const nextValue = nextFrame <= maxRows && sheet.data[nextFrame]
             ? (sheet.data[nextFrame][s.layerId] || '') : '';
-        if (AppState.emptyCellMode && oldValue !== '' && oldValue !== CONSTANTS.NULL_CELL && nextValue === '-') {
+        if (AppState.emptyCellMode && oldValue !== '' && oldValue !== CONSTANTS.NULL_CELL && nextValue !== '' && nextValue !== CONSTANTS.NULL_CELL) {
             sheet.data[s.frame][s.layerId] = CONSTANTS.NULL_CELL;
             return;
         }

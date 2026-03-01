@@ -868,12 +868,10 @@ td.cross-mark.inserted-cell.selected {
 
 /* 空セルマーカー (×) */
 td.null-cell {
-    color: #aaa;
     text-align: center;
     font-size: 11px;
 }
 td.null-cell.selected {
-    color: #666;
 }
 
 /* 挿入されたフレーム番号 */
