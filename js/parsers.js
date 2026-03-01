@@ -679,18 +679,15 @@ function parseStsFile(fileContent, fileName) {
     const dataSectionSize = savedLayers * framesPerColumn * 2;
     const layerNamesOffset = 23 + dataSectionSize + 1;  // ヘッダー23バイト + データ + 1バイトギャップ
     
-    // 列名を読み取る（0x01または0x00を区切りとした可変長文字列）
+    // 列名を読み取る（[長さバイト][文字バイト列] のPascal文字列形式）
     const layerNames = [];
     let namePos = layerNamesOffset;
     for (let i = 0; i < savedLayers; i++) {
+        if (namePos >= data.length) break;
+        const nameLen = data[namePos++];
         const nameBytes = [];
-        while (namePos < data.length) {
-            const byte = data[namePos];
-            namePos++;
-            if (byte === 0x01 || byte === 0x00) {
-                break;
-            }
-            nameBytes.push(byte);
+        for (let j = 0; j < nameLen && namePos < data.length; j++) {
+            nameBytes.push(data[namePos++]);
         }
         if (nameBytes.length > 0) {
             layerNames.push(new TextDecoder().decode(new Uint8Array(nameBytes)));
@@ -869,13 +866,13 @@ function generateStsBuffer(sheet, includeDisabledFrames = true) {
         return null;
     }
     
-    // ファイルサイズ計算: 23 + (layers × frames × 2) + 1 + (各レイヤー名のUTF-8バイト数 + 0x01デリミタ)
+    // ファイルサイズ計算: 23 + (layers × frames × 2) + 1 + (各レイヤー名: 長さバイト1 + UTF-8バイト列)
     const dataSize = layerCount * actualFrameCount * 2;
     const encoder = new TextEncoder();
     const encodedLayerNames = layers.map(l => encoder.encode(l.name));
     let layerNamesSize = 0;
     for (let i = 0; i < layerCount; i++) {
-        layerNamesSize += encodedLayerNames[i].length + 1; // UTF-8バイト数 + 0x01デリミタ
+        layerNamesSize += 1 + encodedLayerNames[i].length; // 長さバイト1 + UTF-8バイト数
     }
     const bufferSize = 23 + dataSize + 1 + layerNamesSize;
     
@@ -936,13 +933,12 @@ function generateStsBuffer(sheet, includeDisabledFrames = true) {
     // ギャップ (1バイト)
     buffer[offset++] = 0x01;
     
-    // レイヤー名セクション（UTF-8エンコード）
+    // レイヤー名セクション（[長さバイト][UTF-8文字バイト列] のPascal文字列形式）
     for (let layerIdx = 0; layerIdx < layerCount; layerIdx++) {
         const nameBytes = encodedLayerNames[layerIdx];
+        buffer[offset++] = nameBytes.length; // 長さバイト
         buffer.set(nameBytes, offset);
         offset += nameBytes.length;
-        // デリミタ (0x01)
-        buffer[offset++] = 0x01;
     }
     
     debugLog('ファイル', `STSバッファ生成完了: ${buffer.length}バイト`);
