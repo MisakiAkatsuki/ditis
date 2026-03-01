@@ -510,8 +510,20 @@ function renderSpreadsheetImmediate(forceFullRender = false) {
             const specialInfo = getSpecialDisplayInfo(layer.id, frame);
             
             // 空セルマーカー(×)は専用クラスで表示
+            // 空セルモードON時は、データが空でも上に数字があれば×を表示（データは変更しない）
             if (value === CONSTANTS.NULL_CELL) {
                 cellClass = 'null-cell';
+            } else if (AppState.emptyCellMode && value === '' && frame > 1) {
+                let hasNumberAbove = false;
+                for (let f = frame - 1; f >= 1; f--) {
+                    const v = (sheet.data[f] && sheet.data[f][layer.id]) || '';
+                    if (v !== '' && v !== CONSTANTS.NULL_CELL) { hasNumberAbove = true; break; }
+                    if (v === '') break;
+                }
+                if (hasNumberAbove) {
+                    cellClass = 'null-cell';
+                    cellContent = CONSTANTS.NULL_CELL;
+                }
             } else if (specialInfo.isCrossMark && value === '') {
                 // ×印表示
                 cellClass = 'cross-mark';
