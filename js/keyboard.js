@@ -1023,19 +1023,16 @@ function handleKeyboard(e) {
             layerId: s.layerId
         }));
 
-        // 空セルかつ直前フレームに数字がある場合、同じ値を引き継ぐ（ホールド連続入力）
+        // 直前フレームに数字がある場合、同じ値を引き継ぐ（既存値も上書き）
         let needRender = false;
         cellsBeforeInput.forEach(s => {
-            const value = (sheet.data[s.frame] && sheet.data[s.frame][s.layerId]) || '';
-            if (value === '') {
-                const prevFrame = s.frame - 1;
-                if (prevFrame >= 1) {
-                    const prevValue = (sheet.data[prevFrame] && sheet.data[prevFrame][s.layerId]) || '';
-                    if (prevValue !== '' && /^\d+$/.test(prevValue)) {
-                        if (!sheet.data[s.frame]) sheet.data[s.frame] = {};
-                        sheet.data[s.frame][s.layerId] = prevValue;
-                        needRender = true;
-                    }
+            const prevFrame = s.frame - 1;
+            if (prevFrame >= 1) {
+                const prevValue = (sheet.data[prevFrame] && sheet.data[prevFrame][s.layerId]) || '';
+                if (prevValue !== '' && /^\d+$/.test(prevValue)) {
+                    if (!sheet.data[s.frame]) sheet.data[s.frame] = {};
+                    sheet.data[s.frame][s.layerId] = prevValue;
+                    needRender = true;
                 }
             }
         });
