@@ -1323,18 +1323,23 @@ pub fn run() {
       let args: Vec<String> = std::env::args().collect();
       if args.len() > 1 {
         let file_path = args[1].clone();
-        // .ditisまたは.jsonファイルの場合のみ処理
-        if file_path.ends_with(".ditis") || file_path.ends_with(".json")
-          || file_path.ends_with(".sts") || file_path.ends_with(".tdts") || file_path.ends_with(".xdts") {
+        if validate_file_path(&file_path).is_ok() {
           eprintln!("[起動] ファイル関連付けからの起動: {}", file_path);
           // ウィンドウの準備ができたらイベントでファイルパスを送信
           let app_handle = app.handle().clone();
-          let file_path_for_closure = file_path.clone();
           std::thread::spawn(move || {
-            // ウィンドウの読み込み完了を待つ
-            std::thread::sleep(std::time::Duration::from_millis(1000));
-            let _ = app_handle.emit("open-file", file_path_for_closure);
+            // メインウィンドウ生成を待つ（最大5秒、100ms間隔でポーリング）
+            for _ in 0..50 {
+              if app_handle.get_webview_window("main").is_some() {
+                let _ = app_handle.emit("open-file", file_path.clone());
+                return;
+              }
+              std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            eprintln!("[起動] open-file emit タイムアウト");
           });
+        } else {
+          eprintln!("[起動] 不正なファイルパスを拒否: {}", file_path);
         }
       }
 
