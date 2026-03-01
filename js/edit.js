@@ -741,7 +741,7 @@ function handlePlusMinusKey(key) {
                     const v = (sheet.data[f] && sheet.data[f][layerId]) || '';
                     const isVisualLine = typeof getSpecialDisplayInfo === 'function' &&
                         getSpecialDisplayInfo(layerId, f).isVerticalLine;
-                    if (v === '' && !isVisualLine) { hasGap = true; break; }
+                    if ((v === '' || v === CONSTANTS.NULL_CELL) && !isVisualLine) { hasGap = true; break; }
                 }
                 if (!hasGap) {
                     for (let f = segmentStartFrame + 1; f < frame; f++) {
