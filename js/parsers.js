@@ -677,7 +677,7 @@ function parseStsFile(fileContent, fileName) {
     // データセクションのサイズを計算（Column-major、2バイト/セル）
     const framesPerColumn = totalFrames;  // Byte 19の値
     const dataSectionSize = savedLayers * framesPerColumn * 2;
-    const layerNamesOffset = 23 + dataSectionSize + 1;  // ヘッダー23バイト + データ + 1バイトギャップ
+    const layerNamesOffset = 23 + dataSectionSize;  // ヘッダー23バイト + データ
     
     // 列名を読み取る（[長さバイト][文字バイト列] のPascal文字列形式）
     const layerNames = [];
@@ -874,7 +874,7 @@ function generateStsBuffer(sheet, includeDisabledFrames = true) {
     for (let i = 0; i < layerCount; i++) {
         layerNamesSize += 1 + encodedLayerNames[i].length; // 長さバイト1 + UTF-8バイト数
     }
-    const bufferSize = 23 + dataSize + 1 + layerNamesSize;
+    const bufferSize = 23 + dataSize + layerNamesSize;
     
     const buffer = new Uint8Array(bufferSize);
     let offset = 0;
@@ -929,9 +929,6 @@ function generateStsBuffer(sheet, includeDisabledFrames = true) {
             buffer[offset++] = 0x00; // type (常に0x00)
         }
     }
-    
-    // ギャップ (1バイト)
-    buffer[offset++] = 0x01;
     
     // レイヤー名セクション（[長さバイト][UTF-8文字バイト列] のPascal文字列形式）
     for (let layerIdx = 0; layerIdx < layerCount; layerIdx++) {
