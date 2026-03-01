@@ -1027,10 +1027,13 @@ async function copyColumnKeyframeData(layerId) {
                 timeRemapKFs.push({ aeFrame: i, seconds: 0 });
             }
         } else {
-            // 変化点のみ出力（state:'number'のみ）
+            // 変化点のみ出力（state:'number'のみ、ブラインド閉じ用emptyも含む）
             if (r.state === 'number') {
                 const seconds = (r.celNum - 1) / fps;
                 timeRemapKFs.push({ aeFrame: i, seconds });
+            } else if (r.state === 'empty' && i === endIdx) {
+                // ブラインド閉じ用に拡張した末尾emptyフレームもTime Remapキーを出力
+                timeRemapKFs.push({ aeFrame: i, seconds: 0 });
             }
         }
     }
