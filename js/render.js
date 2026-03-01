@@ -498,7 +498,8 @@ function renderSpreadsheetImmediate(forceFullRender = false) {
             let cellStyle = ''; // インラインスタイル用
             
             // 前のセルと同じ値なら「-」を表示（表示のみ、データは実数値）
-            if (value !== '' && frame > 1) {
+            // ただし空セルマーカー(×)は常にそのまま表示する
+            if (value !== '' && value !== CONSTANTS.NULL_CELL && frame > 1) {
                 const prevValue = (sheet.data[frame - 1] && sheet.data[frame - 1][layer.id]) || '';
                 if (value === prevValue) {
                     cellContent = '-';
@@ -508,7 +509,10 @@ function renderSpreadsheetImmediate(forceFullRender = false) {
             // 特殊表示判定（キャッシュを使用）
             const specialInfo = getSpecialDisplayInfo(layer.id, frame);
             
-            if (specialInfo.isCrossMark && value === '') {
+            // 空セルマーカー(×)は専用クラスで表示
+            if (value === CONSTANTS.NULL_CELL) {
+                cellClass = 'null-cell';
+            } else if (specialInfo.isCrossMark && value === '') {
                 // ×印表示
                 cellClass = 'cross-mark';
                 cellContent = '';

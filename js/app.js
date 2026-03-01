@@ -86,6 +86,7 @@ const AppState = {
     reopenLastFile: false, // 起動時に前回のシート状態を復元する
     numericKeyMode: 'auto', // 数字キーの動作: 'auto'|'column-select'|'number-input'
     copyKeyframeMode: 'sparse', // コピーキーフレームモード: 'sparse'|'all-frames'
+    emptyCellMode: false, // 空セルモード: 下矢印で×を入力してから移動
     aeKeyframeVersion: '9.0', // クリップボードにコピーするキーフレームデータのAEバージョン
     recentFiles: [], // 最近使用したファイル（最大10件）
     
@@ -359,6 +360,7 @@ async function triggerMenuRebuild() {
                 AppState.reopenLastFile || false,
                 AppState.numericKeyMode || 'auto',
                 AppState.copyKeyframeMode || 'sparse',
+                AppState.emptyCellMode || false,
                 AppState.recentFiles || []
             );
         } catch (error) {
@@ -983,6 +985,11 @@ window.handleMenuEvent = async function(menuId) {
         },
         'copy-keyframe-mode-all-frames': async () => {
             AppState.copyKeyframeMode = 'all-frames';
+            saveToLocalStorage();
+            await triggerMenuRebuild();
+        },
+        'empty-cell-mode': async () => {
+            AppState.emptyCellMode = !AppState.emptyCellMode;
             saveToLocalStorage();
             await triggerMenuRebuild();
         },

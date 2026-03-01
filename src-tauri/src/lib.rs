@@ -67,6 +67,7 @@ struct MenuTexts {
     edit_copy_keyframe_mode: String,
     edit_copy_keyframe_sparse: String,
     edit_copy_keyframe_all_frames: String,
+    edit_empty_cell_mode: String,
     #[allow(dead_code)]
     edit_ae_settings: String,
     #[allow(dead_code)]
@@ -154,6 +155,7 @@ impl MenuTexts {
                 edit_copy_keyframe_mode: "Copy Keyframe Output".to_string(),
                 edit_copy_keyframe_sparse: "Changes Only".to_string(),
                 edit_copy_keyframe_all_frames: "All Frames".to_string(),
+                edit_empty_cell_mode: "Empty Cell Mode (Down Arrow inserts x)".to_string(),
                 edit_ae_settings: "AE Export Settings".to_string(),
                 edit_ae_empty_blind: "Empty Cell: Venetian Blinds".to_string(),
                 edit_ae_empty_timeremap: "Empty Cell: Time Remap".to_string(),
@@ -233,6 +235,7 @@ impl MenuTexts {
                 edit_copy_keyframe_mode: "コピーキーフレームの出力".to_string(),
                 edit_copy_keyframe_sparse: "変化点のみ".to_string(),
                 edit_copy_keyframe_all_frames: "全フレーム".to_string(),
+                edit_empty_cell_mode: "空セルモード（下矢印で×を入力）".to_string(),
                 edit_ae_settings: "AE送信設定".to_string(),
                 edit_ae_empty_blind: "空セル: ブラインドエフェクト".to_string(),
                 edit_ae_empty_timeremap: "空セル: タイムリマップ".to_string(),
@@ -536,6 +539,7 @@ async fn rebuild_menu(
     reopen_last_file: bool,
     numeric_key_mode: String,
     copy_keyframe_mode: String,
+    empty_cell_mode: bool,
     recent_files: Vec<String>
 ) -> Result<(), String> {
     eprintln!("[rebuild_menu] 開始: lang={}, theme={}, frame_filter={}, header_mode={}, font_size={}, auto_scroll={}, show_new_sheet_dialog={}, show_intermediate_headers={}", 
@@ -616,6 +620,7 @@ async fn rebuild_menu(
             .item(&create_check_item("copy-keyframe-mode-sparse", &texts.edit_copy_keyframe_sparse, copy_keyframe_mode == "sparse" || copy_keyframe_mode.is_empty())?)
             .item(&create_check_item("copy-keyframe-mode-all-frames", &texts.edit_copy_keyframe_all_frames, copy_keyframe_mode == "all-frames")?)
             .build().map_err(|e| e.to_string())?)
+          .item(&create_check_item("empty-cell-mode", &texts.edit_empty_cell_mode, empty_cell_mode)?)
           .build().map_err(|e| e.to_string())?)
         // シートメニュー
         .item(&SubmenuBuilder::new(&app, &texts.sheet)
