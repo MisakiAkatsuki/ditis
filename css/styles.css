@@ -869,7 +869,6 @@ td.cross-mark.inserted-cell.selected {
 /* 空セルマーカー (×) */
 td.null-cell {
     text-align: center;
-    font-size: 11px;
 }
 td.null-cell.selected {
 }

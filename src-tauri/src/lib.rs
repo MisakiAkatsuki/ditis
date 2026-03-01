@@ -68,6 +68,7 @@ struct MenuTexts {
     edit_copy_keyframe_sparse: String,
     edit_copy_keyframe_all_frames: String,
     edit_empty_cell_mode: String,
+    view_empty_cell_mode: String,
     #[allow(dead_code)]
     edit_ae_settings: String,
     #[allow(dead_code)]
@@ -155,7 +156,8 @@ impl MenuTexts {
                 edit_copy_keyframe_mode: "Copy Keyframe Output".to_string(),
                 edit_copy_keyframe_sparse: "Changes Only".to_string(),
                 edit_copy_keyframe_all_frames: "All Frames".to_string(),
-                edit_empty_cell_mode: "Empty Cell Mode (Down Arrow inserts x)".to_string(),
+                edit_empty_cell_mode: String::new(),
+                view_empty_cell_mode: "Insert × with Down Arrow".to_string(),
                 edit_ae_settings: "AE Export Settings".to_string(),
                 edit_ae_empty_blind: "Empty Cell: Venetian Blinds".to_string(),
                 edit_ae_empty_timeremap: "Empty Cell: Time Remap".to_string(),
@@ -235,7 +237,8 @@ impl MenuTexts {
                 edit_copy_keyframe_mode: "コピーキーフレームの出力".to_string(),
                 edit_copy_keyframe_sparse: "変化点のみ".to_string(),
                 edit_copy_keyframe_all_frames: "全フレーム".to_string(),
-                edit_empty_cell_mode: "空セルモード（下矢印で×を入力）".to_string(),
+                edit_empty_cell_mode: String::new(),
+                view_empty_cell_mode: "下矢印で×マークを入力".to_string(),
                 edit_ae_settings: "AE送信設定".to_string(),
                 edit_ae_empty_blind: "空セル: ブラインドエフェクト".to_string(),
                 edit_ae_empty_timeremap: "空セル: タイムリマップ".to_string(),
@@ -620,7 +623,6 @@ async fn rebuild_menu(
             .item(&create_check_item("copy-keyframe-mode-sparse", &texts.edit_copy_keyframe_sparse, copy_keyframe_mode == "sparse" || copy_keyframe_mode.is_empty())?)
             .item(&create_check_item("copy-keyframe-mode-all-frames", &texts.edit_copy_keyframe_all_frames, copy_keyframe_mode == "all-frames")?)
             .build().map_err(|e| e.to_string())?)
-          .item(&create_check_item("empty-cell-mode", &texts.edit_empty_cell_mode, empty_cell_mode)?)
           .build().map_err(|e| e.to_string())?)
         // シートメニュー
         .item(&SubmenuBuilder::new(&app, &texts.sheet)
@@ -655,6 +657,7 @@ async fn rebuild_menu(
             .build().map_err(|e| e.to_string())?)
           .separator()
           .item(&create_check_item("toggle-intermediate-headers", &texts.view_intermediate_headers, show_intermediate_headers)?)
+          .item(&create_check_item("empty-cell-mode", &texts.view_empty_cell_mode, empty_cell_mode)?)
           .separator()
           .item(&MenuItemBuilder::new(&texts.view_reset).id("reset-view-settings").build(&app).map_err(|e| e.to_string())?)
           .separator()
