@@ -187,11 +187,12 @@ function changeFontSize(size) {
  * フォントサイズセレクトボックスを初期化
  */
 function initializeFontSize() {
+    // 保存されたフォントサイズを適用（セレクトボックスの有無に関わらず実行）
+    changeFontSize(AppState.fontSize || 12);
+
     const select = document.getElementById('font-size-select');
     if (select) {
-        // 保存されたフォントサイズを適用
         select.value = AppState.fontSize;
-        changeFontSize(AppState.fontSize);
     }
 }
 
