@@ -64,6 +64,7 @@ async function createNewSheetWithDialog() {
         fps: settings.fps || 24,
         layers: [],
         frames: settings.frames,
+        visibleRows: settings.frames,
         framePageSize: settings.framePageSize || settings.frames,
         data: {},
         insertedFrames: [],
