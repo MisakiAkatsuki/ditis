@@ -57,11 +57,10 @@ function insertNullCell() {
     const topCell = sorted[0];
     if (!sheet.data[topCell.frame]) sheet.data[topCell.frame] = {};
     const oldValue = sheet.data[topCell.frame][topCell.layerId] || '';
-    const newValue = CONSTANTS.NULL_CELL;
-    if (oldValue === newValue) return; // 既に×なら何もしない
-    sheet.data[topCell.frame][topCell.layerId] = newValue;
-    saveHistory([{ frame: topCell.frame, layerId: topCell.layerId, oldValue, newValue }]);
-    renderSheet();
+    if (oldValue === CONSTANTS.NULL_CELL) return; // 既に×なら何もしない
+    sheet.data[topCell.frame][topCell.layerId] = CONSTANTS.NULL_CELL;
+    saveHistory('空セルマーカー挿入');
+    renderSpreadsheetImmediate();
 }
 
 // ========================================
