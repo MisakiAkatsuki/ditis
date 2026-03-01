@@ -964,22 +964,27 @@ window.handleMenuEvent = async function(menuId) {
         'numeric-key-mode-auto': async () => {
             AppState.numericKeyMode = 'auto';
             saveToLocalStorage();
+            await triggerMenuRebuild();
         },
         'numeric-key-mode-column': async () => {
             AppState.numericKeyMode = 'column-select';
             saveToLocalStorage();
+            await triggerMenuRebuild();
         },
         'numeric-key-mode-input': async () => {
             AppState.numericKeyMode = 'number-input';
             saveToLocalStorage();
+            await triggerMenuRebuild();
         },
         'copy-keyframe-mode-sparse': async () => {
             AppState.copyKeyframeMode = 'sparse';
             saveToLocalStorage();
+            await triggerMenuRebuild();
         },
         'copy-keyframe-mode-all-frames': async () => {
             AppState.copyKeyframeMode = 'all-frames';
             saveToLocalStorage();
+            await triggerMenuRebuild();
         },
         'change-ae-keyframe-version': async () => {
             const current = AppState.aeKeyframeVersion || '9.0';
