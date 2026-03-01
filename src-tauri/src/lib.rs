@@ -238,7 +238,7 @@ impl MenuTexts {
                 edit_copy_keyframe_sparse: "変化点のみ".to_string(),
                 edit_copy_keyframe_all_frames: "全フレーム".to_string(),
                 edit_empty_cell_mode: String::new(),
-                view_empty_cell_mode: "空セルに×マークを入力".to_string(),
+                view_empty_cell_mode: "空セルに×マークを表示".to_string(),
                 edit_ae_settings: "AE送信設定".to_string(),
                 edit_ae_empty_blind: "空セル: ブラインドエフェクト".to_string(),
                 edit_ae_empty_timeremap: "空セル: タイムリマップ".to_string(),
