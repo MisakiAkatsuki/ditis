@@ -64,6 +64,9 @@ struct MenuTexts {
     edit_numeric_key_auto: String,
     edit_numeric_key_column: String,
     edit_numeric_key_input: String,
+    edit_copy_keyframe_mode: String,
+    edit_copy_keyframe_sparse: String,
+    edit_copy_keyframe_all_frames: String,
     #[allow(dead_code)]
     edit_ae_settings: String,
     #[allow(dead_code)]
@@ -148,6 +151,9 @@ impl MenuTexts {
                 edit_numeric_key_auto: "Auto (NumLock-linked)".to_string(),
                 edit_numeric_key_column: "Column Select".to_string(),
                 edit_numeric_key_input: "Number Input".to_string(),
+                edit_copy_keyframe_mode: "Copy Keyframe Output".to_string(),
+                edit_copy_keyframe_sparse: "Changes Only".to_string(),
+                edit_copy_keyframe_all_frames: "All Frames".to_string(),
                 edit_ae_settings: "AE Export Settings".to_string(),
                 edit_ae_empty_blind: "Empty Cell: Venetian Blinds".to_string(),
                 edit_ae_empty_timeremap: "Empty Cell: Time Remap".to_string(),
@@ -224,6 +230,9 @@ impl MenuTexts {
                 edit_numeric_key_auto: "自動（NumLock連動）".to_string(),
                 edit_numeric_key_column: "列選択".to_string(),
                 edit_numeric_key_input: "数値入力".to_string(),
+                edit_copy_keyframe_mode: "コピーキーフレームの出力".to_string(),
+                edit_copy_keyframe_sparse: "変化点のみ".to_string(),
+                edit_copy_keyframe_all_frames: "全フレーム".to_string(),
                 edit_ae_settings: "AE送信設定".to_string(),
                 edit_ae_empty_blind: "空セル: ブラインドエフェクト".to_string(),
                 edit_ae_empty_timeremap: "空セル: タイムリマップ".to_string(),
@@ -425,6 +434,16 @@ async fn update_menu_item_check(app: tauri::AppHandle<tauri::Wry>, menu_id: Stri
                 let _ = item.set_checked(false);
             }
         }
+        
+        // コピーキーフレームモードメニューの排他的チェック処理
+        if menu_id.starts_with("copy-keyframe-mode-") {
+            if let Some(item) = menu_items.get("copy-keyframe-mode-sparse") {
+                let _ = item.set_checked(false);
+            }
+            if let Some(item) = menu_items.get("copy-keyframe-mode-all-frames") {
+                let _ = item.set_checked(false);
+            }
+        }
     }
     
     if let Some(item) = menu_items.get(&menu_id) {
@@ -509,6 +528,7 @@ async fn rebuild_menu(
     show_intermediate_headers: bool,
     reopen_last_file: bool,
     numeric_key_mode: String,
+    copy_keyframe_mode: String,
     recent_files: Vec<String>
 ) -> Result<(), String> {
     eprintln!("[rebuild_menu] 開始: lang={}, theme={}, frame_filter={}, header_mode={}, font_size={}, auto_scroll={}, show_new_sheet_dialog={}, show_intermediate_headers={}", 
@@ -584,6 +604,10 @@ async fn rebuild_menu(
             .item(&create_check_item("numeric-key-mode-auto", &texts.edit_numeric_key_auto, numeric_key_mode == "auto")?)
             .item(&create_check_item("numeric-key-mode-column", &texts.edit_numeric_key_column, numeric_key_mode == "column-select")?)
             .item(&create_check_item("numeric-key-mode-input", &texts.edit_numeric_key_input, numeric_key_mode == "number-input")?)
+            .build().map_err(|e| e.to_string())?)
+          .item(&SubmenuBuilder::new(&app, &texts.edit_copy_keyframe_mode)
+            .item(&create_check_item("copy-keyframe-mode-sparse", &texts.edit_copy_keyframe_sparse, copy_keyframe_mode == "sparse" || copy_keyframe_mode.is_empty())?)
+            .item(&create_check_item("copy-keyframe-mode-all-frames", &texts.edit_copy_keyframe_all_frames, copy_keyframe_mode == "all-frames")?)
             .build().map_err(|e| e.to_string())?)
           .build().map_err(|e| e.to_string())?)
         // シートメニュー
@@ -1211,6 +1235,10 @@ pub fn run() {
             .item(&create_check_item("numeric-key-mode-column", "列選択", false)?)
             .item(&create_check_item("numeric-key-mode-input", "数値入力", false)?)
             .build()?)
+          .item(&SubmenuBuilder::new(app, "コピーキーフレームの出力")
+            .item(&create_check_item("copy-keyframe-mode-sparse", "変化点のみ", false)?)
+            .item(&create_check_item("copy-keyframe-mode-all-frames", "全フレーム", false)?)
+            .build()?)
           .build()?)
         // シートメニュー
         .item(&SubmenuBuilder::new(app, "シート")
@@ -1449,6 +1477,19 @@ pub fn run() {
             let _ = item.set_checked(false);
           }
           if let Some(item) = menu_items_state.get("numeric-key-mode-input") {
+            let _ = item.set_checked(false);
+          }
+          if let Some(item) = menu_items_state.get(menu_id) {
+            let _ = item.set_checked(true);
+          }
+        }
+        
+        // コピーキーフレームモードメニューの排他的チェック処理
+        if menu_id.starts_with("copy-keyframe-mode-") {
+          if let Some(item) = menu_items_state.get("copy-keyframe-mode-sparse") {
+            let _ = item.set_checked(false);
+          }
+          if let Some(item) = menu_items_state.get("copy-keyframe-mode-all-frames") {
             let _ = item.set_checked(false);
           }
           if let Some(item) = menu_items_state.get(menu_id) {

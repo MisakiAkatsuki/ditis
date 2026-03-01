@@ -952,27 +952,109 @@ async function copyColumnKeyframeData(layerId) {
     const sheet = getCurrentSheet();
     const fps = sheet.fps || 24;
     const aeVersion = AppState.aeKeyframeVersion || '9.0';
+    const aeVersionNum = parseFloat(aeVersion) || 9.0;
     const layer = sheet.layers.find(l => l.id === layerId);
     const layerName = layer ? layer.name : layerId;
-
-    // 非空セルのキーフレームを収集（フレーム順）
-    const keyframes = [];
     const maxFrames = sheet.frames || 144;
+
+    // 全フレームの状態を解決（前フレームと同値はホールド扱い）
+    // 注: sheet.dataの"-"はレンダリング時の表示のみで、実際のデータは数値が入っている
+    const resolved = [];
+    let prevCelNum = null;
     for (let frame = 1; frame <= maxFrames; frame++) {
         const value = sheet.data[frame]?.[layerId];
-        if (value !== undefined && value !== '' && value !== null) {
-            const celNum = parseInt(value);
-            if (!isNaN(celNum)) {
-                const aeFrame = frame - 1; // AEは0始まり
-                const seconds = (celNum - 1) / fps;
-                keyframes.push({ aeFrame, seconds });
+        if (value !== undefined && value !== null && value !== '') {
+            const parsed = parseInt(value);
+            if (!isNaN(parsed)) {
+                if (parsed === prevCelNum) {
+                    // 前フレームと同値 = ホールド（"-"表示に相当）→ empty扱い
+                    resolved.push({ celNum: parsed, state: 'hold' });
+                } else {
+                    resolved.push({ celNum: parsed, state: 'number' });
+                    prevCelNum = parsed;
+                }
+            } else {
+                resolved.push({ celNum: null, state: 'empty' });
+                prevCelNum = null;
+            }
+        } else {
+            resolved.push({ celNum: null, state: 'empty' });
+            prevCelNum = null;
+        }
+    }
+
+    // データ範囲を特定
+    let firstIdx = -1;
+    let lastIdx = -1;
+    for (let i = 0; i < resolved.length; i++) {
+        if (resolved[i].state === 'number' || resolved[i].state === 'hold') {
+            if (firstIdx < 0) firstIdx = i;
+            lastIdx = i;
+        }
+    }
+
+    if (firstIdx < 0) {
+        showErrorToast('コピーするキーフレームデータがありません', ErrorLevel.WARNING, 3000);
+        return;
+    }
+
+    // 末尾の空きフレームを1つ含める（ブラインド閉じ用）
+    let endIdx = lastIdx;
+    if (lastIdx + 1 < resolved.length && resolved[lastIdx + 1].state === 'empty') {
+        endIdx = lastIdx + 1;
+    }
+
+    // ブラインドが必要か判定（データ範囲内に空きコマがあるか）
+    let needsBlind = false;
+    for (let i = firstIdx; i <= endIdx; i++) {
+        if (resolved[i].state === 'empty') {
+            needsBlind = true;
+            break;
+        }
+    }
+
+    // Time Remap キーフレーム（モードに応じて出力）
+    const allFrames = (AppState.copyKeyframeMode || 'sparse') === 'all-frames';
+    const timeRemapKFs = [];
+    for (let i = firstIdx; i <= endIdx; i++) {
+        const r = resolved[i];
+        if (allFrames) {
+            // 全フレーム出力（holdも含む）
+            if (r.state === 'number' || r.state === 'hold') {
+                const seconds = (r.celNum - 1) / fps;
+                timeRemapKFs.push({ aeFrame: i, seconds });
+            } else {
+                timeRemapKFs.push({ aeFrame: i, seconds: 0 });
+            }
+        } else {
+            // 変化点のみ出力（state:'number'のみ）
+            if (r.state === 'number') {
+                const seconds = (r.celNum - 1) / fps;
+                timeRemapKFs.push({ aeFrame: i, seconds });
             }
         }
     }
 
-    if (keyframes.length === 0) {
-        showErrorToast('コピーするキーフレームデータがありません', ErrorLevel.WARNING, 3000);
-        return;
+    // ブラインドキーフレーム（ホールド補間のため変化前フレームに同値を重複出力）
+    const blindKFs = [];
+    if (needsBlind) {
+        // まず変化点リストを作成
+        const blindChanges = [];
+        let isBlind = null;
+        for (let i = firstIdx; i <= endIdx; i++) {
+            const isEmpty = resolved[i].state === 'empty';
+            if (isBlind === null || isEmpty !== isBlind) {
+                blindChanges.push({ aeFrame: i, value: isEmpty ? 100 : 0 });
+                isBlind = isEmpty;
+            }
+        }
+        // 各変化点の直前に同値を挿入してAEのホールド補間を実現
+        for (let j = 0; j < blindChanges.length; j++) {
+            if (j > 0 && blindChanges[j].aeFrame - 1 > blindChanges[j - 1].aeFrame) {
+                blindKFs.push({ aeFrame: blindChanges[j].aeFrame - 1, value: blindChanges[j - 1].value });
+            }
+            blindKFs.push(blindChanges[j]);
+        }
     }
 
     const fmtSec = (s) => {
@@ -980,6 +1062,7 @@ async function copyColumnKeyframeData(layerId) {
         return s.toFixed(7).replace(/\.?0+$/, '');
     };
 
+    // 出力組み立て
     const lines = [
         `Adobe After Effects ${aeVersion} Keyframe Data`,
         '',
@@ -989,14 +1072,32 @@ async function copyColumnKeyframeData(layerId) {
         '\tSource Pixel Aspect Ratio\t1',
         '\tComp Pixel Aspect Ratio\t1',
         '',
-        'Layer',
-        'Time Remap',
-        '\tFrame\tseconds\t',
-        ...keyframes.map(kf => `\t${kf.aeFrame}\t${fmtSec(kf.seconds)}\t`),
-        '',
-        'End of Keyframe Data',
-        ''
     ];
+
+    // 9.0以上では Layer 行を追加
+    if (aeVersionNum >= 9.0) {
+        lines.push('Layer');
+    }
+
+    lines.push('Time Remap');
+    lines.push('\tFrame\tseconds\t');
+    timeRemapKFs.forEach(kf => {
+        lines.push(`\t${kf.aeFrame}\t${fmtSec(kf.seconds)}\t`);
+    });
+    lines.push('');
+
+    // 空きコマがある場合はブラインドエフェクトを追加
+    if (needsBlind && blindKFs.length > 0) {
+        lines.push('Effects\tブラインド #1\t変換終了 #2\t');
+        lines.push('\tFrame\tパーセント');
+        blindKFs.forEach(kf => {
+            lines.push(`\t${kf.aeFrame}\t${kf.value}\t`);
+        });
+        lines.push('');
+    }
+
+    lines.push('End of Keyframe Data');
+    lines.push('');
 
     try {
         await navigator.clipboard.writeText(lines.join('\n'));

@@ -263,6 +263,10 @@ async function updateTauriMenuCheckmarks() {
         await window.TauriAPI.updateMenuItemCheck('numeric-key-mode-auto', (AppState.numericKeyMode || 'auto') === 'auto');
         await window.TauriAPI.updateMenuItemCheck('numeric-key-mode-column', AppState.numericKeyMode === 'column-select');
         await window.TauriAPI.updateMenuItemCheck('numeric-key-mode-input', AppState.numericKeyMode === 'number-input');
+
+        // コピーキーフレームモード
+        await window.TauriAPI.updateMenuItemCheck('copy-keyframe-mode-sparse', (AppState.copyKeyframeMode || 'sparse') === 'sparse');
+        await window.TauriAPI.updateMenuItemCheck('copy-keyframe-mode-all-frames', AppState.copyKeyframeMode === 'all-frames');
             
             } catch (error) {
         console.error('[updateTauriMenuCheckmarks] エラー:', error);
