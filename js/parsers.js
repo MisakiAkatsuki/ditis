@@ -629,7 +629,7 @@ function loadStsFile(e) {
  * - Layer 2: Frame 1-N
  * - ...
  * - Layer M: Frame 1-N
- * - Layer names: [name1, 0x01], [name2, 0x01], ..., [nameM, 0x00or0x01]
+ * - Layer names: [name1..., 0x01], [name2..., 0x01], ..., [nameM..., 0x00or0x01]
  */
 function parseStsFile(fileContent, fileName) {
     debugLog('ファイル', `STSファイル読み込み: ${fileName}`);
@@ -679,13 +679,21 @@ function parseStsFile(fileContent, fileName) {
     const dataSectionSize = savedLayers * framesPerColumn * 2;
     const layerNamesOffset = 23 + dataSectionSize + 1;  // ヘッダー23バイト + データ + 1バイトギャップ
     
-    // 列名を読み取る
+    // 列名を読み取る（0x01または0x00を区切りとした可変長文字列）
     const layerNames = [];
+    let namePos = layerNamesOffset;
     for (let i = 0; i < savedLayers; i++) {
-        const offset = layerNamesOffset + i * 2;
-        if (offset < data.length) {
-            const nameChar = String.fromCharCode(data[offset]);
-            layerNames.push(nameChar);
+        const nameBytes = [];
+        while (namePos < data.length) {
+            const byte = data[namePos];
+            namePos++;
+            if (byte === 0x01 || byte === 0x00) {
+                break;
+            }
+            nameBytes.push(byte);
+        }
+        if (nameBytes.length > 0) {
+            layerNames.push(nameBytes.map(b => String.fromCharCode(b)).join(''));
         } else {
             layerNames.push(String.fromCharCode(65 + i)); // A, B, C...
         }
