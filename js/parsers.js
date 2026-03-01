@@ -869,9 +869,12 @@ function generateStsBuffer(sheet, includeDisabledFrames = true) {
         return null;
     }
     
-    // ファイルサイズ計算: 23 + (layers × frames × 2) + 1 + (layers × 2)
+    // ファイルサイズ計算: 23 + (layers × frames × 2) + 1 + (各レイヤー名バイト数 + 0x01デリミタ)
     const dataSize = layerCount * actualFrameCount * 2;
-    const layerNamesSize = layerCount * 2;
+    let layerNamesSize = 0;
+    for (let i = 0; i < layerCount; i++) {
+        layerNamesSize += layers[i].name.length + 1; // 名前のバイト数 + 0x01デリミタ
+    }
     const bufferSize = 23 + dataSize + 1 + layerNamesSize;
     
     const buffer = new Uint8Array(bufferSize);
@@ -934,9 +937,11 @@ function generateStsBuffer(sheet, includeDisabledFrames = true) {
     // レイヤー名セクション
     for (let layerIdx = 0; layerIdx < layerCount; layerIdx++) {
         const layerName = layers[layerIdx].name;
-        // 最初の1文字のASCIIコード
-        buffer[offset++] = layerName.charCodeAt(0);
-        // フラグ (0x01)
+        // 全文字のASCIIコードを書き込み
+        for (let ci = 0; ci < layerName.length; ci++) {
+            buffer[offset++] = layerName.charCodeAt(ci);
+        }
+        // デリミタ (0x01)
         buffer[offset++] = 0x01;
     }
     
