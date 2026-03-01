@@ -951,10 +951,6 @@ async function importTimeremapData(data) {
 async function copyColumnKeyframeData(layerId) {
     const sheet = getCurrentSheet();
     const fps = (Number.isFinite(sheet.fps) && sheet.fps > 0) ? sheet.fps : 24;
-    if (fps <= 0) {
-        showErrorToast('FPSが不正です。シート設定を確認してください。', ErrorLevel.ERROR);
-        return;
-    }
     const aeVersion = AppState.aeKeyframeVersion || '9.0';
     const aeVersionNum = parseFloat(aeVersion) || 9.0;
     const layer = sheet.layers.find(l => l.id === layerId);
