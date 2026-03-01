@@ -20,6 +20,9 @@ const CONSTANTS = {
     MAX_HISTORY: 100,
     MAX_DEBUG_LOGS: 1000,
     
+    // 空セルマーカー
+    NULL_CELL: '\u00D7', // ×（空セルを明示するマーカー）
+
     // 入力制限
     MAX_CELL_INPUT_LENGTH: 10,
     

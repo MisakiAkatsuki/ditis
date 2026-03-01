@@ -284,7 +284,7 @@ if (typeof window.TauriAPI === 'undefined') {
      * @param {boolean} autoScroll - 自動スクロール
      * @returns {Promise<void>}
      */
-    async function rebuildMenu(lang, theme, frameFilter, headerMode, fontSize, debugMode, alwaysOnTop, autoScroll, showNewSheetDialog, showIntermediateHeaders, reopenLastFile, numericKeyMode, copyKeyframeMode, recentFiles) {
+    async function rebuildMenu(lang, theme, frameFilter, headerMode, fontSize, debugMode, alwaysOnTop, autoScroll, showNewSheetDialog, showIntermediateHeaders, reopenLastFile, numericKeyMode, copyKeyframeMode, emptyCellMode, recentFiles) {
         if (isTauri) {
             try {
                 const params = { 
@@ -301,6 +301,7 @@ if (typeof window.TauriAPI === 'undefined') {
                     reopenLastFile,
                     numericKeyMode: numericKeyMode || 'auto',
                     copyKeyframeMode: copyKeyframeMode || 'sparse',
+                    emptyCellMode: emptyCellMode || false,
                     recentFiles: recentFiles || []
                 };
                 await window.__TAURI_INTERNALS__.invoke('rebuild_menu', params);

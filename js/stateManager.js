@@ -325,6 +325,7 @@ function saveToLocalStorage() {
         alwaysOnTop: AppState.alwaysOnTop,
         numericKeyMode: AppState.numericKeyMode || 'auto',
         copyKeyframeMode: AppState.copyKeyframeMode || 'sparse',
+        emptyCellMode: AppState.emptyCellMode || false,
         aeKeyframeVersion: AppState.aeKeyframeVersion,
         recentFiles: AppState.recentFiles || []
     };
@@ -371,6 +372,7 @@ function loadFromLocalStorage() {
             AppState.alwaysOnTop = data.alwaysOnTop || false;
             AppState.numericKeyMode = data.numericKeyMode || 'auto';
             AppState.copyKeyframeMode = data.copyKeyframeMode || 'sparse';
+            AppState.emptyCellMode = data.emptyCellMode || false;
             AppState.aeKeyframeVersion = data.aeKeyframeVersion || '9.0';
             AppState.recentFiles = data.recentFiles || [];
             

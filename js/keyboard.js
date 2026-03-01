@@ -45,6 +45,25 @@ function getCellElement(frame, layerId) {
     );
 }
 
+/**
+ * 選択範囲の最初(上端)のセルに空セルマーカー(×)を挿入する
+ * 空セルモードがONの場合に下矢印キー押下時に呼ばれる
+ */
+function insertNullCell() {
+    const sheet = getCurrentSheet();
+    if (!sheet || AppState.selectedCells.length === 0) return;
+
+    const sorted = [...AppState.selectedCells].sort((a, b) => a.frame - b.frame);
+    const topCell = sorted[0];
+    if (!sheet.data[topCell.frame]) sheet.data[topCell.frame] = {};
+    const oldValue = sheet.data[topCell.frame][topCell.layerId] || '';
+    const newValue = CONSTANTS.NULL_CELL;
+    if (oldValue === newValue) return; // 既に×なら何もしない
+    sheet.data[topCell.frame][topCell.layerId] = newValue;
+    saveHistory([{ frame: topCell.frame, layerId: topCell.layerId, oldValue, newValue }]);
+    renderSheet();
+}
+
 // ========================================
 // キーボードショートカット処理
 // ========================================
@@ -290,6 +309,10 @@ function handleKeyboard(e) {
         // 矢印キーでセル移動（単一/複数両方対応）
         if (!e.shiftKey && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
             e.preventDefault();
+            // 空セルモードがONかつ下矢印の場合、移動前に選択範囲の1コマ目に×を挿入
+            if (AppState.emptyCellMode && e.key === 'ArrowDown') {
+                insertNullCell();
+            }
             moveCellSelection(e.key);
             return;
         }
