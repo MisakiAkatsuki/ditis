@@ -693,7 +693,7 @@ function parseStsFile(fileContent, fileName) {
             nameBytes.push(byte);
         }
         if (nameBytes.length > 0) {
-            layerNames.push(nameBytes.map(b => String.fromCharCode(b)).join(''));
+            layerNames.push(new TextDecoder().decode(new Uint8Array(nameBytes)));
         } else {
             layerNames.push(String.fromCharCode(65 + i)); // A, B, C...
         }
@@ -838,7 +838,7 @@ async function saveStsFile() {
  * - Bytes 20-22: 予約領域 (0x00)
  * - Byte 23以降: データ領域（列優先、各列にフレーム数分の2バイトペア [value, type]）
  * - ギャップ: 0x01
- * - レイヤー名: 各レイヤー2バイト [ASCII, 0x01]（最後は1バイトの場合あり）
+ * - レイヤー名: 各レイヤー可変長 [文字列バイト列..., 0x01]
  * 
  * @param {Object} sheet - シートデータ
  * @param {boolean} includeDisabledFrames - 無効行を含めるか（デフォルト: true）
@@ -869,11 +869,13 @@ function generateStsBuffer(sheet, includeDisabledFrames = true) {
         return null;
     }
     
-    // ファイルサイズ計算: 23 + (layers × frames × 2) + 1 + (各レイヤー名バイト数 + 0x01デリミタ)
+    // ファイルサイズ計算: 23 + (layers × frames × 2) + 1 + (各レイヤー名のUTF-8バイト数 + 0x01デリミタ)
     const dataSize = layerCount * actualFrameCount * 2;
+    const encoder = new TextEncoder();
+    const encodedLayerNames = layers.map(l => encoder.encode(l.name));
     let layerNamesSize = 0;
     for (let i = 0; i < layerCount; i++) {
-        layerNamesSize += layers[i].name.length + 1; // 名前のバイト数 + 0x01デリミタ
+        layerNamesSize += encodedLayerNames[i].length + 1; // UTF-8バイト数 + 0x01デリミタ
     }
     const bufferSize = 23 + dataSize + 1 + layerNamesSize;
     
@@ -934,13 +936,11 @@ function generateStsBuffer(sheet, includeDisabledFrames = true) {
     // ギャップ (1バイト)
     buffer[offset++] = 0x01;
     
-    // レイヤー名セクション
+    // レイヤー名セクション（UTF-8エンコード）
     for (let layerIdx = 0; layerIdx < layerCount; layerIdx++) {
-        const layerName = layers[layerIdx].name;
-        // 全文字のASCIIコードを書き込み
-        for (let ci = 0; ci < layerName.length; ci++) {
-            buffer[offset++] = layerName.charCodeAt(ci);
-        }
+        const nameBytes = encodedLayerNames[layerIdx];
+        buffer.set(nameBytes, offset);
+        offset += nameBytes.length;
         // デリミタ (0x01)
         buffer[offset++] = 0x01;
     }

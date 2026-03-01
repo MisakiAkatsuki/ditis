@@ -831,7 +831,7 @@ async function getTimeremapFromAE() {
  * @param {Object} data - AEから取得したデータ
  */
 async function importTimeremapData(data) {
-    const fps = data.fps || 24;
+    const fps = (Number.isFinite(data.fps) && data.fps > 0) ? data.fps : 24;
     const totalFrames = Math.ceil(data.duration * fps);
     
     // 確認ダイアログ
@@ -950,7 +950,7 @@ async function importTimeremapData(data) {
  */
 async function copyColumnKeyframeData(layerId) {
     const sheet = getCurrentSheet();
-    const fps = sheet.fps || 24;
+    const fps = (Number.isFinite(sheet.fps) && sheet.fps > 0) ? sheet.fps : 24;
     if (fps <= 0) {
         showErrorToast('FPSが不正です。シート設定を確認してください。', ErrorLevel.ERROR);
         return;
@@ -959,7 +959,7 @@ async function copyColumnKeyframeData(layerId) {
     const aeVersionNum = parseFloat(aeVersion) || 9.0;
     const layer = sheet.layers.find(l => l.id === layerId);
     const layerName = layer ? layer.name : layerId;
-    const maxFrames = sheet.frames ?? 144;
+    const maxFrames = Number.isFinite(sheet.frames) ? sheet.frames : 144;
 
     // 全フレームの状態を解決（前フレームと同値はホールド扱い）
     // 注: sheet.dataの"-"はレンダリング時の表示のみで、実際のデータは数値が入っている

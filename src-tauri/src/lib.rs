@@ -321,6 +321,11 @@ async fn show_in_folder(path: String) -> Result<(), String> {
         return Err("パスが空です".to_string());
     }
     let p = std::path::Path::new(&path);
+    for component in p.components() {
+        if let std::path::Component::ParentDir = component {
+            return Err("不正なパスが含まれています".to_string());
+        }
+    }
     if !p.exists() {
         return Err(format!("パスが存在しません: {}", path));
     }
@@ -491,10 +496,12 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
         Ok(Some(update)) => {
             let app_clone = app.clone();
             update.download_and_install(move |chunk, total| {
-                let _ = app_clone.emit("update-download-progress", serde_json::json!({
+                if let Err(e) = app_clone.emit("update-download-progress", serde_json::json!({
                     "downloaded": chunk,
                     "total": total
-                }));
+                })) {
+                    eprintln!("[Updater] update-download-progress emit失敗: {}", e);
+                }
             }, || {
                 // Download completed
             })
@@ -1331,7 +1338,11 @@ pub fn run() {
             // メインウィンドウ生成を待つ（最大5秒、100ms間隔でポーリング）
             for _ in 0..50 {
               if app_handle.get_webview_window("main").is_some() {
-                let _ = app_handle.emit("open-file", file_path.clone());
+                // JSリスナー登録完了を待つ（ウィンドウ生成後もスクリプト読み込みに時間がかかる）
+                std::thread::sleep(std::time::Duration::from_millis(500));
+                if let Err(e) = app_handle.emit("open-file", file_path.clone()) {
+                  eprintln!("[起動] open-file emit失敗: {}", e);
+                }
                 return;
               }
               std::thread::sleep(std::time::Duration::from_millis(100));
