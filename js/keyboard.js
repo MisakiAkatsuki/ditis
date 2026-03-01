@@ -982,61 +982,11 @@ function handleKeyboard(e) {
         const selectionInfo = AppState.selectedCells.map(s => ({f: s.frame, l: s.layerId}));
         debugLog('キー入力', 'Enter押下', selectionInfo);
         
-        // 選択中のセルが空で、上に数字がある場合、"-"を入力
-        let needRender = false;
-        
-        // 移動前のセル情報を保存（入力処理前に保存）
+        // 移動前のセル情報を保存
         const cellsBeforeInput = AppState.selectedCells.map(s => ({
             frame: s.frame,
             layerId: s.layerId
         }));
-        
-        // 入力が必要かどうか先にチェック
-        let willInput = false;
-        AppState.selectedCells.forEach(s => {
-            const value = (sheet.data[s.frame] && sheet.data[s.frame][s.layerId]) || '';
-            if (value === '') {
-                const prevFrame = s.frame - 1;
-                if (prevFrame >= 1) {
-                    const prevValue = (sheet.data[prevFrame] && sheet.data[prevFrame][s.layerId]) || '';
-                    if (prevValue !== '' && /^\d+$/.test(prevValue)) {
-                        willInput = true;
-                    }
-                }
-            }
-        });
-        
-        // 入力する場合は、入力後に履歴を保存（後に移動）
-        
-        AppState.selectedCells.forEach(s => {
-            const value = (sheet.data[s.frame] && sheet.data[s.frame][s.layerId]) || '';
-            
-            // 空セルの場合
-            if (value === '') {
-                // 直前のセルをチェック
-                const prevFrame = s.frame - 1;
-                if (prevFrame >= 1) {
-                    const prevValue = (sheet.data[prevFrame] && sheet.data[prevFrame][s.layerId]) || '';
-                    
-                    // 直前に数字がある場合、同じ値を入力（「-」表示はrender.jsで制御）
-                    if (prevValue !== '' && /^\d+$/.test(prevValue)) {
-                        if (!sheet.data[s.frame]) sheet.data[s.frame] = {};
-                        sheet.data[s.frame][s.layerId] = prevValue;
-                        if (AppState.debugMode) console.log(`  → F${s.frame}L${s.layerId}に"${prevValue}"を入力`);
-                        needRender = true;
-                    }
-                }
-            }
-        });
-        
-        if (needRender) {
-            saveHistory('セル編集');
-        }
-        
-        if (needRender) {
-            calculateSpecialDisplayCache(sheet);
-            renderSpreadsheetImmediate(true);
-        }
         
         if (AppState.selectedCells.length === 1) {
             // 単一選択：1つ下に移動
