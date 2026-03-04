@@ -714,7 +714,7 @@ function handlePlusMinusKey(key) {
             const v = (sheet.data[f] && sheet.data[f][layerId]) || '';
             const isVisualLine = typeof getSpecialDisplayInfo === 'function' &&
                 getSpecialDisplayInfo(layerId, f).isVerticalLine;
-            if (v === segmentValue || v === '-' || (v === '' && isVisualLine)) {
+            if (v === '-' || (v === '' && isVisualLine)) {
                 segmentStartFrame = f;
             } else {
                 break;
