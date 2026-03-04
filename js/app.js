@@ -1141,6 +1141,11 @@ window.handleMenuEvent = async function(menuId) {
                 await window.__TAURI__.core.invoke('open_url', { url: 'https://github.com/MisakiAkatsuki/ditis' });
             }
         },
+        'open-releases': async () => {
+            if (window.TauriAPI) {
+                await window.__TAURI__.core.invoke('open_url', { url: 'https://github.com/MisakiAkatsuki/ditis/releases' });
+            }
+        },
         'check-updates': async () => {
             // 手動で更新をチェック
             if (window.UpdaterAPI) {

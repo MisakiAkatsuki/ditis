@@ -82,6 +82,7 @@ struct MenuTexts {
     help_about: String,
     help_website: String,
     help_github: String,
+    help_releases: String,
     #[allow(dead_code)]
     debug: String,
     #[allow(dead_code)]
@@ -168,6 +169,7 @@ impl MenuTexts {
                 help_about: "About".to_string(),
                 help_website: "Official Website".to_string(),
                 help_github: "GitHub".to_string(),
+                help_releases: "Download Previous Versions".to_string(),
                 debug: "Debug".to_string(),
                 debug_mode: "Debug Mode".to_string(),
                 debug_export_logs: "Export Logs".to_string(),
@@ -249,6 +251,7 @@ impl MenuTexts {
                 help_about: "このソフトについて".to_string(),
                 help_website: "公式サイト".to_string(),
                 help_github: "GitHub".to_string(),
+                help_releases: "過去バージョンをダウンロード".to_string(),
                 debug: "デバッグ".to_string(),
                 debug_mode: "デバッグモード".to_string(),
                 debug_export_logs: "ログを出力".to_string(),
@@ -691,6 +694,7 @@ async fn rebuild_menu(
           .separator()
           .item(&MenuItemBuilder::new(&texts.help_website).id("open-website").build(&app).map_err(|e| e.to_string())?)
           .item(&MenuItemBuilder::new(&texts.help_github).id("open-github").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.help_releases).id("open-releases").build(&app).map_err(|e| e.to_string())?)
           .build().map_err(|e| e.to_string())?);
     
     // デバッグメニュー（デバッグビルドのみ表示）
@@ -1321,6 +1325,7 @@ pub fn run() {
           .separator()
           .item(&MenuItemBuilder::new("公式サイト").id("open-website").build(app)?)
           .item(&MenuItemBuilder::new("GitHub").id("open-github").build(app)?)
+          .item(&MenuItemBuilder::new("過去バージョンをダウンロード").id("open-releases").build(app)?)
           .build()?);
       
       // デバッグメニュー（デバッグビルドのみ表示）
