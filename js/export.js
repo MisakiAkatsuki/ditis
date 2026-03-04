@@ -624,11 +624,6 @@ function generateJSXSingleComp() {
     jsx += '            }\n';
     jsx += '            blindTimes.push(frameIndex / fps);\n';
     jsx += '            blindValues.push(100);\n';
-    jsx += '            if (remapEnable) {\n';
-    jsx += '              times.push(frameIndex / fps);\n';
-    jsx += '              values.push(0 / fps);\n';
-    jsx += '              lastNumValue = null;\n';
-    jsx += '            }\n';
     jsx += '          }\n';
     jsx += '        }\n';
     jsx += '        else if (!isNaN(Number(currentValue)) && currentValue !== "") {\n';
