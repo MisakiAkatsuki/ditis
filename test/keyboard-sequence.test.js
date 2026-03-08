@@ -228,7 +228,7 @@ function createSim({
                 const topCells = sorted.filter(s => s.frame === topFrame);
                 for (const s of topCells) {
                     const cur = get(s.frame, s.li);
-                    if (cur !== '' || get(s.frame - 1, s.li) === NULL_CELL) continue;
+                    if (cur === NULL_CELL || get(s.frame - 1, s.li) === NULL_CELL) continue;
                     const prev = getPrev(s.frame, s.li);
                     if (prev !== null) set(s.frame, s.li, NULL_CELL);
                 }

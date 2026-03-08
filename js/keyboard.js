@@ -64,8 +64,8 @@ function insertNullCell() {
         const oldValue = sheet.data[topCell.frame][topCell.layerId] || '';
 
         if (oldValue === CONSTANTS.NULL_CELL) return;
-        if (oldValue !== '') return;
 
+        // 上方向に数値があるか確認（空セルの先頭には挿入しない）
         let hasNumberAbove = false;
         for (let f = topCell.frame - 1; f >= 1; f--) {
             const v = (sheet.data[f] && sheet.data[f][topCell.layerId]) || '';
