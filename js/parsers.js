@@ -902,7 +902,8 @@ function generateStsBuffer(sheet, includeDisabledFrames = true) {
         const layerId = layers[layerIdx].id;
         
         // 有効なフレームのみを書き込み（連番になる）
-        for (let validFrame of validFrames) {
+        for (let idx = 0; idx < validFrames.length; idx++) {
+            const validFrame = validFrames[idx];
             // データ取得: data[validFrame][layerId]
             const value = sheet.data[validFrame]?.[layerId] || "";
             
@@ -912,7 +913,7 @@ function generateStsBuffer(sheet, includeDisabledFrames = true) {
                 // レガシーデータの"-"（ホールドマーカー）を実際の値に解決
                 let resolvedValue = value;
                 if (value === '-') {
-                    for (let prevF = validFrames.indexOf(validFrame) - 1; prevF >= 0; prevF--) {
+                    for (let prevF = idx - 1; prevF >= 0; prevF--) {
                         const pv = sheet.data[validFrames[prevF]]?.[layerId] || '';
                         if (pv !== '' && pv !== '-') {
                             resolvedValue = pv;

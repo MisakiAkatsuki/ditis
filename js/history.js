@@ -5,29 +5,24 @@
 
 /**
  * 現在の状態を履歴に保存
- * Undo/Redo機能のために、シートデータと選択範囲をJSON化して保存
- * 最大500段階まで保存可能
+ * Undo/Redo機能のために、シートデータと選択範囲をstructuredCloneで保存
+ * 最大100段階まで保存可能
  */
 function saveHistory(label = '') {
     try {
-        const state = JSON.stringify({
+        const state = structuredClone({
             sheets: AppState.sheets,
             currentSheetIndex: AppState.currentSheetIndex,
             fps: AppState.fps,
-            selectedCells: AppState.selectedCells.map(s => ({ frame: s.frame, layerId: s.layerId })), // 選択範囲を保存
+            selectedCells: AppState.selectedCells.map(s => ({ frame: s.frame, layerId: s.layerId })),
             label: label
         });
         
-        // 現在位置以降の履歴を削除
-        AppState.history = AppState.history.slice(0, AppState.historyIndex + 1);
-        
-        AppState.history.push(state);
-        
-        // 上限を超えたら古い履歴を削除
-        if (AppState.history.length > CONSTANTS.MAX_HISTORY) {
-            AppState.history.shift();
-            AppState.historyIndex = AppState.history.length - 1;
-        }
+        // 現在位置以降の履歴を削除し、新状態を追加（最大MAX_HISTORY件）
+        AppState.history = [
+            ...AppState.history.slice(0, AppState.historyIndex + 1).slice(-(CONSTANTS.MAX_HISTORY - 1)),
+            state
+        ];
         
         AppState.historyIndex = AppState.history.length - 1;
         
@@ -88,7 +83,7 @@ function undo() {
         restoreHistory();
         const sheetName = getCurrentSheet()?.name || 'Sheet';
         let undoneLabel = '';
-        try { const s = JSON.parse(AppState.history[AppState.historyIndex + 1]); undoneLabel = s.label || ''; } catch(e) {}
+        try { undoneLabel = AppState.history[AppState.historyIndex + 1]?.label || ''; } catch(e) {}
         updateStatusBar(`[${sheetName}] 元に戻しました${undoneLabel ? '：' + undoneLabel : ''}`);
     } else {
         debugLog('操作', '  → これ以上戻せません');
@@ -111,7 +106,7 @@ function redo() {
         restoreHistory();
         const sheetName = getCurrentSheet()?.name || 'Sheet';
         let redoneLabel = '';
-        try { const s = JSON.parse(AppState.history[AppState.historyIndex]); redoneLabel = s.label || ''; } catch(e) {}
+        try { redoneLabel = AppState.history[AppState.historyIndex]?.label || ''; } catch(e) {}
         updateStatusBar(`[${sheetName}] やり直しました${redoneLabel ? '：' + redoneLabel : ''}`);
     } else {
         debugLog('操作', '  → これ以上進めません');
@@ -131,7 +126,7 @@ function restoreHistory() {
             return;
         }
         
-        const state = JSON.parse(AppState.history[AppState.historyIndex]);
+        const state = AppState.history[AppState.historyIndex];
     AppState.sheets = state.sheets;
     AppState.currentSheetIndex = state.currentSheetIndex;
     AppState.fps = state.fps;
@@ -232,10 +227,10 @@ function updateUndoRedoButtons() {
         let undoLabel = '';
         let redoLabel = '';
         if (pos > 0) {
-            try { const s = JSON.parse(AppState.history[pos]); undoLabel = s.label || ''; } catch(e) {}
+            try { undoLabel = AppState.history[pos]?.label || ''; } catch(e) {}
         }
         if (pos < total - 1) {
-            try { const s = JSON.parse(AppState.history[pos + 1]); redoLabel = s.label || ''; } catch(e) {}
+            try { redoLabel = AppState.history[pos + 1]?.label || ''; } catch(e) {}
         }
         let parts = [];
         if (total > 1) parts.push(`${pos}/${total - 1}`);
