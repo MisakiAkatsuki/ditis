@@ -1,4 +1,4 @@
-// ========================================
+﻿// ========================================
 // セル選択機能
 // ========================================
 // セルの選択、範囲選択、移動などを管理
@@ -132,17 +132,13 @@ function selectRange(start, end) {
         console.log(`[選択] 範囲選択: F${minFrame}-F${maxFrame}, Layer ${start.layerId}-${end.layerId} (index ${minLayerIndex}-${maxLayerIndex})`);
     }
     
-    const cells = document.querySelectorAll('td[data-frame]');
-    cells.forEach(cell => {
-        const frame = parseInt(cell.dataset.frame);
-        const layerId = cell.dataset.layer;
-        const layerIndex = sheet.layers.findIndex(l => l.id === layerId);
-        
-        if (frame >= minFrame && frame <= maxFrame && 
-            layerIndex >= minLayerIndex && layerIndex <= maxLayerIndex) {
-            selectCell(cell, frame, layerId);
+    const selectedLayers = sheet.layers.slice(minLayerIndex, maxLayerIndex + 1);
+    for (let frame = minFrame; frame <= maxFrame; frame++) {
+        for (const layer of selectedLayers) {
+            const cell = getCellElement(frame, layer.id);
+            if (cell) selectCell(cell, frame, layer.id);
         }
-    });
+    }
 }
 
 /**
