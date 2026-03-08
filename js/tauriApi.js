@@ -241,10 +241,11 @@ if (typeof window.TauriAPI === 'undefined') {
      * @param {string} scriptContent - 実行するExtendScriptスクリプトの内容
      * @returns {Promise<void>}
      */
-    async function executeAfterEffectsScript(scriptContent) {
+    async function executeAfterEffectsScript(scriptContent, aeMultiInstanceMode = false) {
         if (isTauri) {
             await window.__TAURI_INTERNALS__.invoke('execute_after_effects_script', { 
-                scriptContent 
+                scriptContent,
+                aeMultiInstanceMode: aeMultiInstanceMode !== false,
             });
         } else {
             throw new Error('After Effectsスクリプト実行はTauri環境でのみ利用可能です');
@@ -284,7 +285,7 @@ if (typeof window.TauriAPI === 'undefined') {
      * @param {boolean} autoScroll - 自動スクロール
      * @returns {Promise<void>}
      */
-    async function rebuildMenu(lang, theme, frameFilter, headerMode, fontSize, debugMode, alwaysOnTop, autoScroll, showNewSheetDialog, showIntermediateHeaders, reopenLastFile, numericKeyMode, copyKeyframeMode, emptyCellMode, recentFiles) {
+    async function rebuildMenu(lang, theme, frameFilter, headerMode, fontSize, debugMode, alwaysOnTop, autoScroll, showNewSheetDialog, showIntermediateHeaders, reopenLastFile, numericKeyMode, copyKeyframeMode, emptyCellMode, aeMultiInstanceMode, recentFiles) {
         if (isTauri) {
             try {
                 const params = { 
@@ -302,6 +303,7 @@ if (typeof window.TauriAPI === 'undefined') {
                     numericKeyMode: numericKeyMode || 'auto',
                     copyKeyframeMode: copyKeyframeMode || 'sparse',
                     emptyCellMode: emptyCellMode || false,
+                    aeMultiInstanceMode: aeMultiInstanceMode !== false,
                     recentFiles: recentFiles || []
                 };
                 await window.__TAURI_INTERNALS__.invoke('rebuild_menu', params);
@@ -315,10 +317,12 @@ if (typeof window.TauriAPI === 'undefined') {
      * After Effectsからタイムリマップデータを取得
      * @returns {Promise<Object>} タイムリマップデータ
      */
-    async function getTimeremapFromAE() {
+    async function getTimeremapFromAE(aeMultiInstanceMode = false) {
         if (isTauri) {
             try {
-                const response = await window.__TAURI_INTERNALS__.invoke('get_timeremap_from_ae');
+                const response = await window.__TAURI_INTERNALS__.invoke('get_timeremap_from_ae', {
+                    aeMultiInstanceMode: aeMultiInstanceMode !== false,
+                });
                 
                 // 空レスポンスチェック
                 if (!response || response.trim() === '') {

@@ -332,6 +332,7 @@ function saveToLocalStorage() {
         showNewSheetDialog: AppState.showNewSheetDialog,
         reopenLastFile: AppState.reopenLastFile,
         alwaysOnTop: AppState.alwaysOnTop,
+        aeMultiInstanceMode: AppState.aeMultiInstanceMode !== false,
         numericKeyMode: AppState.numericKeyMode || 'auto',
         copyKeyframeMode: AppState.copyKeyframeMode || 'sparse',
         emptyCellMode: AppState.emptyCellMode || false,
@@ -379,6 +380,7 @@ function loadFromLocalStorage() {
             AppState.showNewSheetDialog = data.showNewSheetDialog || false;
             AppState.reopenLastFile = data.reopenLastFile || false;
             AppState.alwaysOnTop = data.alwaysOnTop || false;
+            AppState.aeMultiInstanceMode = data.aeMultiInstanceMode === true;
             AppState.numericKeyMode = data.numericKeyMode || 'auto';
             AppState.copyKeyframeMode = data.copyKeyframeMode || 'sparse';
             AppState.emptyCellMode = data.emptyCellMode || false;
