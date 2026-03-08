@@ -1158,6 +1158,28 @@ window.handleMenuEvent = async function(menuId) {
                 await window.__TAURI__.core.invoke('open_url', { url: 'https://github.com/MisakiAkatsuki/ditis/releases' });
             }
         },
+        'show-release-notes': async () => {
+            updateStatusBar('更新内容を取得中...');
+            try {
+                const res = await fetch('https://api.github.com/repos/MisakiAkatsuki/ditis/releases/latest');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                const dialog = document.getElementById('release-notes-dialog');
+                const title = document.getElementById('release-notes-title');
+                const body = document.getElementById('release-notes-body');
+                title.textContent = `更新内容 - ${data.tag_name}`;
+                body.textContent = data.body || '（内容なし）';
+                // 閉じるボタン
+                const closeBtn = document.getElementById('close-release-notes');
+                closeBtn.onclick = () => { dialog.style.display = 'none'; };
+                dialog.onclick = (e) => { if (e.target === dialog) dialog.style.display = 'none'; };
+                dialog.style.display = 'flex';
+                updateStatusBar('準備完了');
+            } catch (e) {
+                showErrorToast(`更新内容の取得に失敗しました: ${e.message}`, ErrorLevel.ERROR);
+                updateStatusBar('準備完了');
+            }
+        },
         'check-updates': async () => {
             // 手動で更新をチェック
             if (window.UpdaterAPI) {

@@ -1025,6 +1025,25 @@ td.inserted-cell {
     padding-bottom: 10px;
 }
 
+.release-notes-content {
+    min-width: 500px;
+}
+
+.release-notes-content h2 {
+    margin-bottom: 16px;
+    color: var(--text-primary);
+    font-size: 20px;
+    border-bottom: 2px solid var(--modal-title-border);
+    padding-bottom: 10px;
+}
+
+#release-notes-body {
+    white-space: pre-wrap;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-primary);
+}
+
 .help-section {
     margin-bottom: 30px;
 }
