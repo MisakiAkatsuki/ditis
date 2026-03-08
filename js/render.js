@@ -302,12 +302,21 @@ function renderSpreadsheetImmediate(forceFullRender = false) {
     const renderStartRow = AppState.viewport.startRow || 1;
     const renderEndRow = Math.min(AppState.viewport.endRow || maxRows, maxRows);
     
+    // disabledFrames/insertedFramesのSetと累積カウント配列を事前計算
+    const disabledSet = new Set(sheet.disabledFrames || []);
+    const insertedSet = new Set(sheet.insertedFrames || []);
+    // insertedBefore[i] = iより小さい挿入フレームの数
+    const insertedBefore = new Array(maxRows + 2).fill(0);
+    for (let i = 1; i <= maxRows + 1; i++) {
+        insertedBefore[i] = insertedBefore[i-1] + (insertedSet.has(i-1) ? 1 : 0);
+    }
+
     // validFrameCountキャッシュの構築（初回またはキャッシュクリア時）
     if (!AppState.validFrameCountCache || forceFullRender) {
         AppState.validFrameCountCache = new Map();
         let count = 0;
         for (let f = 1; f <= maxRows; f++) {
-            const isDisabled = sheet.disabledFrames && sheet.disabledFrames.includes(f);
+            const isDisabled = disabledSet.has(f);
             if (!isDisabled) {
                 count++;
             }
@@ -326,7 +335,7 @@ function renderSpreadsheetImmediate(forceFullRender = false) {
 
     for (let frame = renderStartRow; frame <= renderEndRow; frame++) {
         // 無効化チェック
-        const isDisabled = sheet.disabledFrames && sheet.disabledFrames.includes(frame);
+        const isDisabled = disabledSet.has(frame);
         
         // 無効化されていない行のみカウント
         if (!isDisabled) {
@@ -334,7 +343,7 @@ function renderSpreadsheetImmediate(forceFullRender = false) {
         }
         
         // 挿入されたフレームかどうか判定
-        const isInserted = sheet.insertedFrames && sheet.insertedFrames.includes(frame);
+        const isInserted = insertedSet.has(frame);
         const frameClass = isInserted ? 'inserted-frame' : '';
         
         // シート番号とシート内フレーム番号を計算
@@ -359,23 +368,21 @@ function renderSpreadsheetImmediate(forceFullRender = false) {
             
             // 直前の通常フレームを探してoriginalFrameを計算（表示用）
             let prevNormalFrame = frame - 1;
-            while (prevNormalFrame > 0 && sheet.insertedFrames && sheet.insertedFrames.includes(prevNormalFrame)) {
+            while (prevNormalFrame > 0 && insertedSet.has(prevNormalFrame)) {
                 prevNormalFrame--;
             }
             
             if (prevNormalFrame > 0) {
-                const insertedBeforePrev = sheet.insertedFrames ? sheet.insertedFrames.filter(f => f < prevNormalFrame).length : 0;
-                originalFrame = prevNormalFrame - insertedBeforePrev;
+                originalFrame = prevNormalFrame - insertedBefore[prevNormalFrame];
             } else {
                 let nextNormalFrame = frame + 1;
                 const maxRows = getMaxVisibleRows(sheet);
-                while (nextNormalFrame <= maxRows && sheet.insertedFrames && sheet.insertedFrames.includes(nextNormalFrame)) {
+                while (nextNormalFrame <= maxRows && insertedSet.has(nextNormalFrame)) {
                     nextNormalFrame++;
                 }
                 
                 if (nextNormalFrame <= maxRows) {
-                    const insertedBeforeNext = sheet.insertedFrames ? sheet.insertedFrames.filter(f => f < nextNormalFrame).length : 0;
-                    originalFrame = Math.max(1, nextNormalFrame - insertedBeforeNext - 1);
+                    originalFrame = Math.max(1, nextNormalFrame - insertedBefore[nextNormalFrame] - 1);
                 } else {
                     originalFrame = 1;
                 }
@@ -422,10 +429,7 @@ function renderSpreadsheetImmediate(forceFullRender = false) {
         } else {
             // 通常のフレームは元の番号を計算
             // 挿入された分を引いて元のフレーム番号を計算
-            if (sheet.insertedFrames) {
-                const insertedBefore = sheet.insertedFrames.filter(f => f < frame).length;
-                originalFrame = frame - insertedBefore;
-            }
+            originalFrame = frame - insertedBefore[frame];
             const sheetNumber = Math.floor((originalFrame - 1) / framePageSize) + 1;
             const frameInSheet = ((originalFrame - 1) % framePageSize) + 1;
             

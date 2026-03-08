@@ -115,7 +115,7 @@ function startEditing(cell) {
  * セル編集を終了する
  * @param {boolean} save - 入力を保存するかどうか
  */
-function finishEditing(save) {
+function finishEditing(save, suppressMove = false) {
     if (!AppState.editingCell) return;
     
     const { cell, frame, layerId, originalValue, isMultiSelection, selectedCellsBackup } = AppState.editingCell;
@@ -401,7 +401,7 @@ function finishEditing(save) {
                 const newCell = getCellElement(frame, layerId);
                 if (newCell) {
                     selectCell(newCell, frame, layerId);
-                    moveToNextCell();
+                    if (!suppressMove) { moveToNextCell(); }
                 }
             } else {
                 // 通常の編集（renderして表示を更新）
@@ -414,7 +414,7 @@ function finishEditing(save) {
                 const newCell = getCellElement(frame, layerId);
                 if (newCell) {
                     selectCell(newCell, frame, layerId);
-                    moveToNextCell();
+                    if (!suppressMove) { moveToNextCell(); }
                 }
             }
             
@@ -513,7 +513,7 @@ function handleEditKeydown(e) {
         case 'Tab':
             e.preventDefault();
             e.stopPropagation();
-            finishEditing(true);
+            finishEditing(true, true);
             // Tabの場合は横移動
             if (AppState.selectedCells.length > 0) {
                 moveToNextCell(e.shiftKey ? -1 : 1);

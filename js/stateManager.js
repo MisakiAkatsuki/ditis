@@ -425,6 +425,8 @@ function loadFromLocalStorage() {
  * ステータスバーを更新する
  * @param {string} message - 表示するメッセージ
  */
+let _statusBarTimer = null;
+
 function updateStatusBar(message) {
     const statusText = document.getElementById('status-text');
     if (!statusText) {
@@ -446,8 +448,10 @@ function updateStatusBar(message) {
     
     if (message) {
         statusText.textContent = message;
-        setTimeout(() => {
+        if (_statusBarTimer) clearTimeout(_statusBarTimer);
+        _statusBarTimer = setTimeout(() => {
             statusText.textContent = t('status.ready');
+            _statusBarTimer = null;
         }, 3000);
     } else {
         // messageがない場合も現在の言語で「準備完了」を表示
