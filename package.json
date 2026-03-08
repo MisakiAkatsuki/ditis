@@ -1,6 +1,6 @@
 {
   "name": "ditis",
-  "version": "20260304",
+  "version": "20260308",
   "build": 0,
   "description": "DiTiS - Digital Timesheet for anime production, converts to After Effects time remapping",
   "main": "js/app.js",
