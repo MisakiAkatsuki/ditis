@@ -34,7 +34,7 @@ async function sendToAfterEffects() {
     try {
         if (window.TauriAPI && window.TauriAPI.executeAfterEffectsScript) {
             // Tauri環境: コマンドライン実行
-            await window.TauriAPI.executeAfterEffectsScript(jsx);
+            await window.TauriAPI.executeAfterEffectsScript(jsx, window.AppState?.aeMultiInstanceMode !== false);
             updateStatusBar('After Effectsにスクリプトを送信しました');
             debugLog('ファイル', 'After Effectsスクリプト実行成功');
         } else {

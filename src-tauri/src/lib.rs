@@ -69,6 +69,7 @@ struct MenuTexts {
     edit_copy_keyframe_all_frames: String,
     edit_empty_cell_mode: String,
     view_empty_cell_mode: String,
+    sheet_ae_multi_instance_mode: String,
     #[allow(dead_code)]
     edit_ae_settings: String,
     #[allow(dead_code)]
@@ -159,6 +160,7 @@ impl MenuTexts {
                 edit_copy_keyframe_all_frames: "All Frames".to_string(),
                 edit_empty_cell_mode: String::new(),
                 view_empty_cell_mode: "Insert × Mark for Empty Cells".to_string(),
+                sheet_ae_multi_instance_mode: "Support Multiple AE Instances (Launch with -m)".to_string(),
                 edit_ae_settings: "AE Export Settings".to_string(),
                 edit_ae_empty_blind: "Empty Cell: Venetian Blinds".to_string(),
                 edit_ae_empty_timeremap: "Empty Cell: Time Remap".to_string(),
@@ -241,6 +243,7 @@ impl MenuTexts {
                 edit_copy_keyframe_all_frames: "全フレーム".to_string(),
                 edit_empty_cell_mode: String::new(),
                 view_empty_cell_mode: "空セルに×マークを表示".to_string(),
+                sheet_ae_multi_instance_mode: "複数インスタンス起動に対応する".to_string(),
                 edit_ae_settings: "AE送信設定".to_string(),
                 edit_ae_empty_blind: "空セル: ブラインドエフェクト".to_string(),
                 edit_ae_empty_timeremap: "空セル: タイムリマップ".to_string(),
@@ -546,6 +549,7 @@ async fn rebuild_menu(
     numeric_key_mode: String,
     copy_keyframe_mode: String,
     empty_cell_mode: bool,
+    ae_multi_instance_mode: bool,
     recent_files: Vec<String>
 ) -> Result<(), String> {
     eprintln!("[rebuild_menu] 開始: lang={}, theme={}, frame_filter={}, header_mode={}, font_size={}, auto_scroll={}, show_new_sheet_dialog={}, show_intermediate_headers={}", 
@@ -631,6 +635,7 @@ async fn rebuild_menu(
         .item(&SubmenuBuilder::new(&app, &texts.sheet)
           .item(&MenuItemBuilder::new(&texts.sheet_send_to_ae).id("send-to-ae").accelerator("Ctrl+E").build(&app).map_err(|e| e.to_string())?)
           .item(&MenuItemBuilder::new(&texts.sheet_get_from_ae).id("get-from-ae").accelerator("Ctrl+I").build(&app).map_err(|e| e.to_string())?)
+          .item(&create_check_item("ae-multi-instance-mode", &texts.sheet_ae_multi_instance_mode, ae_multi_instance_mode)?)
           .separator()
           .item(&MenuItemBuilder::new(&texts.sheet_settings).id("sheet-settings").accelerator("Ctrl+,").build(&app).map_err(|e| e.to_string())?)
           .item(&create_check_item("show-new-sheet-dialog", &texts.sheet_new_sheet_dialog, show_new_sheet_dialog)?)
@@ -765,7 +770,10 @@ fn open_url(url: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn execute_after_effects_script(script_content: String) -> Result<(), String> {
+async fn execute_after_effects_script(
+    script_content: String,
+    ae_multi_instance_mode: bool,
+) -> Result<(), String> {
     // ユニークな一時ファイル名（PID + タイムスタンプ）で競合を防ぐ
     let temp_dir = std::env::temp_dir();
     let unique_id = format!("{}_{}",
@@ -798,19 +806,41 @@ async fn execute_after_effects_script(script_content: String) -> Result<(), Stri
             }
         };
         println!("Using After Effects (PID: {}): {}", ae_info.pid, ae_info.exe_path);
-        let status = std::process::Command::new(&ae_info.exe_path)
-            .arg("-r")
-            .arg(&temp_file)
-            .status()
-            .map_err(|e| {
-                let _ = std::fs::remove_file(&temp_file);
-                format!("After Effects実行エラー: {}", e)
-            })?;
-        let _ = std::fs::remove_file(&temp_file);
-        if status.success() {
-            Ok(())
+
+        if ae_multi_instance_mode {
+            // 複数インスタンス対応: メニュー自動化でスクリプトを実行
+            if let Some(hwnd_isize) = ae_info.hwnd {
+                match run_jsx_via_menu(hwnd_isize, ae_info.pid, &temp_file.to_string_lossy()) {
+                    Ok(()) => {
+                        // ファイルはAEがダイアログ経由で読み込むため即削除しない
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        let _ = std::fs::remove_file(&temp_file);
+                        return Err(format!(
+                            "After Effectsへのスクリプト送信に失敗しました: {}\n\
+                             AEの環境設定で「スクリプトによるファイルへのアクセスとネットワークアクセスを許可」が\
+                             有効になっているか確認してください。",
+                            e
+                        ));
+                    }
+                }
+            }
+            let _ = std::fs::remove_file(&temp_file);
+            Err("After EffectsのウィンドウHWNDが取得できませんでした。AEが完全に起動しているか確認してください。".to_string())
         } else {
-            Err(format!("After Effectsがスクリプトの実行に失敗しました。\nExitCode: {:?}", status.code()))
+            // 従来方式: -r フラグでスクリプトを渡す（単一インスタンス時のみ動作）
+            match std::process::Command::new(&ae_info.exe_path)
+                .arg("-r")
+                .arg(&temp_file)
+                .status()
+            {
+                Ok(_) => Ok(()),
+                Err(e) => {
+                    let _ = std::fs::remove_file(&temp_file);
+                    Err(format!("After Effects起動エラー: {}", e))
+                }
+            }
         }
     }
 }
@@ -819,108 +849,338 @@ async fn execute_after_effects_script(script_content: String) -> Result<(), Stri
 struct AfterEffectsInfo {
     pid: u32,
     exe_path: String,
+    /// WM_COPYDATA送信用のメインウィンドウハンドル
+    hwnd: Option<isize>,
+}
+
+/// AEのメインウィンドウのメニューを走査して "Run Script File" コマンドIDを返す。
+/// File > Scripts > Run Script File... の順に探す（ロケール対応）。
+#[cfg(target_os = "windows")]
+fn find_run_script_file_cmd_id(hwnd_isize: isize) -> Option<u32> {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        GetMenu, GetSubMenu, GetMenuItemCount, GetMenuStringW, GetMenuItemID, MF_BYPOSITION,
+    };
+
+    let hwnd = HWND(hwnd_isize as *mut core::ffi::c_void);
+    unsafe {
+        let menu_bar = GetMenu(hwnd);
+        if menu_bar.0.is_null() {
+            println!("GetMenu returned null");
+            return None;
+        }
+
+        // メニュー構造: File(ファイル) > Scripts(スクリプト) > Run Script File(スクリプトファイルを実行)
+        // トップレベルを走査し、各メニューの中のサブメニューを再帰的に探す
+        let top_count = GetMenuItemCount(menu_bar);
+        for i in 0..top_count {
+            let top_sub = GetSubMenu(menu_bar, i);
+            if top_sub.0.is_null() { continue; }
+
+            // この top_sub 内の各項目を走査 (ファイルメニュー等の中身)
+            let item_count = GetMenuItemCount(top_sub);
+            for j in 0..item_count {
+                let mut name_buf = vec![0u16; 256];
+                let len = GetMenuStringW(top_sub, j as u32, Some(&mut name_buf), MF_BYPOSITION);
+                if len <= 0 { continue; }
+                let item_name = String::from_utf16_lossy(&name_buf[..len as usize]);
+
+                // "スクリプト" / "Script" というサブメニューを探す
+                let is_scripts = item_name.contains("Script") || item_name.contains("\u{30b9}\u{30af}\u{30ea}\u{30d7}\u{30c8}");
+                if !is_scripts { continue; }
+
+                let scripts_menu = GetSubMenu(top_sub, j);
+                if scripts_menu.0.is_null() { continue; }
+
+                // Scripts サブメニュー内で "スクリプトファイルを実行" / "Run Script File" を探す
+                let script_count = GetMenuItemCount(scripts_menu);
+                for k in 0..script_count {
+                    let mut entry_buf = vec![0u16; 256];
+                    let len2 = GetMenuStringW(scripts_menu, k as u32, Some(&mut entry_buf), MF_BYPOSITION);
+                    if len2 <= 0 { continue; }
+                    let entry = String::from_utf16_lossy(&entry_buf[..len2 as usize]);
+
+                    // 日本語: "スクリプトファイルを実行"  英語: "Run Script File"
+                    let is_run = entry.contains("Run Script File")
+                        || entry.contains("\u{30b9}\u{30af}\u{30ea}\u{30d7}\u{30c8}\u{30d5}\u{30a1}\u{30a4}\u{30eb}\u{3092}\u{5b9f}\u{884c}");
+                    if is_run {
+                        let cmd_id = GetMenuItemID(scripts_menu, k);
+                        if cmd_id != u32::MAX {
+                            println!("'Run Script File' command ID: {} (\"{}\")", cmd_id, entry);
+                            return Some(cmd_id);
+                        }
+                    }
+                }
+            }
+        }
+        println!("'Run Script File' menu item not found");
+        None
+    }
+}
+
+/// 指定PIDプロセスが持つ #32770 ダイアログウィンドウの HWND 一覧を返す。
+#[cfg(target_os = "windows")]
+fn collect_dialog_hwnds(ae_pid: u32) -> Vec<isize> {
+    use windows::Win32::Foundation::{HWND, LPARAM, BOOL};
+    use windows::Win32::UI::WindowsAndMessaging::{EnumWindows, GetWindowThreadProcessId, GetClassNameW};
+
+    struct Data { pid: u32, hwnds: Vec<isize> }
+
+    extern "system" fn callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        unsafe {
+            let data = &mut *(lparam.0 as *mut Data);
+            let mut pid: u32 = 0;
+            GetWindowThreadProcessId(hwnd, Some(&mut pid as *mut u32));
+            if pid != data.pid { return BOOL(1); }
+            let mut buf = [0u16; 64];
+            let len = GetClassNameW(hwnd, &mut buf);
+            if len > 0 {
+                let cls = String::from_utf16_lossy(&buf[..len as usize]);
+                if cls == "#32770" {
+                    data.hwnds.push(hwnd.0 as isize);
+                }
+            }
+            BOOL(1)
+        }
+    }
+
+    unsafe {
+        let mut data = Data { pid: ae_pid, hwnds: Vec::new() };
+        let _ = EnumWindows(Some(callback), LPARAM(&mut data as *mut Data as isize));
+        data.hwnds
+    }
+}
+
+/// 既存リストにない新しい #32770 ダイアログが現れるまで待機する。
+/// タイムアウト（ms）以内に見つからなければ None を返す。
+#[cfg(target_os = "windows")]
+fn wait_for_new_file_dialog(ae_pid: u32, before: &[isize], timeout_ms: u64) -> Option<isize> {
+    let start = std::time::Instant::now();
+    while start.elapsed().as_millis() < timeout_ms as u128 {
+        let current = collect_dialog_hwnds(ae_pid);
+        for h in &current {
+            if !before.contains(h) {
+                return Some(*h);
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    None
+}
+
+fn fill_and_confirm_file_dialog(dialog_hwnd_isize: isize, path: &str) {
+    use windows::Win32::Foundation::{HWND, WPARAM, LPARAM, BOOL};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        PostMessageW, SetForegroundWindow,
+        EnumChildWindows, GetClassNameW, GetDlgCtrlID,
+        BM_CLICK,
+    };
+
+    // EM_SETSEL / EM_REPLACESEL は standard Edit messages (winuser.h)
+    const EM_SETSEL: u32     = 0x00B1;
+    const EM_REPLACESEL: u32 = 0x00C2;
+
+    let dialog_hwnd = HWND(dialog_hwnd_isize as *mut core::ffi::c_void);
+    // null 終端 UTF-16 文字列（EM_REPLACESEL は LPWSTR を期待）
+    let path_wide: Vec<u16> = path.encode_utf16().chain(std::iter::once(0)).collect();
+
+    struct WalkData { edits: Vec<HWND>, ok_btn: Option<HWND> }
+    extern "system" fn walk_cb(child: HWND, lparam: LPARAM) -> BOOL {
+        unsafe {
+            let data = &mut *(lparam.0 as *mut WalkData);
+            let mut buf = [0u16; 64];
+            let len = GetClassNameW(child, &mut buf);
+            if len > 0 {
+                let cls = String::from_utf16_lossy(&buf[..len as usize]);
+                if cls == "Edit" {
+                    data.edits.push(child);
+                } else if cls == "Button" && data.ok_btn.is_none() {
+                    if GetDlgCtrlID(child) == 1 { // IDOK
+                        data.ok_btn = Some(child);
+                    }
+                }
+            }
+            BOOL(1)
+        }
+    }
+
+    unsafe {
+        let _ = SetForegroundWindow(dialog_hwnd);
+        std::thread::sleep(std::time::Duration::from_millis(200));
+
+        let mut data = WalkData { edits: Vec::new(), ok_btn: None };
+        let _ = EnumChildWindows(dialog_hwnd, Some(walk_cb), LPARAM(&mut data as *mut WalkData as isize));
+
+        println!("Edit count={}, ok_btn={}", data.edits.len(), data.ok_btn.is_some());
+
+        if let Some(&edit) = data.edits.last() {
+            // 全選択してから EM_REPLACESEL でフルパスを"入力" 
+            // → EN_CHANGE 通知が発生し IFileDialog が内部パスを更新する
+            windows::Win32::UI::WindowsAndMessaging::SendMessageW(
+                edit, EM_SETSEL, WPARAM(0), LPARAM(-1i32 as isize));
+            windows::Win32::UI::WindowsAndMessaging::SendMessageW(
+                edit, EM_REPLACESEL, WPARAM(0), LPARAM(path_wide.as_ptr() as isize));
+            println!("EM_REPLACESEL でフルパス設定: {}", path);
+        } else {
+            println!("警告: Edit コントロールが見つかりません");
+        }
+
+        std::thread::sleep(std::time::Duration::from_millis(100));
+
+        if let Some(ok_btn) = data.ok_btn {
+            let _ = PostMessageW(ok_btn, BM_CLICK, WPARAM(0), LPARAM(0));
+            println!("OK ボタン BM_CLICK");
+        } else {
+            let _ = PostMessageW(dialog_hwnd,
+                windows::Win32::UI::WindowsAndMessaging::WM_COMMAND,
+                WPARAM(1), LPARAM(0));
+        }
+    }
+}
+
+/// AE のメニュー操作で JSX ファイルを実行させる。
+/// File > Scripts > Run Script File... を起動し、ファイル選択ダイアログを自動操作する。
+#[cfg(target_os = "windows")]
+fn run_jsx_via_menu(ae_hwnd_isize: isize, ae_pid: u32, jsx_path: &str) -> Result<(), String> {
+    use windows::Win32::Foundation::{HWND, WPARAM, LPARAM};
+    use windows::Win32::UI::WindowsAndMessaging::{PostMessageW, WM_COMMAND};
+
+    // パスを絶対パスに正規化し \\?\ プレフィックスを除去
+    let normalized_path = std::path::Path::new(jsx_path)
+        .canonicalize()
+        .map(|p| {
+            let s = p.to_string_lossy().to_string();
+            s.strip_prefix(r"\\?\").map(|s| s.to_string()).unwrap_or(s)
+        })
+        .unwrap_or_else(|_| jsx_path.to_string());
+    let jsx_path = normalized_path.as_str();
+    println!("run_jsx_via_menu: path={}", jsx_path);
+
+    let cmd_id = find_run_script_file_cmd_id(ae_hwnd_isize)
+        .ok_or_else(|| "AE メニューに 'Run Script File' が見つかりません".to_string())?;
+
+    let before = collect_dialog_hwnds(ae_pid);
+
+    let ae_hwnd = HWND(ae_hwnd_isize as *mut core::ffi::c_void);
+    unsafe {
+        let _ = PostMessageW(ae_hwnd, WM_COMMAND, WPARAM(cmd_id as usize), LPARAM(0));
+    }
+
+    let dialog_isize = wait_for_new_file_dialog(ae_pid, &before, 5000)
+        .ok_or_else(|| "ファイル選択ダイアログが現れませんでした（5秒タイムアウト）".to_string())?;
+
+    println!("ファイルダイアログを検出 (HWND: {:?})", dialog_isize);
+    fill_and_confirm_file_dialog(dialog_isize, jsx_path);
+
+    Ok(())
 }
 
 #[cfg(target_os = "windows")]
 fn find_active_after_effects() -> Result<AfterEffectsInfo, String> {
-    use windows::Win32::Foundation::{HWND, LPARAM, BOOL};
+    use windows::Win32::Foundation::{HWND, LPARAM, BOOL, HANDLE, CloseHandle};
     use windows::Win32::UI::WindowsAndMessaging::{
-        GetForegroundWindow, EnumWindows, GetWindowThreadProcessId, IsWindowVisible,
+        GetForegroundWindow, EnumWindows, GetWindowThreadProcessId, GetClassNameW,
     };
-    use sysinfo::System;
-    use std::collections::HashMap;
-    
-    // 実行中のAfterFX.exeプロセスを取得
-    let mut system = System::new_all();
-    system.refresh_all();
-    
-    let mut ae_processes: HashMap<u32, String> = HashMap::new();
-    
-    for (pid, process) in system.processes() {
-        let process_name = process.name();
-        
-        if process_name.eq_ignore_ascii_case("AfterFX.exe") || process_name.eq_ignore_ascii_case("AfterFX") {
-            if let Some(exe_path) = process.exe() {
-                let pid_u32 = pid.as_u32();
-                ae_processes.insert(pid_u32, exe_path.to_string_lossy().to_string());
-                println!("Found running After Effects (PID: {}): {}", pid_u32, exe_path.display());
-            }
-        }
+    use windows::Win32::System::Threading::{
+        OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
+        PROCESS_QUERY_LIMITED_INFORMATION,
+    };
+
+    // AE_CApplication_* クラスを持つウィンドウをすべて列挙し、(hwnd, pid) の一覧を得る
+    struct AeWindow {
+        hwnd: isize,
+        pid: u32,
     }
-    
-    if ae_processes.is_empty() {
-        return Err("起動中のAfter Effectsが見つかりませんでした".to_string());
+    struct EnumData {
+        windows: Vec<AeWindow>,
     }
-    
-    // 単一のAEプロセスの場合はそれを使用
-    if ae_processes.len() == 1 {
-        let (pid, exe_path) = ae_processes.into_iter().next().unwrap();
-        return Ok(AfterEffectsInfo { pid, exe_path });
-    }
-    
-    // 複数のAEプロセスがある場合、アクティブなウィンドウを探す
-    unsafe {
-        // まず、フォアグラウンドウィンドウをチェック
-        let foreground_hwnd = GetForegroundWindow();
-        if !foreground_hwnd.is_invalid() {
-            let mut pid: u32 = 0;
-            GetWindowThreadProcessId(foreground_hwnd, Some(&mut pid as *mut u32));
-            if let Some(exe_path) = ae_processes.get(&pid) {
-                println!("Foreground window is After Effects (PID: {})", pid);
-                return Ok(AfterEffectsInfo { pid, exe_path: exe_path.clone() });
-            }
-        }
-        
-        // フォアグラウンドがAEでない場合、Z-orderで最前面のAEウィンドウを探す
-        let ae_pids_clone = ae_processes.keys().copied().collect::<Vec<u32>>();
-        // 未使用の変数を削除（将来的な機能拡張のため保持）
-        
-        // EnumWindowsのコールバック用の構造体
-        struct EnumData {
-            ae_pids: Vec<u32>,
-            found_pid: Option<u32>,
-        }
-        
-        let mut enum_data = EnumData {
-            ae_pids: ae_pids_clone,
-            found_pid: None,
-        };
-        
-        extern "system" fn enum_window_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
-            unsafe {
-                let data = &mut *(lparam.0 as *mut EnumData);
-                
-                // 可視ウィンドウのみチェック
-                if IsWindowVisible(hwnd).as_bool() {
+
+    extern "system" fn callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        unsafe {
+            let data = &mut *(lparam.0 as *mut EnumData);
+            let mut class_buf = [0u16; 64];
+            let len = GetClassNameW(hwnd, &mut class_buf);
+            if len > 0 {
+                let cls = String::from_utf16_lossy(&class_buf[..len as usize]);
+                if cls.starts_with("AE_CApplication_") {
                     let mut pid: u32 = 0;
                     GetWindowThreadProcessId(hwnd, Some(&mut pid as *mut u32));
-                    
-                    // AEプロセスのウィンドウか確認
-                    if data.ae_pids.contains(&pid) {
-                        data.found_pid = Some(pid);
-                        return BOOL(0); // 列挙を停止
+                    if pid != 0 {
+                        data.windows.push(AeWindow { hwnd: hwnd.0 as isize, pid });
                     }
                 }
-                
-                BOOL(1) // 列挙を続ける
             }
+            BOOL(1)
         }
-        
-        let lparam = LPARAM(&mut enum_data as *mut EnumData as isize);
-        let _ = EnumWindows(Some(enum_window_proc), lparam);
-        
-        if let Some(pid) = enum_data.found_pid {
-            if let Some(exe_path) = ae_processes.get(&pid) {
-                println!("Found active After Effects by Z-order (PID: {})", pid);
-                return Ok(AfterEffectsInfo { pid, exe_path: exe_path.clone() });
-            }
-        }
-        
-        // どれも見つからない場合は最初のAEを使用
-        let (pid, exe_path) = ae_processes.into_iter().next().unwrap();
-        println!("Using first After Effects process (PID: {})", pid);
-        Ok(AfterEffectsInfo { pid, exe_path })
     }
+
+    let mut data = EnumData { windows: Vec::new() };
+    unsafe {
+        let _ = EnumWindows(Some(callback), LPARAM(&mut data as *mut EnumData as isize));
+    }
+
+    if data.windows.is_empty() {
+        return Err("起動中のAfter Effectsが見つかりませんでした".to_string());
+    }
+
+    // PIDからexeパスを取得するヘルパー
+    let get_exe_path = |pid: u32| -> Option<String> {
+        unsafe {
+            let handle: HANDLE = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
+            let mut buf = vec![0u16; 1024];
+            let mut len = buf.len() as u32;
+            let ok = QueryFullProcessImageNameW(handle, PROCESS_NAME_WIN32, windows::core::PWSTR(buf.as_mut_ptr()), &mut len);
+            let _ = CloseHandle(handle);
+            if ok.is_ok() {
+                Some(String::from_utf16_lossy(&buf[..len as usize]).to_string())
+            } else {
+                None
+            }
+        }
+    };
+
+    println!("Found {} AE_CApplication_* window(s)", data.windows.len());
+    for w in &data.windows {
+        println!("  HWND={} PID={}", w.hwnd, w.pid);
+    }
+
+    // 単一インスタンスの場合
+    if data.windows.len() == 1 {
+        let w = &data.windows[0];
+        let exe_path = get_exe_path(w.pid)
+            .unwrap_or_else(|| "AfterFX.exe".to_string());
+        println!("Using single AE instance (PID: {}): {}", w.pid, exe_path);
+        return Ok(AfterEffectsInfo { pid: w.pid, exe_path, hwnd: Some(w.hwnd) });
+    }
+
+    // 複数インスタンス: フォアグラウンドウィンドウがAEなら優先
+    let fg_pid = unsafe {
+        let fg = GetForegroundWindow();
+        if !fg.is_invalid() {
+            let mut pid: u32 = 0;
+            GetWindowThreadProcessId(fg, Some(&mut pid as *mut u32));
+            pid
+        } else {
+            0
+        }
+    };
+
+    // フォアグラウンドのAEウィンドウがあればそれを使用
+    for w in &data.windows {
+        if w.pid == fg_pid {
+            let exe_path = get_exe_path(w.pid)
+                .unwrap_or_else(|| "AfterFX.exe".to_string());
+            println!("Foreground AE instance (PID: {}): {}", w.pid, exe_path);
+            return Ok(AfterEffectsInfo { pid: w.pid, exe_path, hwnd: Some(w.hwnd) });
+        }
+    }
+
+    // フォアグラウンドがAEでなければ EnumWindows の列挙順（Z-order上位）の最初を使用
+    let w = &data.windows[0];
+    let exe_path = get_exe_path(w.pid)
+        .unwrap_or_else(|| "AfterFX.exe".to_string());
+    println!("Using topmost AE instance (PID: {}): {}", w.pid, exe_path);
+    Ok(AfterEffectsInfo { pid: w.pid, exe_path, hwnd: Some(w.hwnd) })
 }
 
 /// AEからタイムリマップデータを取得する
@@ -928,9 +1188,9 @@ fn find_active_after_effects() -> Result<AfterEffectsInfo, String> {
 /// 2. JSXを生成してAEで実行
 /// 3. AEからのSocket接続を待機してデータを受信
 #[tauri::command]
-async fn get_timeremap_from_ae() -> Result<String, String> {
+async fn get_timeremap_from_ae(ae_multi_instance_mode: bool) -> Result<String, String> {
     use std::net::TcpListener;
-    
+
     const PORT: u16 = 31715;  // DiTiS = 31715
     
     eprintln!("[get_timeremap_from_ae] 開始");
@@ -980,16 +1240,39 @@ async fn get_timeremap_from_ae() -> Result<String, String> {
                 return Err(e);
             }
         };
-        eprintln!("[get_timeremap_from_ae] AE実行: {}", ae_info.exe_path);
+        eprintln!("[get_timeremap_from_ae] AE実行: {} (PID: {})", ae_info.exe_path, ae_info.pid);
 
-        let _child = std::process::Command::new(&ae_info.exe_path)
-            .arg("-r")
-            .arg(&temp_file)
-            .spawn()
-            .map_err(|e| {
+        if ae_multi_instance_mode {
+            // 複数インスタンス対応: メニュー自動化でスクリプトを実行
+            if let Some(hwnd_isize) = ae_info.hwnd {
+                if let Err(e) = run_jsx_via_menu(hwnd_isize, ae_info.pid, &temp_file.to_string_lossy()) {
+                    let _ = std::fs::remove_file(&temp_file);
+                    return Err(format!(
+                        "After Effectsへのスクリプト送信に失敗しました: {}\n\
+                         AEの環境設定で「スクリプトによるファイルへのアクセスとネットワークアクセスを許可」が\
+                         有効になっているか確認してください。",
+                        e
+                    ));
+                }
+                eprintln!("[get_timeremap_from_ae] メニュー自動化でJSX実行");
+            } else {
                 let _ = std::fs::remove_file(&temp_file);
-                format!("After Effects実行エラー: {}", e)
-            })?;
+                return Err("After EffectsのウィンドウHWNDが取得できませんでした。AEが完全に起動しているか確認してください。".to_string());
+            }
+        } else {
+            // 従来方式: -r フラグでスクリプトを渡す（単一インスタンス時のみ動作）
+            match std::process::Command::new(&ae_info.exe_path)
+                .arg("-r")
+                .arg(&temp_file)
+                .status()
+            {
+                Ok(_) => eprintln!("[get_timeremap_from_ae] -r フラグでJSX実行"),
+                Err(e) => {
+                    let _ = std::fs::remove_file(&temp_file);
+                    return Err(format!("After Effects起動エラー: {}", e));
+                }
+            }
+        }
 
         // 5. 接続待機（タイムアウト付き）
         let accept_result = std::thread::spawn(move || {

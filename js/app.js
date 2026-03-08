@@ -80,6 +80,7 @@ const AppState = {
     currentFilePath: null, // 現在読み込まれているファイルのパス
     fontSize: 12, // フォントサイズ: 8, 10, 12, 14, 16
     alwaysOnTop: false, // 常に前面に表示
+    aeMultiInstanceMode: false, // AEの複数インスタンス対応 (true: メニュー自動化, false: -r フラグ)
     showIntermediateHeaders: false, // 列間にフレームヘッダーを表示
     autoScrollToSelection: true, // カーソル位置に自動スクロール
     showNewSheetDialog: true, // 新規シート作成時にダイアログを表示
@@ -282,7 +283,7 @@ async function initApp() {
     
     // メニューのチェックマークを初期化
     updateMenuCheckmarks();
-    
+
     renderTabs();
     renderSpreadsheet(true); // 初回は全体レンダリング
     
@@ -361,6 +362,7 @@ async function triggerMenuRebuild() {
                 AppState.numericKeyMode || 'auto',
                 AppState.copyKeyframeMode || 'sparse',
                 AppState.emptyCellMode || false,
+                AppState.aeMultiInstanceMode !== false,
                 AppState.recentFiles || []
             );
         } catch (error) {
@@ -836,7 +838,7 @@ window.handleMenuEvent = async function(menuId) {
         'change-max-columns': async () => await changeMaxColumns(),
         'reset-column-names': () => resetColumnNames(),
         'send-to-ae': () => sendToAfterEffects(),
-        'get-from-ae': async () => await getTimeremapFromAE(),
+        'get-from-ae': async () => await getTimeremapFromAE(AppState.aeMultiInstanceMode !== false),
         'clear-sheet': async () => await clearSheet(),
         'reload-page': () => {
                         location.reload();
@@ -1085,6 +1087,16 @@ window.handleMenuEvent = async function(menuId) {
             
             // ステータスバーに表示
             updateStatusBar(`常に前面に表示: ${AppState.alwaysOnTop ? 'ON' : 'OFF'}`);
+        },
+        'ae-multi-instance-mode': async () => {
+            AppState.aeMultiInstanceMode = !AppState.aeMultiInstanceMode;
+
+            if (window.TauriAPI && window.TauriAPI.updateMenuItemCheck) {
+                await window.TauriAPI.updateMenuItemCheck('ae-multi-instance-mode', AppState.aeMultiInstanceMode);
+            }
+
+            saveToLocalStorage();
+            updateStatusBar(`複数インスタンス起動に対応する: ${AppState.aeMultiInstanceMode ? 'ON' : 'OFF'}`);
         },
         'auto-scroll': async () => {
             // 状態をトグル

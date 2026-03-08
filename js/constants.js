@@ -6,7 +6,7 @@ const CONSTANTS = {
     
     // デフォルト値
     DEFAULT_FPS: 24,
-    DEFAULT_ROWS: 144,  // 12秒 @ 24fps
+    DEFAULT_ROWS: 144,  // 6秒 @ 24fps
     DEFAULT_COLUMNS: 26, // A-Z
     MAX_VISIBLE_ROWS: 288, // 最大表示行数（デフォルト値）
     
