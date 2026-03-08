@@ -1029,6 +1029,43 @@ td.inserted-cell {
     min-width: 500px;
 }
 
+.release-notes-banner {
+    margin-bottom: 14px;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.release-notes-banner--available {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.release-notes-banner--latest {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-light);
+}
+
+.release-notes-banner #rn-download-btn {
+    padding: 4px 12px;
+    font-size: 12px;
+    background: #28a745;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.release-notes-banner #rn-download-btn:hover {
+    background: #218838;
+}
+
 .release-notes-content h2 {
     margin-bottom: 16px;
     color: var(--text-primary);

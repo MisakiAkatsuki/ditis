@@ -1158,52 +1158,81 @@ window.handleMenuEvent = async function(menuId) {
                 await window.__TAURI__.core.invoke('open_url', { url: 'https://github.com/MisakiAkatsuki/ditis/releases' });
             }
         },
-        'show-release-notes': async () => {
-            updateStatusBar('更新内容を取得中...');
+        'check-updates': async () => {
+            const dialog = document.getElementById('release-notes-dialog');
+            const titleEl = document.getElementById('release-notes-title');
+            const banner = document.getElementById('release-notes-update-banner');
+            const body = document.getElementById('release-notes-body');
+
+            // ダイアログを先に開いてローディング表示
+            titleEl.textContent = '更新内容';
+            banner.style.display = 'none';
+            body.innerHTML = '<p style="color: var(--text-secondary)">読み込み中...</p>';
+            const closeBtn = document.getElementById('close-release-notes');
+            closeBtn.onclick = () => { dialog.style.display = 'none'; };
+            dialog.onclick = (e) => { if (e.target === dialog) dialog.style.display = 'none'; };
+            dialog.style.display = 'flex';
+            updateStatusBar('更新を確認中...');
+
             try {
-                const res = await fetch('https://api.github.com/repos/MisakiAkatsuki/ditis/releases/latest');
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                const dialog = document.getElementById('release-notes-dialog');
-                const title = document.getElementById('release-notes-title');
-                const body = document.getElementById('release-notes-body');
-                title.textContent = `更新内容 - ${data.tag_name}`;
-                const md = data.body || '（内容なし）';
+                // 更新チェックとリリースノート取得を並列実行
+                const [releaseRes, updateResult] = await Promise.all([
+                    fetch('https://api.github.com/repos/MisakiAkatsuki/ditis/releases/latest').catch(() => null),
+                    (async () => {
+                        if (!window.UpdaterAPI) return { updateInfo: null, currentVersion: null };
+                        const [updateInfo, currentVersion] = await Promise.all([
+                            window.UpdaterAPI.checkForUpdates(true).catch(() => false),
+                            window.UpdaterAPI.getCurrentVersion().catch(() => null),
+                        ]);
+                        return { updateInfo, currentVersion };
+                    })(),
+                ]);
+
+                const releaseData = (releaseRes && releaseRes.ok) ? await releaseRes.json() : null;
+                const { updateInfo, currentVersion } = updateResult;
+
+                // タイトル
+                titleEl.textContent = releaseData?.tag_name ? `更新内容 - ${releaseData.tag_name}` : '更新内容';
+
+                // 更新状況バナー
+                banner.style.display = '';
+                if (updateInfo && updateInfo !== false) {
+                    const safeVer = (updateInfo.version || '').replace(/</g, '&lt;');
+                    const safeCur = (currentVersion || '').replace(/</g, '&lt;');
+                    banner.className = 'release-notes-banner release-notes-banner--available';
+                    banner.innerHTML = `<span>新しいバージョン <strong>v${safeVer}</strong> が利用可能です（現在: v${safeCur}）</span>`
+                        + `<button id="rn-download-btn">今すぐダウンロード</button>`;
+                    document.getElementById('rn-download-btn').onclick = async () => {
+                        const success = await window.UpdaterAPI.installUpdate();
+                        dialog.style.display = 'none';
+                        if (success) {
+                            showDialog({
+                                title: '再起動',
+                                content: '<p>アップデートのインストールが完了しました。再起動しますか？</p>',
+                                okText: '今すぐ再起動',
+                                cancelText: '後で再起動',
+                                onOk: () => window.__TAURI__.process.relaunch(),
+                            });
+                        }
+                    };
+                } else if (updateInfo === null) {
+                    banner.className = 'release-notes-banner release-notes-banner--latest';
+                    banner.textContent = '最新バージョンを使用しています';
+                } else {
+                    // false = エラー or UpdaterAPI なし
+                    banner.style.display = 'none';
+                }
+
+                // 更新内容
+                const md = releaseData?.body || '（内容なし）';
                 body.innerHTML = (typeof marked !== 'undefined')
                     ? marked.parse(md)
                     : md.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
-                // 閉じるボタン
-                const closeBtn = document.getElementById('close-release-notes');
-                closeBtn.onclick = () => { dialog.style.display = 'none'; };
-                dialog.onclick = (e) => { if (e.target === dialog) dialog.style.display = 'none'; };
-                dialog.style.display = 'flex';
+
                 updateStatusBar('準備完了');
             } catch (e) {
-                showErrorToast(`更新内容の取得に失敗しました: ${e.message}`, ErrorLevel.ERROR);
+                body.innerHTML = `<p style="color: var(--error-color)">取得に失敗しました: ${e.message}</p>`;
                 updateStatusBar('準備完了');
-            }
-        },
-        'check-updates': async () => {
-            // 手動で更新をチェック
-            if (window.UpdaterAPI) {
-                const i18n = window.i18n || { t: (key) => ({
-                    'updater.checking': '更新を確認中...',
-                    'updater.noUpdates': '最新バージョンを使用しています',
-                }[key] || key) };
-                updateStatusBar(i18n.t('updater.checking'));
-                
-                const updateInfo = await window.UpdaterAPI.checkForUpdates(true); // Force check
-                
-                if (updateInfo) {
-                    const currentVersion = await window.UpdaterAPI.getCurrentVersion();
-                    showUpdateDialog(currentVersion, updateInfo);
-                } else if (updateInfo === null) {
-                    showErrorToast(i18n.t('updater.noUpdates'), ErrorLevel.INFO);
-                    updateStatusBar(i18n.t('updater.noUpdates'));
-                } else {
-                    // false = エラー（updater.jsでトースト表示済み）
-                    updateStatusBar(i18n.t('status.ready'));
-                }
             }
         },
         'auto-check-updates': async () => {

@@ -79,7 +79,6 @@ struct MenuTexts {
     help: String,
     help_show: String,
     help_check_updates: String,
-    help_release_notes: String,
     help_auto_check_updates: String,
     help_about: String,
     help_website: String,
@@ -167,8 +166,7 @@ impl MenuTexts {
                 edit_ae_empty_timeremap: "Empty Cell: Time Remap".to_string(),
                 help: "Help".to_string(),
                 help_show: "Help".to_string(),
-                help_check_updates: "Check for Updates".to_string(),
-                help_release_notes: "Release Notes".to_string(),
+                help_check_updates: "Check for Updates / Release Notes".to_string(),
                 help_auto_check_updates: "Check for updates on startup".to_string(),
                 help_about: "About".to_string(),
                 help_website: "Official Website".to_string(),
@@ -251,8 +249,7 @@ impl MenuTexts {
                 edit_ae_empty_timeremap: "空セル: タイムリマップ".to_string(),
                 help: "ヘルプ".to_string(),
                 help_show: "ヘルプ".to_string(),
-                help_check_updates: "更新を確認".to_string(),
-                help_release_notes: "更新内容を確認".to_string(),
+                help_check_updates: "更新を確認 / 更新内容".to_string(),
                 help_auto_check_updates: "起動時に更新を確認".to_string(),
                 help_about: "このソフトについて".to_string(),
                 help_website: "公式サイト".to_string(),
@@ -696,7 +693,6 @@ async fn rebuild_menu(
           .item(&MenuItemBuilder::new(&texts.help_show).id("show-help").accelerator("F1").build(&app).map_err(|e| e.to_string())?)
           .separator()
           .item(&MenuItemBuilder::new(&texts.help_check_updates).id("check-updates").build(&app).map_err(|e| e.to_string())?)
-          .item(&MenuItemBuilder::new(&texts.help_release_notes).id("show-release-notes").build(&app).map_err(|e| e.to_string())?)
           .item(&create_check_item("auto-check-updates", &texts.help_auto_check_updates, true)?)
           .separator()
           .item(&MenuItemBuilder::new(&texts.help_about).id("show-about").build(&app).map_err(|e| e.to_string())?)
