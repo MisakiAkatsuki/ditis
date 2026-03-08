@@ -695,7 +695,19 @@ async function shiftDataDownFromFrame() {
             return f;
         }).filter(f => f >= 1 && f <= maxRows);
     }
-    
+
+    if (sheet.insertedFrameMap) {
+        const newMap = {};
+        for (const [key, val] of Object.entries(sheet.insertedFrameMap)) {
+            const frameNum = parseInt(key);
+            const newFrame = frameNum >= startFrame ? frameNum + shiftAmount : frameNum;
+            if (newFrame >= 1 && newFrame <= maxRows) {
+                newMap[newFrame] = val;
+            }
+        }
+        sheet.insertedFrameMap = newMap;
+    }
+
     if (sheet.disabledFrames && sheet.disabledFrames.length > 0) {
         sheet.disabledFrames = sheet.disabledFrames.map(f => {
             if (f >= startFrame) {
