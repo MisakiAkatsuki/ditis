@@ -1066,6 +1066,25 @@ td.inserted-cell {
     background: #218838;
 }
 
+.release-notes-footer {
+    margin-top: 16px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-light);
+    text-align: right;
+    font-size: 12px;
+}
+
+.release-notes-footer a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.release-notes-footer a:hover {
+    text-decoration: underline;
+    color: var(--text-primary);
+}
+
 .release-notes-content h2 {
     margin-bottom: 16px;
     color: var(--text-primary);

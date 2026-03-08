@@ -1171,6 +1171,14 @@ window.handleMenuEvent = async function(menuId) {
             const closeBtn = document.getElementById('close-release-notes');
             closeBtn.onclick = () => { dialog.style.display = 'none'; };
             dialog.onclick = (e) => { if (e.target === dialog) dialog.style.display = 'none'; };
+            // 過去リリースリンク
+            const releasesLink = document.getElementById('release-notes-releases-link');
+            releasesLink.onclick = async (e) => {
+                e.preventDefault();
+                if (window.__TAURI__) {
+                    await window.__TAURI__.core.invoke('open_url', { url: 'https://github.com/MisakiAkatsuki/ditis/releases' });
+                }
+            };
             dialog.style.display = 'flex';
             updateStatusBar('更新を確認中...');
 
