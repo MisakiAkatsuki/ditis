@@ -276,11 +276,11 @@ impl<R: Runtime> MenuItems<R> {
     }
 
     fn insert(&self, id: String, item: CheckMenuItem<R>) {
-        self.items.lock().unwrap().insert(id, item);
+        self.items.lock().unwrap_or_else(|e| e.into_inner()).insert(id, item);
     }
 
     fn get(&self, id: &str) -> Option<CheckMenuItem<R>> {
-        self.items.lock().unwrap().get(id).cloned()
+        self.items.lock().unwrap_or_else(|e| e.into_inner()).get(id).cloned()
     }
 }
 
@@ -295,6 +295,23 @@ fn validate_file_path(path: &str) -> Result<(), String> {
     // パストラバーサル防止（".." コンポーネントを含むパスを拒否）
     let p = std::path::Path::new(path);
     for component in p.components() {
+        if let std::path::Component::ParentDir = component {
+            return Err("不正なパスが含まれています".to_string());
+        }
+    }
+    // M-10: 絶対パスバイパス防止 - 親ディレクトリをcanonicalizeして実パスを検証
+    // ファイルが存在しない場合はparentをcanonicalizeしてから結合する
+    let canonical = {
+        let parent = p.parent().unwrap_or(p);
+        let canonical_parent = std::fs::canonicalize(parent)
+            .unwrap_or_else(|_| std::path::PathBuf::from(parent));
+        if let Some(filename) = p.file_name() {
+            canonical_parent.join(filename)
+        } else {
+            canonical_parent
+        }
+    };
+    for component in canonical.components() {
         if let std::path::Component::ParentDir = component {
             return Err("不正なパスが含まれています".to_string());
         }
@@ -748,6 +765,13 @@ fn open_url(url: String) -> Result<(), String> {
     if !allowed.iter().any(|prefix| url.starts_with(prefix)) {
         return Err(format!("URL not allowed: {}", url));
     }
+    // C-1: シェルメタ文字によるコマンドインジェクション防止
+    if url.contains('"') || url.contains('&') || url.contains('|')
+        || url.contains(';') || url.contains('`') || url.contains('$')
+        || url.contains('\n') || url.contains('\r') || url.contains('^')
+    {
+        return Err("URL contains invalid characters".to_string());
+    }
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
@@ -831,11 +855,16 @@ async fn execute_after_effects_script(
             Err("After EffectsのウィンドウHWNDが取得できませんでした。AEが完全に起動しているか確認してください。".to_string())
         } else {
             // 従来方式: -r フラグでスクリプトを渡す（単一インスタンス時のみ動作）
-            match std::process::Command::new(&ae_info.exe_path)
-                .arg("-r")
-                .arg(&temp_file)
-                .status()
-            {
+            // C-3: ブロッキングI/Oをspawn_blockingで包みTokioスレッドプールの枯渇を防ぐ
+            let exe_path = ae_info.exe_path.clone();
+            let temp_file_for_spawn = temp_file.clone();
+            let status = tauri::async_runtime::spawn_blocking(move || {
+                std::process::Command::new(&exe_path)
+                    .arg("-r")
+                    .arg(&temp_file_for_spawn)
+                    .status()
+            }).await.map_err(|e| e.to_string())?;
+            match status {
                 Ok(_) => Ok(()),
                 Err(e) => {
                     let _ = std::fs::remove_file(&temp_file);
@@ -1264,11 +1293,16 @@ async fn get_timeremap_from_ae(ae_multi_instance_mode: bool) -> Result<String, S
             }
         } else {
             // 従来方式: -r フラグでスクリプトを渡す（単一インスタンス時のみ動作）
-            match std::process::Command::new(&ae_info.exe_path)
-                .arg("-r")
-                .arg(&temp_file)
-                .status()
-            {
+            // C-3: ブロッキングI/Oをspawn_blockingで包みTokioスレッドプールの枯渇を防ぐ
+            let exe_path = ae_info.exe_path.clone();
+            let temp_file_for_spawn = temp_file.clone();
+            let status = tauri::async_runtime::spawn_blocking(move || {
+                std::process::Command::new(&exe_path)
+                    .arg("-r")
+                    .arg(&temp_file_for_spawn)
+                    .status()
+            }).await.map_err(|e| e.to_string())?;
+            match status {
                 Ok(_) => eprintln!("[get_timeremap_from_ae] -r フラグでJSX実行"),
                 Err(e) => {
                     let _ = std::fs::remove_file(&temp_file);
