@@ -687,88 +687,67 @@ function generateHelpHTML() {
     const lang = getCurrentLanguage();
     const help = i18n[lang].help;
     
+    const E = escapeHtml;
+    const shortcutEntries = (section) =>
+        Object.entries(section).filter(([k]) => k !== 'title').map(([_, v]) => `
+                    <div class="shortcut-item">
+                        <span class="shortcut-key">${E(v.key)}</span>
+                        <span class="shortcut-desc">${E(v.desc)}</span>
+                    </div>
+                `).join('');
+
     let html = `
-        <h2>${help.title}</h2>
+        <h2>${E(help.title)}</h2>
         
         <div class="help-section">
-            <h3>${help.numpad.title}</h3>
+            <h3>${E(help.numpad.title)}</h3>
             <div class="shortcut-list">
                 <div class="shortcut-item">
-                    <span class="shortcut-key">${help.numpad.keys}</span>
-                    <span class="shortcut-desc">${help.numpad.desc}</span>
+                    <span class="shortcut-key">${E(help.numpad.keys)}</span>
+                    <span class="shortcut-desc">${E(help.numpad.desc)}</span>
                 </div>
             </div>
         </div>
         
         <div class="help-section">
-            <h3>${help.editing.title}</h3>
+            <h3>${E(help.editing.title)}</h3>
             <div class="shortcut-list">
-                ${Object.entries(help.editing).filter(([k]) => k !== 'title').map(([_, v]) => `
-                    <div class="shortcut-item">
-                        <span class="shortcut-key">${v.key}</span>
-                        <span class="shortcut-desc">${v.desc}</span>
-                    </div>
-                `).join('')}
+                ${shortcutEntries(help.editing)}
             </div>
         </div>
         
         <div class="help-section">
-            <h3>${help.navigation.title}</h3>
+            <h3>${E(help.navigation.title)}</h3>
             <div class="shortcut-list">
-                ${Object.entries(help.navigation).filter(([k]) => k !== 'title').map(([_, v]) => `
-                    <div class="shortcut-item">
-                        <span class="shortcut-key">${v.key}</span>
-                        <span class="shortcut-desc">${v.desc}</span>
-                    </div>
-                `).join('')}
+                ${shortcutEntries(help.navigation)}
             </div>
         </div>
         
         <div class="help-section">
-            <h3>${help.selection.title}</h3>
+            <h3>${E(help.selection.title)}</h3>
             <div class="shortcut-list">
-                ${Object.entries(help.selection).filter(([k]) => k !== 'title').map(([_, v]) => `
-                    <div class="shortcut-item">
-                        <span class="shortcut-key">${v.key}</span>
-                        <span class="shortcut-desc">${v.desc}</span>
-                    </div>
-                `).join('')}
+                ${shortcutEntries(help.selection)}
             </div>
         </div>
         
         <div class="help-section">
-            <h3>${help.fileOps.title}</h3>
+            <h3>${E(help.fileOps.title)}</h3>
             <div class="shortcut-list">
-                ${Object.entries(help.fileOps).filter(([k]) => k !== 'title').map(([_, v]) => `
-                    <div class="shortcut-item">
-                        <span class="shortcut-key">${v.key}</span>
-                        <span class="shortcut-desc">${v.desc}</span>
-                    </div>
-                `).join('')}
+                ${shortcutEntries(help.fileOps)}
             </div>
         </div>
         
         <div class="help-section">
-            <h3>${help.display.title}</h3>
+            <h3>${E(help.display.title)}</h3>
             <div class="shortcut-list">
-                ${Object.entries(help.display).filter(([k]) => k !== 'title').map(([_, v]) => `
-                    <div class="shortcut-item">
-                        <span class="shortcut-key">${v.key}</span>
-                        <span class="shortcut-desc">${v.desc}</span>
-                    </div>
-                `).join('')}
+                ${shortcutEntries(help.display)}
             </div>
         </div>
         
         <div class="help-section">
-            <h3>${help.mouse.title}</h3>
+            <h3>${E(help.mouse.title)}</h3>
             <div class="shortcut-list">
-                ${Object.entries(help.mouse).filter(([k]) => k !== 'title').map(([_, v]) => `
-                    <div class="shortcut-item">
-                        <span class="shortcut-key">${v.key}</span>
-                        <span class="shortcut-desc">${v.desc}</span>
-                    </div>
-                `).join('')}
+                ${shortcutEntries(help.mouse)}
             </div>
         </div>
     `;
