@@ -798,6 +798,39 @@ async fn execute_after_effects_script(script_content: String) -> Result<(), Stri
             }
         };
         println!("Using After Effects (PID: {}): {}", ae_info.pid, ae_info.exe_path);
+
+        // HWNDが取得できている場合はWM_COPYDATAでスクリプトを直接送信する。
+        // -mフラグで複数インスタンス起動中でも、正しいインスタンスにスクリプトが届く。
+        if let Some(hwnd_isize) = ae_info.hwnd {
+            use windows::Win32::Foundation::{HWND, WPARAM, LPARAM};
+            use windows::Win32::UI::WindowsAndMessaging::{SendMessageW, WM_COPYDATA};
+            use windows::Win32::System::DataExchange::COPYDATASTRUCT;
+
+            let path_str = temp_file.to_string_lossy();
+            let mut path_wide: Vec<u16> = path_str.encode_utf16().collect();
+            path_wide.push(0); // null terminator
+
+            let cds = COPYDATASTRUCT {
+                dwData: 0,
+                cbData: (path_wide.len() * 2) as u32,
+                lpData: path_wide.as_ptr() as *mut core::ffi::c_void,
+            };
+
+            unsafe {
+                let hwnd = HWND(hwnd_isize as *mut core::ffi::c_void);
+                let result = SendMessageW(
+                    hwnd,
+                    WM_COPYDATA,
+                    WPARAM(0),
+                    LPARAM(&cds as *const COPYDATASTRUCT as isize),
+                );
+                let _ = std::fs::remove_file(&temp_file);
+                println!("WM_COPYDATA sent to After Effects (PID: {}), result: {}", ae_info.pid, result.0);
+                return Ok(());
+            }
+        }
+
+        // HWNDが取得できなかった場合のフォールバック（単一インスタンス想定）
         let status = std::process::Command::new(&ae_info.exe_path)
             .arg("-r")
             .arg(&temp_file)
@@ -819,6 +852,41 @@ async fn execute_after_effects_script(script_content: String) -> Result<(), Stri
 struct AfterEffectsInfo {
     pid: u32,
     exe_path: String,
+    /// WM_COPYDATA送信用のメインウィンドウハンドル
+    hwnd: Option<isize>,
+}
+
+/// 指定PIDのプロセスが持つ可視ウィンドウのHWNDを返す
+#[cfg(target_os = "windows")]
+fn find_hwnd_for_pid(target_pid: u32) -> Option<isize> {
+    use windows::Win32::Foundation::{HWND, LPARAM, BOOL};
+    use windows::Win32::UI::WindowsAndMessaging::{EnumWindows, GetWindowThreadProcessId, IsWindowVisible};
+
+    struct EnumData {
+        target_pid: u32,
+        found_hwnd: Option<isize>,
+    }
+
+    extern "system" fn callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        unsafe {
+            let data = &mut *(lparam.0 as *mut EnumData);
+            if IsWindowVisible(hwnd).as_bool() {
+                let mut pid: u32 = 0;
+                GetWindowThreadProcessId(hwnd, Some(&mut pid as *mut u32));
+                if pid == data.target_pid {
+                    data.found_hwnd = Some(hwnd.0 as isize);
+                    return BOOL(0); // 列挙を停止
+                }
+            }
+            BOOL(1)
+        }
+    }
+
+    unsafe {
+        let mut data = EnumData { target_pid, found_hwnd: None };
+        let _ = EnumWindows(Some(callback), LPARAM(&mut data as *mut EnumData as isize));
+        data.found_hwnd
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -855,7 +923,8 @@ fn find_active_after_effects() -> Result<AfterEffectsInfo, String> {
     // 単一のAEプロセスの場合はそれを使用
     if ae_processes.len() == 1 {
         let (pid, exe_path) = ae_processes.into_iter().next().unwrap();
-        return Ok(AfterEffectsInfo { pid, exe_path });
+        let hwnd = find_hwnd_for_pid(pid);
+        return Ok(AfterEffectsInfo { pid, exe_path, hwnd });
     }
     
     // 複数のAEプロセスがある場合、アクティブなウィンドウを探す
@@ -867,7 +936,7 @@ fn find_active_after_effects() -> Result<AfterEffectsInfo, String> {
             GetWindowThreadProcessId(foreground_hwnd, Some(&mut pid as *mut u32));
             if let Some(exe_path) = ae_processes.get(&pid) {
                 println!("Foreground window is After Effects (PID: {})", pid);
-                return Ok(AfterEffectsInfo { pid, exe_path: exe_path.clone() });
+                return Ok(AfterEffectsInfo { pid, exe_path: exe_path.clone(), hwnd: Some(foreground_hwnd.0 as isize) });
             }
         }
         
@@ -879,11 +948,13 @@ fn find_active_after_effects() -> Result<AfterEffectsInfo, String> {
         struct EnumData {
             ae_pids: Vec<u32>,
             found_pid: Option<u32>,
+            found_hwnd: Option<isize>,
         }
         
         let mut enum_data = EnumData {
             ae_pids: ae_pids_clone,
             found_pid: None,
+            found_hwnd: None,
         };
         
         extern "system" fn enum_window_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
@@ -898,6 +969,7 @@ fn find_active_after_effects() -> Result<AfterEffectsInfo, String> {
                     // AEプロセスのウィンドウか確認
                     if data.ae_pids.contains(&pid) {
                         data.found_pid = Some(pid);
+                        data.found_hwnd = Some(hwnd.0 as isize);
                         return BOOL(0); // 列挙を停止
                     }
                 }
@@ -912,14 +984,15 @@ fn find_active_after_effects() -> Result<AfterEffectsInfo, String> {
         if let Some(pid) = enum_data.found_pid {
             if let Some(exe_path) = ae_processes.get(&pid) {
                 println!("Found active After Effects by Z-order (PID: {})", pid);
-                return Ok(AfterEffectsInfo { pid, exe_path: exe_path.clone() });
+                return Ok(AfterEffectsInfo { pid, exe_path: exe_path.clone(), hwnd: enum_data.found_hwnd });
             }
         }
         
         // どれも見つからない場合は最初のAEを使用
         let (pid, exe_path) = ae_processes.into_iter().next().unwrap();
         println!("Using first After Effects process (PID: {})", pid);
-        Ok(AfterEffectsInfo { pid, exe_path })
+        let hwnd = find_hwnd_for_pid(pid);
+        Ok(AfterEffectsInfo { pid, exe_path, hwnd })
     }
 }
 
@@ -980,16 +1053,45 @@ async fn get_timeremap_from_ae() -> Result<String, String> {
                 return Err(e);
             }
         };
-        eprintln!("[get_timeremap_from_ae] AE実行: {}", ae_info.exe_path);
+        eprintln!("[get_timeremap_from_ae] AE実行: {} (PID: {})", ae_info.exe_path, ae_info.pid);
 
-        let _child = std::process::Command::new(&ae_info.exe_path)
-            .arg("-r")
-            .arg(&temp_file)
-            .spawn()
-            .map_err(|e| {
-                let _ = std::fs::remove_file(&temp_file);
-                format!("After Effects実行エラー: {}", e)
-            })?;
+        // HWNDが取得できている場合はWM_COPYDATAでスクリプトを直接送信する
+        if let Some(hwnd_isize) = ae_info.hwnd {
+            use windows::Win32::Foundation::{HWND, WPARAM, LPARAM};
+            use windows::Win32::UI::WindowsAndMessaging::{SendMessageW, WM_COPYDATA};
+            use windows::Win32::System::DataExchange::COPYDATASTRUCT;
+
+            let path_str = temp_file.to_string_lossy();
+            let mut path_wide: Vec<u16> = path_str.encode_utf16().collect();
+            path_wide.push(0);
+
+            let cds = COPYDATASTRUCT {
+                dwData: 0,
+                cbData: (path_wide.len() * 2) as u32,
+                lpData: path_wide.as_ptr() as *mut core::ffi::c_void,
+            };
+
+            unsafe {
+                let hwnd = HWND(hwnd_isize as *mut core::ffi::c_void);
+                let result = SendMessageW(
+                    hwnd,
+                    WM_COPYDATA,
+                    WPARAM(0),
+                    LPARAM(&cds as *const COPYDATASTRUCT as isize),
+                );
+                eprintln!("[get_timeremap_from_ae] WM_COPYDATA送信完了 (PID: {}), result: {}", ae_info.pid, result.0);
+            }
+        } else {
+            // HWNDが取得できなかった場合のフォールバック
+            let _child = std::process::Command::new(&ae_info.exe_path)
+                .arg("-r")
+                .arg(&temp_file)
+                .spawn()
+                .map_err(|e| {
+                    let _ = std::fs::remove_file(&temp_file);
+                    format!("After Effects実行エラー: {}", e)
+                })?;
+        }
 
         // 5. 接続待機（タイムアウト付き）
         let accept_result = std::thread::spawn(move || {
