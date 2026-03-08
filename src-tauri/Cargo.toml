@@ -1,6 +1,6 @@
 [package]
 name = "ditis"
-version = "26.308.3"
+version = "26.308.4"
 description = "DiTiS - Digital Timesheet for anime production"
 authors = ["DiTiS Project"]
 license = "MIT"
