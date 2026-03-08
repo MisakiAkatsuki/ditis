@@ -283,7 +283,7 @@ function renderSpreadsheetImmediate(forceFullRender = false) {
         document.body.classList.remove('intermediate-headers');
     }
     
-    let html = '<table><thead><tr><th class="fps-corner-cell">fps<br><span style="font-size: var(--column-number-font-size); color: var(--text-secondary);">' + AppState.fps + '</span></th>';
+    let html = '<table><thead><tr><th class="fps-corner-cell">fps<br><span style="font-size: var(--column-number-font-size); color: var(--text-secondary);">' + escapeHtml(String(AppState.fps)) + '</span></th>';
     
     // ヘッダー（レイヤー名と列番号）
     sheet.layers.forEach((layer, index) => {
