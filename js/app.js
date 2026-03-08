@@ -1168,7 +1168,10 @@ window.handleMenuEvent = async function(menuId) {
                 const title = document.getElementById('release-notes-title');
                 const body = document.getElementById('release-notes-body');
                 title.textContent = `更新内容 - ${data.tag_name}`;
-                body.textContent = data.body || '（内容なし）';
+                const md = data.body || '（内容なし）';
+                body.innerHTML = (typeof marked !== 'undefined')
+                    ? marked.parse(md)
+                    : md.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
                 // 閉じるボタン
                 const closeBtn = document.getElementById('close-release-notes');
                 closeBtn.onclick = () => { dialog.style.display = 'none'; };

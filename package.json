@@ -38,5 +38,8 @@
     "puppeteer": "^24.35.0",
     "serve": "^14.2.5",
     "vitest": "^4.0.17"
+  },
+  "dependencies": {
+    "marked": "^17.0.4"
   }
 }
