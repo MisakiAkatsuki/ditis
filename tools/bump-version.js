@@ -64,15 +64,13 @@ html = html.replace(
   /<title>DiTiS - v[\d.]+<\/title>/,
   `<title>DiTiS - ${displayVer}</title>`
 );
-html = html.replace(
-  /window\.DITIS_VERSION = 'v[\d.]+'/,
-  `window.DITIS_VERSION = '${displayVer}'`
-);
-html = html.replace(
-  /window\.DITIS_BUILD = \d+/,
-  `window.DITIS_BUILD = ${build}`
-);
 writeFileSync(indexPath, html);
 console.log(`updated: index.html        → ${displayVer} build ${build}`);
+
+// ─── 4. js/version.js ─────────────────────────────────────────────
+const versionJsPath = join(ROOT, 'js', 'version.js');
+const versionJs = `window.DITIS_VERSION = '${displayVer}';\nwindow.DITIS_BUILD = ${build};\n`;
+writeFileSync(versionJsPath, versionJs);
+console.log(`updated: js/version.js     → ${displayVer} build ${build}`);
 
 console.log(`\n✅ version synced: ${raw} → ${displayVer}`);
