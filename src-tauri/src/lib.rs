@@ -973,9 +973,9 @@ fn wait_for_new_file_dialog(ae_pid: u32, before: &[isize], timeout_ms: u64) -> O
 fn fill_and_confirm_file_dialog(dialog_hwnd_isize: isize, path: &str) {
     use windows::Win32::Foundation::{HWND, WPARAM, LPARAM, BOOL};
     use windows::Win32::UI::WindowsAndMessaging::{
-        PostMessageW, SetForegroundWindow,
+        SendMessageW, PostMessageW, SetForegroundWindow,
         EnumChildWindows, GetClassNameW, GetDlgCtrlID,
-        BM_CLICK,
+        BM_CLICK, WM_COMMAND,
     };
 
     // EM_SETSEL / EM_REPLACESEL は standard Edit messages (winuser.h)
@@ -1008,7 +1008,7 @@ fn fill_and_confirm_file_dialog(dialog_hwnd_isize: isize, path: &str) {
 
     unsafe {
         let _ = SetForegroundWindow(dialog_hwnd);
-        std::thread::sleep(std::time::Duration::from_millis(200));
+        std::thread::sleep(std::time::Duration::from_millis(300));
 
         let mut data = WalkData { edits: Vec::new(), ok_btn: None };
         let _ = EnumChildWindows(dialog_hwnd, Some(walk_cb), LPARAM(&mut data as *mut WalkData as isize));
@@ -1016,26 +1016,26 @@ fn fill_and_confirm_file_dialog(dialog_hwnd_isize: isize, path: &str) {
         println!("Edit count={}, ok_btn={}", data.edits.len(), data.ok_btn.is_some());
 
         if let Some(&edit) = data.edits.last() {
-            // 全選択してから EM_REPLACESEL でフルパスを"入力" 
+            // 全選択してから EM_REPLACESEL でフルパスを"入力"
             // → EN_CHANGE 通知が発生し IFileDialog が内部パスを更新する
-            windows::Win32::UI::WindowsAndMessaging::SendMessageW(
-                edit, EM_SETSEL, WPARAM(0), LPARAM(-1i32 as isize));
-            windows::Win32::UI::WindowsAndMessaging::SendMessageW(
-                edit, EM_REPLACESEL, WPARAM(0), LPARAM(path_wide.as_ptr() as isize));
+            // wParam=1 で「元に戻せる操作」としてマーク（IFileDialog の変更検知に必要）
+            SendMessageW(edit, EM_SETSEL, WPARAM(0), LPARAM(-1i32 as isize));
+            SendMessageW(edit, EM_REPLACESEL, WPARAM(1), LPARAM(path_wide.as_ptr() as isize));
             println!("EM_REPLACESEL でフルパス設定: {}", path);
         } else {
             println!("警告: Edit コントロールが見つかりません");
         }
 
-        std::thread::sleep(std::time::Duration::from_millis(100));
+        // IFileDialog が内部パスを更新するのを十分待つ
+        std::thread::sleep(std::time::Duration::from_millis(500));
 
         if let Some(ok_btn) = data.ok_btn {
-            let _ = PostMessageW(ok_btn, BM_CLICK, WPARAM(0), LPARAM(0));
-            println!("OK ボタン BM_CLICK");
+            // SendMessageW で同期的にBM_CLICKを送る（PostMessageより確実）
+            SendMessageW(ok_btn, BM_CLICK, WPARAM(0), LPARAM(0));
+            println!("OK ボタン SendMessage BM_CLICK");
         } else {
-            let _ = PostMessageW(dialog_hwnd,
-                windows::Win32::UI::WindowsAndMessaging::WM_COMMAND,
-                WPARAM(1), LPARAM(0));
+            let _ = PostMessageW(dialog_hwnd, WM_COMMAND, WPARAM(1), LPARAM(0));
+            println!("OK WM_COMMAND フォールバック");
         }
     }
 }
@@ -1068,8 +1068,8 @@ fn run_jsx_via_menu(ae_hwnd_isize: isize, ae_pid: u32, jsx_path: &str) -> Result
         let _ = PostMessageW(ae_hwnd, WM_COMMAND, WPARAM(cmd_id as usize), LPARAM(0));
     }
 
-    let dialog_isize = wait_for_new_file_dialog(ae_pid, &before, 5000)
-        .ok_or_else(|| "ファイル選択ダイアログが現れませんでした（5秒タイムアウト）".to_string())?;
+    let dialog_isize = wait_for_new_file_dialog(ae_pid, &before, 8000)
+        .ok_or_else(|| "ファイル選択ダイアログが現れませんでした（8秒タイムアウト）".to_string())?;
 
     println!("ファイルダイアログを検出 (HWND: {:?})", dialog_isize);
     fill_and_confirm_file_dialog(dialog_isize, jsx_path);
