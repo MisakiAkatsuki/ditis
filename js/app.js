@@ -1233,13 +1233,26 @@ window.handleMenuEvent = async function(menuId) {
 
                 // 更新内容
                 const md = releaseData?.body || '（内容なし）';
-                body.innerHTML = (typeof marked !== 'undefined')
-                    ? marked.parse(md)
-                    : md.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+                if (typeof marked !== 'undefined') {
+                    const renderer = new marked.Renderer();
+                    const origLink = renderer.link.bind(renderer);
+                    renderer.link = function(token) {
+                        if (token.href && /^\s*javascript:/i.test(token.href)) {
+                            return escapeHtml(token.text || '');
+                        }
+                        return origLink(token);
+                    };
+                    body.innerHTML = marked.parse(md, { renderer });
+                } else {
+                    body.textContent = md;
+                }
 
                 updateStatusBar('準備完了');
             } catch (e) {
-                body.innerHTML = `<p style="color: var(--error-color)">取得に失敗しました: ${e.message}</p>`;
+                const p = document.createElement('p');
+                p.style.color = 'var(--error-color)';
+                p.textContent = '取得に失敗しました: ' + (e.message || '');
+                body.appendChild(p);
                 updateStatusBar('準備完了');
             }
         },
