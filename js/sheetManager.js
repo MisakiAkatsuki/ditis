@@ -257,9 +257,10 @@ async function deleteSheet(index) {
     
     if (confirmed) {
         AppState.sheets.splice(index, 1);
-        if (AppState.currentSheetIndex >= AppState.sheets.length) {
-            AppState.currentSheetIndex = AppState.sheets.length - 1;
+        if (index < AppState.currentSheetIndex) {
+            AppState.currentSheetIndex--;
         }
+        AppState.currentSheetIndex = Math.max(0, Math.min(AppState.currentSheetIndex, AppState.sheets.length - 1));
         saveHistory('シート削除');
         renderTabs();
         updateWindowTitle(); // ウィンドウタイトルを更新

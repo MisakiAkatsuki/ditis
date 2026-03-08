@@ -127,7 +127,7 @@ function generateJSXSingleComp() {
     jsx += '    return;\n';
     jsx += '  }\n';
     jsx += '  \n';
-    jsx += `  var fps = ${AppState.fps};\n`;
+    jsx += `  var fps = ${(Number.isFinite(sheet.fps) && sheet.fps > 0) ? sheet.fps : AppState.fps};\n`;
     jsx += '  var selectedLayers = comp.selectedLayers;\n';
     jsx += '  \n';
     jsx += '  // フレームレートの一致チェック\n';

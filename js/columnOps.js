@@ -38,8 +38,15 @@ async function deleteColumnFromSelection() {
     
     if (!confirmed) return;
     
-    // レイヤーを削除（データは保持したまま、layersリストから削除するのみ）
+    // レイヤーを削除
     sheet.layers = sheet.layers.filter(layer => !layerIds.includes(layer.id));
+
+    // sheet.data から削除レイヤーのデータを完全削除（ID再利用による旧データ復活を防止）
+    for (const frameKey of Object.keys(sheet.data)) {
+        for (const layerId of layerIds) {
+            delete sheet.data[frameKey][layerId];
+        }
+    }
     
     saveHistory('列削除');
     renderSpreadsheet();
@@ -93,7 +100,15 @@ async function deleteColumnsAfterSelection() {
     if (!confirmed) return;
     
     // 選択列以降を削除
+    const deletedLayerIds = columnsToDelete.map(l => l.id);
     sheet.layers = sheet.layers.slice(0, rightmostIndex);
+
+    // sheet.data から削除レイヤーのデータを完全削除（ID再利用による旧データ復活を防止）
+    for (const frameKey of Object.keys(sheet.data)) {
+        for (const layerId of deletedLayerIds) {
+            delete sheet.data[frameKey][layerId];
+        }
+    }
     
     saveHistory('列削除');
     renderSpreadsheet();
