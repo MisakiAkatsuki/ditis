@@ -36,7 +36,7 @@ const mmdd = `${mm}${dd}`;           // "0222"
 const mmddNum = String(parseInt(mmdd)); // "222" (ゼロなし)
 
 const tauriVer   = `${yy}.${mmddNum}.${build}`;  // "26.222.1" (Tauri/Cargo用)
-const displayVer = `v${yyyy}.${mm}.${dd}`; // "v2026.02.22" (表示用)
+const displayVer = `v${yyyy}.${mm}.${dd}.${build}`; // "v2026.02.22.1" (表示用)
 
 // ─── 1. src-tauri/Cargo.toml ─────────────────────────────────────
 const cargoPath = join(ROOT, 'src-tauri', 'Cargo.toml');
