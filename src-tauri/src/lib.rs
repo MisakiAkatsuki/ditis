@@ -770,6 +770,7 @@ fn open_url(url: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+#[allow(unused_variables)]
 async fn execute_after_effects_script(
     script_content: String,
     ae_multi_instance_mode: bool,
@@ -967,7 +968,8 @@ fn wait_for_new_file_dialog(ae_pid: u32, before: &[isize], timeout_ms: u64) -> O
     }
     None
 }
-
+
+#[cfg(target_os = "windows")]
 fn fill_and_confirm_file_dialog(dialog_hwnd_isize: isize, path: &str) {
     use windows::Win32::Foundation::{HWND, WPARAM, LPARAM, BOOL};
     use windows::Win32::UI::WindowsAndMessaging::{
@@ -1188,6 +1190,7 @@ fn find_active_after_effects() -> Result<AfterEffectsInfo, String> {
 /// 2. JSXを生成してAEで実行
 /// 3. AEからのSocket接続を待機してデータを受信
 #[tauri::command]
+#[allow(unused_variables)]
 async fn get_timeremap_from_ae(ae_multi_instance_mode: bool) -> Result<String, String> {
     use std::net::TcpListener;
 
