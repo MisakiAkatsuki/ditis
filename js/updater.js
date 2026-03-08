@@ -78,6 +78,9 @@ function shouldCheckUpdate(forceCheck = false) {
     if (!settings.lastUpdateCheck) return true;
     
     const lastCheck = new Date(settings.lastUpdateCheck);
+    if (isNaN(lastCheck.getTime())) {
+        return true;
+    }
     const now = new Date();
     const hoursSinceLastCheck = (now - lastCheck) / (1000 * 60 * 60);
     

@@ -91,6 +91,8 @@ function insertNullCell() {
  * @param {KeyboardEvent} e - キーボードイベント
  */
 function handleKeyboard(e) {
+    // IME変換中は処理しない
+    if (e.isComposing || e.keyCode === 229) return;
     // ダイアログが表示中は無視
     const dialogOverlay = document.getElementById('custom-dialog-overlay');
     if (dialogOverlay && dialogOverlay.style.display !== 'none') return;
@@ -109,7 +111,7 @@ function handleKeyboard(e) {
     
     // W/A/S/Dの一時選択処理
     // W/A/S/Dキー：一時的な選択範囲の拡張/縮小（押下中のみ）
-    if ((e.key === 'w' || e.key === 'W' || e.code === 'KeyW') && !e.ctrlKey && !AppState.isWPressed && !AppState.isWUsed && AppState.selectedCells.length > 1) {
+    if ((e.key === 'w' || e.key === 'W' || e.code === 'KeyW') && !e.ctrlKey && !AppState.isWPressed && !e.metaKey && !AppState.isWUsed && AppState.selectedCells.length > 1) {
         e.preventDefault();
         AppState.isWPressed = true;
         AppState.isWUsed = true;
@@ -162,7 +164,7 @@ function handleKeyboard(e) {
         return;
     }
     
-    if ((e.key === 's' || e.key === 'S' || e.code === 'KeyS') && !e.ctrlKey && !AppState.isSPressed && !AppState.isSUsed && AppState.selectedCells.length > 0) {
+    if ((e.key === 's' || e.key === 'S' || e.code === 'KeyS') && !e.ctrlKey && !AppState.isSPressed && !e.metaKey && !AppState.isSUsed && AppState.selectedCells.length > 0) {
         e.preventDefault();
         AppState.isSPressed = true;
         AppState.isSUsed = true;
@@ -209,7 +211,7 @@ function handleKeyboard(e) {
         return;
     }
     
-    if ((e.key === 'a' || e.key === 'A' || e.code === 'KeyA') && !e.ctrlKey && !AppState.isAPressed && !AppState.isAUsed && AppState.selectedCells.length > 1) {
+    if ((e.key === 'a' || e.key === 'A' || e.code === 'KeyA') && !e.ctrlKey && !AppState.isAPressed && !e.metaKey && !AppState.isAUsed && AppState.selectedCells.length > 1) {
         e.preventDefault();
         AppState.isAPressed = true;
         AppState.isAUsed = true;
@@ -264,7 +266,7 @@ function handleKeyboard(e) {
         return;
     }
     
-    if ((e.key === 'd' || e.key === 'D' || e.code === 'KeyD') && !e.ctrlKey && !AppState.isDPressed && !AppState.isDUsed && AppState.selectedCells.length > 0) {
+    if ((e.key === 'd' || e.key === 'D' || e.code === 'KeyD') && !e.ctrlKey && !AppState.isDPressed && !e.metaKey && !AppState.isDUsed && AppState.selectedCells.length > 0) {
         e.preventDefault();
         AppState.isDPressed = true;
         AppState.isDUsed = true;
@@ -540,28 +542,28 @@ function handleKeyboard(e) {
     }
     
     // Ctrl+N: 新規作成
-    if (e.ctrlKey && e.key === 'n') {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
         e.preventDefault();
         createNewSheetWithPrompt();
         return;
     }
     
     // Ctrl+S: 保存
-    if (e.ctrlKey && !e.shiftKey && e.key === 's') {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 's') {
         e.preventDefault();
         saveToFile();
         return;
     }
     
     // Ctrl+Shift+S: 名前を付けて保存
-    if (e.ctrlKey && e.shiftKey && e.key === 'S') {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'S') {
         e.preventDefault();
         saveAsFile();
         return;
     }
     
     // Ctrl+O: 開く
-    if (e.ctrlKey && e.key === 'o') {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
         e.preventDefault();
         // Tauriの場合は直接ダイアログを表示、ブラウザの場合はinputをクリック
         if (window.TauriAPI && window.TauriAPI.isRunningInTauri()) {
@@ -576,56 +578,56 @@ function handleKeyboard(e) {
     }
     
     // Ctrl+W: 閉じる
-    if (e.ctrlKey && !e.shiftKey && e.key === 'w') {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'w') {
         e.preventDefault();
         closeFile();
         return;
     }
 
     // Ctrl+Shift+W: すべてのシートを閉じる
-    if (e.ctrlKey && e.shiftKey && e.key === 'W') {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'W') {
         e.preventDefault();
         closeAllSheets();
         return;
     }
 
     // Ctrl+,: シート設定
-    if (e.ctrlKey && e.key === ',') {
+    if ((e.ctrlKey || e.metaKey) && e.key === ',') {
         e.preventDefault();
         editCurrentSheetSettings();
         return;
     }
 
     // Ctrl+Shift+D: 尺を変更
-    if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'D') {
         e.preventDefault();
         changeDuration();
         return;
     }
 
     // Ctrl+Shift+F: フレームレートを変更
-    if (e.ctrlKey && e.shiftKey && e.key === 'F') {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') {
         e.preventDefault();
         changeFPS();
         return;
     }
 
     // Ctrl+Shift+P: ページあたりのコマ数を変更
-    if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'P') {
         e.preventDefault();
         changeFramePage();
         return;
     }
 
     // Ctrl+Shift+C: 列数を変更
-    if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'C') {
         e.preventDefault();
         changeMaxColumns();
         return;
     }
 
     // Ctrl+P: 印刷
-    if (e.ctrlKey && !e.shiftKey && e.key === 'p') {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'p') {
         e.preventDefault();
         printCurrentSheet();
         return;
@@ -633,21 +635,21 @@ function handleKeyboard(e) {
 
     
     // Ctrl+E: After Effectsにタイムリマップとして送信
-    if (e.ctrlKey && !e.shiftKey && e.key === 'e') {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'e') {
         e.preventDefault();
         sendToAfterEffects();
         return;
     }
     
     // Ctrl+Shift+E: ExtendScriptとして出力
-    if (e.ctrlKey && e.shiftKey && e.key === 'E') {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'E') {
         e.preventDefault();
         exportJSX();
         return;
     }
     
     // Ctrl+I: AEからタイムリマップを取得
-    if (e.ctrlKey && !e.shiftKey && e.key === 'i') {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'i') {
         e.preventDefault();
         getTimeremapFromAE();
         return;
@@ -656,13 +658,13 @@ function handleKeyboard(e) {
     // Ctrl+Z: Undo
     // ===== Ctrl+Z/Y: Undo/Redo =====
     // 履歴の前後移動で編集操作を取り消し/やり直し
-    if (e.ctrlKey && e.key === 'z') {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
         e.preventDefault();
         undo();
     }
     
     // Ctrl+Y: Redo
-    if (e.ctrlKey && e.key === 'y') {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
         e.preventDefault();
         redo();
     }
@@ -670,25 +672,25 @@ function handleKeyboard(e) {
     // Ctrl+C: コピー
     // ===== Ctrl+C/V/X: クリップボード操作 =====
     // コピー・ペースト・カット機能
-    if (e.ctrlKey && e.key === 'c') {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
         e.preventDefault();
         copySelection();
     }
     
     // Ctrl+X: 切り取り
-    if (e.ctrlKey && e.key === 'x') {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'x') {
         e.preventDefault();
         cutSelection();
     }
     
     // Ctrl+V: ペースト
-    if (e.ctrlKey && e.key === 'v') {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
         e.preventDefault();
         pasteSelection();
     }
     
     // Ctrl+A: 全選択
-    if (e.ctrlKey && e.key === 'a') {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
         e.preventDefault();
         selectAll();
     }
@@ -951,7 +953,7 @@ function handleKeyboard(e) {
     }
     
     // Ctrl+Enter: 次の列の先頭（フレーム1）に移動
-    if (e.ctrlKey && e.key === 'Enter' && AppState.selectedCells.length > 0) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && AppState.selectedCells.length > 0) {
         e.preventDefault();
         
         const sheet = getCurrentSheet();
