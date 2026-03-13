@@ -695,4 +695,116 @@ if (window.__TAURI__ && window.__TAURI__.event) {
             window.loadFileFromPath(filePath);
         }
     });
+
+    // CSP連携モードイベントリスナー（CLI引数でXDTSファイルを開いた場合）
+    window.__TAURI__.event.listen('csp-sync-mode', (event) => {
+        const filePath = event.payload;
+        if (filePath) {
+            AppState.cspSyncMode = true;
+            AppState.cspSyncFilePath = filePath;
+            console.log('[CSP連携] 自動保存モード有効化:', filePath);
+            updateStatusBar('CSP連携モード: 編集内容を自動保存します');
+            updateCspSyncIndicator(true);
+        }
+    });
 }
+
+// ========================================
+// CSP連携 自動保存機能
+// ========================================
+
+let cspAutoSaveTimer = null;
+const CSP_AUTOSAVE_DEBOUNCE_MS = 300;
+let cspAutoSaveInProgress = false;
+
+/**
+ * CSP連携モード用の自動保存をトリガー（デバウンス付き）
+ * saveHistory()から呼ばれる
+ */
+function triggerCspAutoSave() {
+    if (!AppState.cspSyncMode || !AppState.cspSyncFilePath) return;
+
+    // デバウンス: 前回のタイマーをクリアして新しいタイマーを設定
+    if (cspAutoSaveTimer) {
+        clearTimeout(cspAutoSaveTimer);
+    }
+
+    cspAutoSaveTimer = setTimeout(async () => {
+        await executeCspAutoSave();
+    }, CSP_AUTOSAVE_DEBOUNCE_MS);
+}
+
+/**
+ * CSP連携モード用の自動保存を実行
+ */
+async function executeCspAutoSave() {
+    if (cspAutoSaveInProgress) return;
+    cspAutoSaveInProgress = true;
+
+    try {
+        const currentSheet = getCurrentSheet();
+        if (!currentSheet) return;
+
+        const filePath = AppState.cspSyncFilePath;
+        const ext = filePath.toLowerCase();
+
+        if (ext.endsWith('.xdts')) {
+            await saveXdtsFileInternal(filePath, currentSheet);
+        } else if (ext.endsWith('.tdts')) {
+            await saveTdtsFileInternal(filePath, currentSheet);
+        } else {
+            // fallback: ditis形式で保存
+            const json = buildDitisJson(currentSheet);
+            await window.TauriAPI.saveFile(filePath, json);
+        }
+
+        console.log('[CSP連携] 自動保存完了:', filePath);
+        updateCspSyncIndicator(true, '保存済み');
+    } catch (error) {
+        console.error('[CSP連携] 自動保存エラー:', error);
+        updateCspSyncIndicator(true, 'エラー');
+    } finally {
+        cspAutoSaveInProgress = false;
+    }
+}
+
+/**
+ * CSP連携インジケーターを更新
+ * @param {boolean} active - CSP連携モードが有効か
+ * @param {string} [status] - 追加ステータステキスト
+ */
+function updateCspSyncIndicator(active, status) {
+    let indicator = document.getElementById('csp-sync-indicator');
+    if (!indicator) {
+        // インジケーターが存在しない場合は作成
+        const statusBar = document.querySelector('.status-bar') || document.getElementById('status-bar');
+        if (!statusBar) return;
+        indicator = document.createElement('span');
+        indicator.id = 'csp-sync-indicator';
+        indicator.style.cssText = 'margin-left: 8px; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold;';
+        statusBar.appendChild(indicator);
+    }
+
+    if (active) {
+        const statusText = status ? ` (${status})` : '';
+        indicator.textContent = `CSP連携${statusText}`;
+        indicator.style.backgroundColor = status === 'エラー' ? '#e74c3c' : '#2ecc71';
+        indicator.style.color = '#fff';
+        indicator.style.display = 'inline-block';
+
+        // 「保存済み」表示は2秒後にデフォルトに戻す
+        if (status === '保存済み') {
+            setTimeout(() => {
+                if (indicator) {
+                    indicator.textContent = 'CSP連携';
+                    indicator.style.backgroundColor = '#2ecc71';
+                }
+            }, 2000);
+        }
+    } else {
+        indicator.style.display = 'none';
+    }
+}
+
+// グローバルに公開（history.jsから呼び出し可能にする）
+window.triggerCspAutoSave = triggerCspAutoSave;

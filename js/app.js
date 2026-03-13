@@ -90,6 +90,8 @@ const AppState = {
     emptyCellMode: false, // 空セルモード: 下矢印で×を入力してから移動
     aeKeyframeVersion: '9.0', // クリップボードにコピーするキーフレームデータのAEバージョン
     recentFiles: [], // 最近使用したファイル（最大10件）
+    cspSyncMode: false, // CSP連携モード（CLI引数でXDTSを開いた場合にtrue）
+    cspSyncFilePath: null, // CSP連携時の自動保存先ファイルパス
     
     // 仮想スクロール用
     viewport: {

@@ -1625,7 +1625,7 @@ pub fn run() {
 
       app.set_menu(menu)?;
 
-      // コマンドライン引数からファイルパスを取得（ファイル関連付けからの起動時）
+      // コマンドライン引数からファイルパスを取得（ファイル関連付け / CSP連携からの起動時）
       let args: Vec<String> = std::env::args().collect();
       if args.len() > 1 {
         let file_path = args[1].clone();
@@ -1641,6 +1641,13 @@ pub fn run() {
                 std::thread::sleep(std::time::Duration::from_millis(500));
                 if let Err(e) = app_handle.emit("open-file", file_path.clone()) {
                   eprintln!("[起動] open-file emit失敗: {}", e);
+                }
+                // CSP連携モード: CLI引数でXDTSファイルが渡された場合、自動保存モードを有効化
+                if file_path.to_lowercase().ends_with(".xdts") {
+                  eprintln!("[起動] CSP連携モード: 自動保存を有効化");
+                  if let Err(e) = app_handle.emit("csp-sync-mode", file_path.clone()) {
+                    eprintln!("[起動] csp-sync-mode emit失敗: {}", e);
+                  }
                 }
                 return;
               }

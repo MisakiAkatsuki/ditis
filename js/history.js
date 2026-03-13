@@ -66,6 +66,11 @@ function saveHistory(label = '') {
     }
     
     updateUndoRedoButtons();
+
+    // CSP連携モード: 編集操作後に自動保存をトリガー
+    if (window.triggerCspAutoSave) {
+        window.triggerCspAutoSave();
+    }
     } catch (error) {
         console.error('履歴保存エラー:', error);
         // エラーが発生しても処理を継続
