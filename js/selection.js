@@ -123,8 +123,8 @@ function selectRange(start, end) {
     
     // layerIdは"L1", "L17"などの文字列なので、シート内のインデックスで比較
     const sheet = getCurrentSheet();
-    const startLayerIndex = sheet.layers.findIndex(l => l.id === start.layerId);
-    const endLayerIndex = sheet.layers.findIndex(l => l.id === end.layerId);
+    const startLayerIndex = getLayerIndex(start.layerId, sheet);
+    const endLayerIndex = getLayerIndex(end.layerId, sheet);
     const minLayerIndex = Math.min(startLayerIndex, endLayerIndex);
     const maxLayerIndex = Math.max(startLayerIndex, endLayerIndex);
     
@@ -255,7 +255,7 @@ function selectAllInputtedCells() {
             const value = sheet.data[frame][layerId];
             if (value && value !== '') {
                 const f = parseInt(frame);
-                const lIdx = sheet.layers.findIndex(l => l.id === layerId);
+                const lIdx = getLayerIndex(layerId, sheet);
                 if (lIdx === -1) continue;
                 minFrame = Math.min(minFrame, f);
                 maxFrame = Math.max(maxFrame, f);
@@ -331,7 +331,7 @@ function expandSelectionWithShift(arrowKey) {
     const maxFrame = Math.max(...frames);
     
     // layerIdは文字列なので、シート内のインデックスで比較
-    const layerIndices = layerIds.map(id => sheet.layers.findIndex(l => l.id === id));
+    const layerIndices = layerIds.map(id => getLayerIndex(id, sheet));
     const minLayerIndex = Math.min(...layerIndices);
     const maxLayerIndex = Math.max(...layerIndices);
     
@@ -369,12 +369,12 @@ function expandSelectionWithShift(arrowKey) {
             oppositeFrame = Math.min(getMaxVisibleRows(sheet), oppositeFrame + 1);
             break;
         case 'ArrowLeft':
-            const prevLayerIndex = sheet.layers.findIndex(l => l.id === oppositeLayerId) - 1;
+            const prevLayerIndex = getLayerIndex(oppositeLayerId, sheet) - 1;
             if (prevLayerIndex < 0) return; // 移動不可
             oppositeLayerId = sheet.layers[prevLayerIndex].id;
             break;
         case 'ArrowRight':
-            const nextLayerIndex = sheet.layers.findIndex(l => l.id === oppositeLayerId) + 1;
+            const nextLayerIndex = getLayerIndex(oppositeLayerId, sheet) + 1;
             if (nextLayerIndex >= sheet.layers.length) return; // 移動不可
             oppositeLayerId = sheet.layers[nextLayerIndex].id;
             break;
@@ -537,13 +537,13 @@ function moveCellSelection(arrowKey) {
                 nextFrame = Math.min(getMaxVisibleRows(sheet), current.frame + 1);
                 break;
             case 'ArrowLeft':
-                const prevLayerIndex = sheet.layers.findIndex(l => l.id === current.layerId) - 1;
+                const prevLayerIndex = getLayerIndex(current.layerId, sheet) - 1;
                 if (prevLayerIndex >= 0) {
                     nextLayerId = sheet.layers[prevLayerIndex].id;
                 }
                 break;
             case 'ArrowRight':
-                const nextLayerIndex = sheet.layers.findIndex(l => l.id === current.layerId) + 1;
+                const nextLayerIndex = getLayerIndex(current.layerId, sheet) + 1;
                 if (nextLayerIndex < sheet.layers.length) {
                     nextLayerId = sheet.layers[nextLayerIndex].id;
                 }
@@ -571,7 +571,7 @@ function moveCellSelection(arrowKey) {
         
         const minFrame = Math.min(...frames);
         const maxFrame = Math.max(...frames);
-        const layerIndices = layerIds.map(id => sheet.layers.findIndex(l => l.id === id)).filter(i => i !== -1);
+        const layerIndices = layerIds.map(id => getLayerIndex(id, sheet)).filter(i => i !== -1);
         const minLayerIndex = Math.min(...layerIndices);
         const maxLayerIndex = Math.max(...layerIndices);
         
@@ -631,7 +631,7 @@ function moveCellSelection(arrowKey) {
             let newLayerId = s.layerId;
             
             if (shiftLayer !== 0) {
-                const layerIndex = sheet.layers.findIndex(l => l.id === s.layerId);
+                const layerIndex = getLayerIndex(s.layerId, sheet);
                 const newLayerIndex = layerIndex + shiftLayer;
                 if (newLayerIndex >= 0 && newLayerIndex < sheet.layers.length) {
                     newLayerId = sheet.layers[newLayerIndex].id;

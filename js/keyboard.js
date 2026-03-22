@@ -33,17 +33,7 @@
 // ========================================
 // ヘルパー関数
 // ========================================
-/**
- * セルのDOMエレメントを取得する
- * @param {number} frame - フレーム番号
- * @param {number} layerId - レイヤーID
- * @returns {HTMLElement|null} 該当するセルのエレメント、存在しない場合はnull
- */
-function getCellElement(frame, layerId) {
-    return document.querySelector(
-        `td[data-frame="${frame}"][data-layer="${layerId}"]`
-    );
-}
+// getCellElement は utils.js で定義（Mapキャッシュ対応版）
 
 /**
  * 選択範囲の最初(上端)フレームの全セルに空セルマーカー(×)を挿入する
@@ -121,7 +111,7 @@ function handleKeyboard(e) {
             const sheet = getCurrentSheet();
             const frames = AppState.selectedCells.map(s => s.frame);
             const layerIds = AppState.selectedCells.map(s => s.layerId);
-            const layerIndices = layerIds.map(id => sheet.layers.findIndex(l => l.id === id)).filter(i => i !== -1);
+            const layerIndices = layerIds.map(id => getLayerIndex(id, sheet)).filter(i => i !== -1);
             const minFrame = Math.min(...frames);
             const maxFrame = Math.max(...frames);
             const minLayerIndex = Math.min(...layerIndices);
@@ -137,8 +127,8 @@ function handleKeyboard(e) {
         const sheet = getCurrentSheet();
         const sortedCells = [...AppState.selectedCells].sort((a, b) => {
             if (a.frame !== b.frame) return a.frame - b.frame;
-            const aIndex = sheet.layers.findIndex(l => l.id === a.layerId);
-            const bIndex = sheet.layers.findIndex(l => l.id === b.layerId);
+            const aIndex = getLayerIndex(a.layerId, sheet);
+            const bIndex = getLayerIndex(b.layerId, sheet);
             return aIndex - bIndex;
         });
         
@@ -174,7 +164,7 @@ function handleKeyboard(e) {
             const sheet = getCurrentSheet();
             const frames = AppState.selectedCells.map(s => s.frame);
             const layerIds = AppState.selectedCells.map(s => s.layerId);
-            const layerIndices = layerIds.map(id => sheet.layers.findIndex(l => l.id === id)).filter(i => i !== -1);
+            const layerIndices = layerIds.map(id => getLayerIndex(id, sheet)).filter(i => i !== -1);
             const minFrame = Math.min(...frames);
             const maxFrame = Math.max(...frames);
             const minLayerIndex = Math.min(...layerIndices);
@@ -190,8 +180,8 @@ function handleKeyboard(e) {
         const sheet = getCurrentSheet();
         const sortedCells = [...AppState.selectedCells].sort((a, b) => {
             if (a.frame !== b.frame) return a.frame - b.frame;
-            const aIndex = sheet.layers.findIndex(l => l.id === a.layerId);
-            const bIndex = sheet.layers.findIndex(l => l.id === b.layerId);
+            const aIndex = getLayerIndex(a.layerId, sheet);
+            const bIndex = getLayerIndex(b.layerId, sheet);
             return aIndex - bIndex;
         });
         
@@ -221,7 +211,7 @@ function handleKeyboard(e) {
             const sheet = getCurrentSheet();
             const frames = AppState.selectedCells.map(s => s.frame);
             const layerIds = AppState.selectedCells.map(s => s.layerId);
-            const layerIndices = layerIds.map(id => sheet.layers.findIndex(l => l.id === id)).filter(i => i !== -1);
+            const layerIndices = layerIds.map(id => getLayerIndex(id, sheet)).filter(i => i !== -1);
             const minFrame = Math.min(...frames);
             const maxFrame = Math.max(...frames);
             const minLayerIndex = Math.min(...layerIndices);
@@ -237,12 +227,12 @@ function handleKeyboard(e) {
         const sheet = getCurrentSheet();
         const sortedCells = [...AppState.selectedCells].sort((a, b) => {
             if (a.frame !== b.frame) return a.frame - b.frame;
-            const aIndex = sheet.layers.findIndex(l => l.id === a.layerId);
-            const bIndex = sheet.layers.findIndex(l => l.id === b.layerId);
+            const aIndex = getLayerIndex(a.layerId, sheet);
+            const bIndex = getLayerIndex(b.layerId, sheet);
             return aIndex - bIndex;
         });
         
-        const layerIndices = sortedCells.map(s => sheet.layers.findIndex(l => l.id === s.layerId));
+        const layerIndices = sortedCells.map(s => getLayerIndex(s.layerId, sheet));
         const maxLayerIndex = Math.max(...layerIndices);
         const maxLayerId = sheet.layers[maxLayerIndex].id;
         const frames = [...new Set(sortedCells.map(s => s.frame))];
@@ -276,7 +266,7 @@ function handleKeyboard(e) {
             const sheet = getCurrentSheet();
             const frames = AppState.selectedCells.map(s => s.frame);
             const layerIds = AppState.selectedCells.map(s => s.layerId);
-            const layerIndices = layerIds.map(id => sheet.layers.findIndex(l => l.id === id)).filter(i => i !== -1);
+            const layerIndices = layerIds.map(id => getLayerIndex(id, sheet)).filter(i => i !== -1);
             const minFrame = Math.min(...frames);
             const maxFrame = Math.max(...frames);
             const minLayerIndex = Math.min(...layerIndices);
@@ -292,12 +282,12 @@ function handleKeyboard(e) {
         const sheet = getCurrentSheet();
         const sortedCells = [...AppState.selectedCells].sort((a, b) => {
             if (a.frame !== b.frame) return a.frame - b.frame;
-            const aIndex = sheet.layers.findIndex(l => l.id === a.layerId);
-            const bIndex = sheet.layers.findIndex(l => l.id === b.layerId);
+            const aIndex = getLayerIndex(a.layerId, sheet);
+            const bIndex = getLayerIndex(b.layerId, sheet);
             return aIndex - bIndex;
         });
         
-        const layerIndices = sortedCells.map(s => sheet.layers.findIndex(l => l.id === s.layerId));
+        const layerIndices = sortedCells.map(s => getLayerIndex(s.layerId, sheet));
         const maxLayerIndex = Math.max(...layerIndices);
         const maxLayerId = sheet.layers[maxLayerIndex].id;
         const frames = [...new Set(sortedCells.map(s => s.frame))];
@@ -661,12 +651,14 @@ function handleKeyboard(e) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
         e.preventDefault();
         undo();
+        return;
     }
     
     // Ctrl+Y: Redo
     if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
         e.preventDefault();
         redo();
+        return;
     }
     
     // Ctrl+C: コピー
@@ -675,24 +667,28 @@ function handleKeyboard(e) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
         e.preventDefault();
         copySelection();
+        return;
     }
     
     // Ctrl+X: 切り取り
     if ((e.ctrlKey || e.metaKey) && e.key === 'x') {
         e.preventDefault();
         cutSelection();
+        return;
     }
     
     // Ctrl+V: ペースト
     if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
         e.preventDefault();
         pasteSelection();
+        return;
     }
     
     // Ctrl+A: 全選択
     if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
         e.preventDefault();
         selectAll();
+        return;
     }
     
     // ===== F1: ヘルプダイアログの開閉 =====
@@ -751,8 +747,8 @@ function handleKeyboard(e) {
             const sortedCells = [...AppState.selectedCells].sort((a, b) => {
                 if (a.frame !== b.frame) return a.frame - b.frame;
                 // layerIdは文字列なので、シート内のインデックスで比較
-                const aIndex = sheet.layers.findIndex(l => l.id === a.layerId);
-                const bIndex = sheet.layers.findIndex(l => l.id === b.layerId);
+                const aIndex = getLayerIndex(a.layerId, sheet);
+                const bIndex = getLayerIndex(b.layerId, sheet);
                 return aIndex - bIndex;
             });
             
@@ -856,7 +852,7 @@ function handleKeyboard(e) {
         const layerCount = uniqueLayerIds.length;
         const rowCount = Math.floor(selectionSize / layerCount);
         const { minFrame } = calculateFrameRange(sortedCells);
-        const layerIndices = uniqueLayerIds.map(id => sheet.layers.findIndex(l => l.id === id)).filter(i => i !== -1);
+        const layerIndices = uniqueLayerIds.map(id => getLayerIndex(id, sheet)).filter(i => i !== -1);
         const minLayerIdx = Math.min(...layerIndices);
         const maxLayerIdx = Math.max(...layerIndices);
         const maxRows = getMaxVisibleRows(sheet);
