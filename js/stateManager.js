@@ -317,8 +317,27 @@ function deleteSelection() {
 /**
  * 現在の状態をLocalStorageに自動保存
  * ページリロード時に復元可能
+ * デバウンス処理で500ms以内の連続呼び出しをまとめる
  */
+let _saveTimerId = null;
+
 function saveToLocalStorage() {
+    if (_saveTimerId !== null) {
+        clearTimeout(_saveTimerId);
+    }
+    _saveTimerId = setTimeout(_saveToLocalStorageImmediate, 500);
+}
+
+function saveToLocalStorageImmediate() {
+    if (_saveTimerId !== null) {
+        clearTimeout(_saveTimerId);
+        _saveTimerId = null;
+    }
+    _saveToLocalStorageImmediate();
+}
+
+function _saveToLocalStorageImmediate() {
+    _saveTimerId = null;
     const data = {
         sheets: AppState.sheets,
         currentSheetIndex: AppState.currentSheetIndex,

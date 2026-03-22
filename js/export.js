@@ -777,7 +777,7 @@ function downloadTextFile(content, filename) {
 /**
  * AEからタイムリマップ情報を取得
  */
-async function getTimeremapFromAE() {
+async function getTimeremapFromAE(aeMultiInstanceMode = false) {
     const currentLang = getCurrentLanguage();
     
     try {
@@ -789,7 +789,7 @@ async function getTimeremapFromAE() {
         updateStatusBar('AEからタイムリマップを取得中...');
         debugLog('ファイル', 'AEタイムリマップ取得開始');
         
-        const result = await window.TauriAPI.getTimeremapFromAE();
+        const result = await window.TauriAPI.getTimeremapFromAE(aeMultiInstanceMode);
         debugLog('ファイル', 'AEタイムリマップ取得結果', result);
         
         if (!result || !result.layers || result.layers.length === 0) {

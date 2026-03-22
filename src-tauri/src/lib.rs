@@ -1227,6 +1227,18 @@ async fn get_timeremap_from_ae(ae_multi_instance_mode: bool) -> Result<String, S
     
     eprintln!("[get_timeremap_from_ae] 開始");
     
+    // ワンタイムnonce生成 (16バイト hex = 32文字)
+    let nonce = {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let seed = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let pid = std::process::id() as u128;
+        let hash = seed.wrapping_mul(6364136223846793005).wrapping_add(pid);
+        format!("{:032x}", hash)
+    };
+    
     // 1. TCPサーバーを起動
     let listener = TcpListener::bind(format!("127.0.0.1:{}", PORT))
         .map_err(|e| format!("サーバー起動エラー: {}", e))?;
@@ -1236,8 +1248,8 @@ async fn get_timeremap_from_ae(ae_multi_instance_mode: bool) -> Result<String, S
     
     eprintln!("[get_timeremap_from_ae] TCPサーバー起動: port {}", PORT);
     
-    // 2. JSXを生成
-    let jsx = generate_get_timeremap_jsx(PORT);
+    // 2. JSXを生成 (nonceを埋め込み)
+    let jsx = generate_get_timeremap_jsx(PORT, &nonce);
     
     // 3. 一時ファイルに保存（ユニーク名で競合を防ぐ）
     let temp_dir = std::env::temp_dir();
@@ -1371,15 +1383,25 @@ async fn get_timeremap_from_ae(ae_multi_instance_mode: bool) -> Result<String, S
                 format!("UTF-8変換エラー: {}", e)
             })?;
         let _ = std::fs::remove_file(&temp_file);
-        eprintln!("[get_timeremap_from_ae] データ受信完了: {} bytes", response.len());
+        
+        // nonce検証: レスポンスは "NONCE:JSON" 形式
+        let response = if let Some(rest) = response.strip_prefix(&format!("{}:", nonce)) {
+            rest.to_string()
+        } else {
+            eprintln!("[get_timeremap_from_ae] nonce検証失敗");
+            return Err("セキュリティ検証エラー: 不正な接続元からのデータです".to_string());
+        };
+        
+        eprintln!("[get_timeremap_from_ae] データ受信完了: {} bytes (nonce検証済み)", response.len());
         Ok(response)
     }
 }
 
 /// タイムリマップ取得用のJSXを生成
-fn generate_get_timeremap_jsx(port: u16) -> String {
+fn generate_get_timeremap_jsx(port: u16, nonce: &str) -> String {
     format!(r#"(function() {{
     var DITIS_PORT = {};
+    var DITIS_NONCE = "{}";
     
     // 文字列をエスケープ（JSON用）
     function escapeString(str) {{
@@ -1397,7 +1419,7 @@ fn generate_get_timeremap_jsx(port: u16) -> String {
         var socket = new Socket();
         socket.encoding = "UTF-8";
         if (socket.open("127.0.0.1:" + DITIS_PORT)) {{
-            socket.write('{{"error":"' + escapeString(message) + '"}}');
+            socket.write(DITIS_NONCE + ':{{"error":"' + escapeString(message) + '"}}');
             socket.close();
         }} else {{
             alert("DiTiSに接続できませんでした: " + message);
@@ -1434,7 +1456,7 @@ fn generate_get_timeremap_jsx(port: u16) -> String {
         var socket = new Socket();
         socket.encoding = "UTF-8";
         if (socket.open("127.0.0.1:" + DITIS_PORT)) {{
-            socket.write(json);
+            socket.write(DITIS_NONCE + ":" + json);
             socket.close();
         }} else {{
             alert("DiTiSに接続できませんでした");
@@ -1493,7 +1515,7 @@ fn generate_get_timeremap_jsx(port: u16) -> String {
         sendError("エラー: " + e.toString());
     }}
 }})();
-"#, port)
+"#, port, nonce)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

@@ -63,7 +63,7 @@ function setupEventListeners() {
     
     // ウィンドウクローズ前の保存確認
     window.addEventListener('beforeunload', (e) => {
-        saveToLocalStorage();
+        saveToLocalStorageImmediate();
     });
 }
 
