@@ -145,7 +145,8 @@ function handleKeyboard(e) {
                 s => s.frame === maxFrame && s.layerId === layerId
             );
             if (cellToRemove) {
-                cellToRemove.cell.classList.remove('selected');
+                const el = getCellElement(cellToRemove.frame, cellToRemove.layerId);
+                if (el) el.classList.remove('selected');
                 AppState.selectedCells = AppState.selectedCells.filter(s => s !== cellToRemove);
             }
         });
@@ -247,7 +248,8 @@ function handleKeyboard(e) {
                 s => s.frame === frame && s.layerId === maxLayerId
             );
             if (cellToRemove) {
-                cellToRemove.cell.classList.remove('selected');
+                const el = getCellElement(cellToRemove.frame, cellToRemove.layerId);
+                if (el) el.classList.remove('selected');
                 AppState.selectedCells = AppState.selectedCells.filter(s => s !== cellToRemove);
             }
         });
@@ -400,7 +402,7 @@ function handleKeyboard(e) {
                 }
             } else {
                 if (AppState.selectedCells.length > 0) {
-                    startEditingWithKey(AppState.selectedCells[0].cell, e.key);
+                    startEditingWithKey(getCellElement(AppState.selectedCells[0].frame, AppState.selectedCells[0].layerId), e.key);
                 }
             }
             return;
@@ -411,7 +413,7 @@ function handleKeyboard(e) {
             e.preventDefault();
             // 最初のセルで編集開始
             if (AppState.selectedCells.length > 0) {
-                startEditingWithKey(AppState.selectedCells[0].cell, e.key);
+                startEditingWithKey(getCellElement(AppState.selectedCells[0].frame, AppState.selectedCells[0].layerId), e.key);
             }
             return;
         }
@@ -501,7 +503,8 @@ function handleKeyboard(e) {
                         });
                         
                         if (AppState.selectedCells.length > 0) {
-                            scrollToSelectionIfEnabled(AppState.selectedCells[0].cell);
+                            const el = getCellElement(AppState.selectedCells[0].frame, AppState.selectedCells[0].layerId);
+                            if (el) scrollToSelectionIfEnabled(el);
                         }
                     }
                 }
@@ -754,9 +757,11 @@ function handleKeyboard(e) {
             
             const topLeft = sortedCells[0];
             clearSelection();
-            selectCell(topLeft.cell, topLeft.frame, topLeft.layerId);
-            // スクロールして表示（中央付近に配置）
-            scrollToSelectionIfEnabled(topLeft.cell, { block: 'center', inline: 'nearest' });
+            const topLeftEl = getCellElement(topLeft.frame, topLeft.layerId);
+            if (topLeftEl) {
+                selectCell(topLeftEl, topLeft.frame, topLeft.layerId);
+                scrollToSelectionIfEnabled(topLeftEl, { block: 'center', inline: 'nearest' });
+            }
             updateStatusBar('選択を1つにしました');
         } else if (AppState.selectedCells.length === 1) {
             // 単一選択時: A1に移動
@@ -893,7 +898,8 @@ function handleKeyboard(e) {
         
         // スクロールして表示
         if (AppState.selectedCells.length > 0) {
-            scrollToSelectionIfEnabled(AppState.selectedCells[0].cell);
+            const el = getCellElement(AppState.selectedCells[0].frame, AppState.selectedCells[0].layerId);
+            if (el) scrollToSelectionIfEnabled(el);
         }
         
         updateStatusBar();
@@ -928,7 +934,7 @@ function handleKeyboard(e) {
         
         // スクロールして表示（ヘッダーの高さを考慮）
         if (AppState.selectedCells.length > 0) {
-            const targetCell = AppState.selectedCells[0].cell;
+            const targetCell = getCellElement(AppState.selectedCells[0].frame, AppState.selectedCells[0].layerId);
             const container = document.querySelector('.spreadsheet-container');
             if (container && targetCell) {
                 // ヘッダー行の高さを取得
@@ -1087,8 +1093,9 @@ function handleKeyboard(e) {
             });
             
             // スクロール
-            if (AppState.selectedCells.length > 0 && AppState.selectedCells[0].cell) {
-                scrollToSelectionIfEnabled(AppState.selectedCells[0].cell);
+            if (AppState.selectedCells.length > 0) {
+                const el = getCellElement(AppState.selectedCells[0].frame, AppState.selectedCells[0].layerId);
+                if (el) scrollToSelectionIfEnabled(el);
             }
             
             updateStatusBar();
@@ -1098,7 +1105,7 @@ function handleKeyboard(e) {
     // F2: 編集開始
     if (e.key === 'F2' && AppState.selectedCells.length === 1) {
         e.preventDefault();
-        startEditing(AppState.selectedCells[0].cell);
+        startEditing(getCellElement(AppState.selectedCells[0].frame, AppState.selectedCells[0].layerId));
     }
 }
 

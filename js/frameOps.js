@@ -252,7 +252,8 @@ function fillDashToEnd() {
     });
     
     if (AppState.selectedCells.length > 0) {
-        scrollToSelectionIfEnabled(AppState.selectedCells[0].cell);
+        const el = getCellElement(AppState.selectedCells[0].frame, AppState.selectedCells[0].layerId);
+        if (el) scrollToSelectionIfEnabled(el);
     }
     
     // 移動後、縦線を更新（needFillの場合のみ再描画）

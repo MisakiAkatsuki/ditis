@@ -86,9 +86,20 @@ globalThis.document = {
 // ========================================
 function saveHistory() {
     try {
+        const sheetIndex = AppState.currentSheetIndex;
+        const currentSheet = AppState.sheets[sheetIndex];
         const state = JSON.stringify({
-            sheets: AppState.sheets,
-            currentSheetIndex: AppState.currentSheetIndex,
+            sheetIndex: sheetIndex,
+            sheetSnapshot: {
+                data: currentSheet.data,
+                layers: currentSheet.layers,
+                name: currentSheet.name,
+                frames: currentSheet.frames,
+                fps: currentSheet.fps,
+                disabledFrames: currentSheet.disabledFrames || [],
+                visibleRows: currentSheet.visibleRows,
+                columnWidths: currentSheet.columnWidths,
+            },
             fps: AppState.fps,
             selectedCells: AppState.selectedCells.map(s => ({ frame: s.frame, layerId: s.layerId }))
         });
@@ -131,8 +142,20 @@ function restoreHistory() {
             return;
         }
         const state = JSON.parse(AppState.history[AppState.historyIndex]);
-        AppState.sheets = state.sheets;
-        AppState.currentSheetIndex = state.currentSheetIndex;
+        
+        const snapshot = state.sheetSnapshot;
+        AppState.sheets[state.sheetIndex] = {
+            ...AppState.sheets[state.sheetIndex],
+            data: JSON.parse(JSON.stringify(snapshot.data)),
+            layers: snapshot.layers,
+            name: snapshot.name,
+            frames: snapshot.frames,
+            fps: snapshot.fps,
+            disabledFrames: snapshot.disabledFrames || [],
+            visibleRows: snapshot.visibleRows,
+            columnWidths: snapshot.columnWidths,
+        };
+        AppState.currentSheetIndex = state.sheetIndex;
         AppState.fps = state.fps;
 
         renderTabs();
@@ -195,9 +218,9 @@ describe('Undo/Redo 履歴管理', () => {
             AppState.sheets[0].data[1].L1 = '5';
             saveHistory();
             const saved = JSON.parse(AppState.history[0]);
-            expect(saved.sheets[0].data[1].L1).toBe('5');
+            expect(saved.sheetSnapshot.data[1].L1).toBe('5');
             expect(saved.fps).toBe(24);
-            expect(saved.currentSheetIndex).toBe(0);
+            expect(saved.sheetIndex).toBe(0);
         });
 
         it('選択範囲が保存される', () => {
@@ -219,7 +242,7 @@ describe('Undo/Redo 履歴管理', () => {
             expect(AppState.history.length).toBe(CONSTANTS.MAX_HISTORY);
             // 最新の値が最後に保存されている
             const lastState = JSON.parse(AppState.history[AppState.history.length - 1]);
-            expect(lastState.sheets[0].data[1].L1).toBe(String(CONSTANTS.MAX_HISTORY + 9));
+            expect(lastState.sheetSnapshot.data[1].L1).toBe(String(CONSTANTS.MAX_HISTORY + 9));
         });
 
         it('undo後に新しい保存をすると、redo履歴が削除される', () => {
@@ -240,7 +263,7 @@ describe('Undo/Redo 履歴管理', () => {
             // redo履歴（index 2 の 'second'）は消えている
             expect(AppState.history.length).toBe(3);
             const last = JSON.parse(AppState.history[2]);
-            expect(last.sheets[0].data[1].L1).toBe('branch');
+            expect(last.sheetSnapshot.data[1].L1).toBe('branch');
         });
     });
 
@@ -446,12 +469,12 @@ describe('Undo/Redo 履歴管理', () => {
             
             // 最新の値を確認
             const latest = JSON.parse(AppState.history[AppState.historyIndex]);
-            expect(latest.sheets[0].data[1].L1).toBe(String(CONSTANTS.MAX_HISTORY + 4));
+            expect(latest.sheetSnapshot.data[1].L1).toBe(String(CONSTANTS.MAX_HISTORY + 4));
 
             // undoで前の値に戻る
             undo();
             const prev = JSON.parse(AppState.history[AppState.historyIndex]);
-            expect(prev.sheets[0].data[1].L1).toBe(String(CONSTANTS.MAX_HISTORY + 3));
+            expect(prev.sheetSnapshot.data[1].L1).toBe(String(CONSTANTS.MAX_HISTORY + 3));
         });
 
         it('複数シートのundo/redoが正しく動作する', () => {
