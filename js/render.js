@@ -569,7 +569,7 @@ function renderSpreadsheetImmediate(forceFullRender = false) {
             const cellClasses = [cellClass];
             if (isInserted) {
                 cellClasses.push('inserted-cell');
-                debugLog('表示', `挿入セル: frame=${frame}, layer=${layer.id}, classes="${cellClasses.join(' ')}"`);
+                if (AppState.debugMode) debugLog('表示', `挿入セル: frame=${frame}, layer=${layer.id}, classes="${cellClasses.join(' ')}"`);
             }
             
             // styleがある場合は追加
@@ -582,6 +582,9 @@ function renderSpreadsheetImmediate(forceFullRender = false) {
     
     html += '</tbody></table>';
     container.innerHTML = html;
+
+    // セル要素のMapキャッシュを再構築
+    buildCellElementCache();
 
     // 再レンダリングでDOMが差し替わるため、選択状態を新しいセル要素に復元する
     if (AppState.selectedCells.length > 0) {

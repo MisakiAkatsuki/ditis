@@ -176,6 +176,7 @@ function generateJSXSingleComp() {
     jsx += '  var columnData = [\n';
     
     const allColumnsData = [];
+    const disabledSet = new Set(sheet.disabledFrames || []);
     
     sheet.layers.forEach((layer, colIndex) => {
         const keyframes = [];
@@ -183,7 +184,7 @@ function generateJSXSingleComp() {
         let frameIndex = 0;
         
         for (let frame = 1; frame <= sheet.frames; frame++) {
-            if (sheet.disabledFrames && sheet.disabledFrames.includes(frame)) {
+            if (disabledSet.has(frame)) {
                 continue;
             }
             

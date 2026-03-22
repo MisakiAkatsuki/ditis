@@ -369,7 +369,7 @@ function loadFromLocalStorage() {
                 return;
             }
             AppState.sheets = data.sheets;
-            AppState.currentSheetIndex = data.currentSheetIndex;
+            AppState.currentSheetIndex = Math.max(0, Math.min(data.currentSheetIndex || 0, data.sheets.length - 1));
             // fps はシート単位で管理（後方互換: 旧データの root fps を各シートに配布）
             AppState.theme = data.theme || 'green';
             AppState.fontSize = data.fontSize || 12;

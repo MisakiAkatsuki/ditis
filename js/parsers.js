@@ -845,11 +845,12 @@ function generateStsBuffer(sheet, includeDisabledFrames = true) {
     const originalFrames = sheet.frames;
     const layerCount = layers.length;
     const disabledFrames = sheet.disabledFrames || [];
+    const disabledSet = new Set(disabledFrames);
     
     // 有効なフレームのリストを作成
     let validFrames = [];
     for (let frame = 1; frame <= originalFrames; frame++) {
-        if (includeDisabledFrames || !disabledFrames.includes(frame)) {
+        if (includeDisabledFrames || !disabledSet.has(frame)) {
             validFrames.push(frame);
         }
     }

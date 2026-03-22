@@ -138,13 +138,40 @@ function throttle(func, limit) {
 }
 
 /**
- * セル要素を取得
+ * セル要素を取得 (Mapキャッシュ優先、フォールバックでquerySelector)
  * @param {number} frame - フレーム番号
- * @param {number} layerId - レイヤーID
+ * @param {string} layerId - レイヤーID
  * @returns {HTMLElement|null} セル要素
  */
 function getCellElement(frame, layerId) {
-    return document.querySelector(`td[data-frame="${frame}"][data-layer="${layerId}"]`);
+    const key = `${frame}-${layerId}`;
+    const cached = AppState.cellElementCache?.get(key);
+    if (cached && cached.isConnected) return cached;
+    // キャッシュミス時はquerySelectorフォールバック
+    const el = document.querySelector(`td[data-frame="${frame}"][data-layer="${layerId}"]`);
+    if (el && AppState.cellElementCache) AppState.cellElementCache.set(key, el);
+    return el;
+}
+
+/**
+ * render後にセル要素のMapキャッシュを再構築
+ * querySelectorの繰り返しをO(1)ルックアップに置換
+ */
+function buildCellElementCache() {
+    const cache = new Map();
+    const container = document.getElementById('spreadsheet');
+    if (container) {
+        const cells = container.querySelectorAll('td[data-frame]');
+        for (let i = 0; i < cells.length; i++) {
+            const cell = cells[i];
+            const frame = cell.getAttribute('data-frame');
+            const layerId = cell.getAttribute('data-layer');
+            if (frame && layerId) {
+                cache.set(`${frame}-${layerId}`, cell);
+            }
+        }
+    }
+    AppState.cellElementCache = cache;
 }
 
 /**
@@ -181,12 +208,43 @@ function calculateLayerRange(selectedCells) {
 }
 
 /**
- * layerIdからレイヤーインデックスを取得するヘルパー
- * @param {string} layerId - レイヤーID (例: "L1")
- * @param {Array} layers - レイヤー配列
- * @returns {number} インデックス（見つからない場合は-1）
+ * シートのlayerId->indexマップを取得/構築 (キャッシュ付き)
+ * layers配列が変わるとキャッシュを再構築
+ * @param {Object} sheet - シートオブジェクト
+ * @returns {Map<string, number>} layerId -> index のMap
  */
-function getLayerIndex(layerId, layers) {
+function getLayerIndexMap(sheet) {
+    if (!sheet || !sheet.layers) return new Map();
+    // layersの長さまたは先頭/末尾IDが変わったらキャッシュ無効化
+    const cacheKey = sheet.layers.length + ':' + (sheet.layers[0]?.id || '') + ':' + (sheet.layers[sheet.layers.length - 1]?.id || '');
+    if (sheet._layerIndexCache && sheet._layerIndexCacheKey === cacheKey) {
+        return sheet._layerIndexCache;
+    }
+    const map = new Map();
+    for (let i = 0; i < sheet.layers.length; i++) {
+        map.set(sheet.layers[i].id, i);
+    }
+    sheet._layerIndexCache = map;
+    sheet._layerIndexCacheKey = cacheKey;
+    return map;
+}
+
+/**
+ * layerIdからレイヤーインデックスを取得するヘルパー (キャッシュ対応)
+ * @param {string} layerId - レイヤーID (例: "L1")
+ * @param {Array|Object} layersOrSheet - レイヤー配列またはシートオブジェクト
+ * @returns {number} インデックス (見つからない場合は-1)
+ */
+function getLayerIndex(layerId, layersOrSheet) {
+    // シートオブジェクトが渡された場合はキャッシュを使用
+    if (layersOrSheet && layersOrSheet.layers) {
+        const map = getLayerIndexMap(layersOrSheet);
+        const idx = map.get(layerId);
+        return idx !== undefined ? idx : -1;
+    }
+    // 配列が渡された場合は従来通り
+    const layers = layersOrSheet;
+    if (!layers) return -1;
     return layers.findIndex(l => l.id === layerId);
 }
 
@@ -270,6 +328,7 @@ if (typeof module !== 'undefined' && module.exports) {
         debounce,
         throttle,
         getCellElement,
+        buildCellElementCache,
         getLayerName,
         getCellRange,
         escapeHtml,

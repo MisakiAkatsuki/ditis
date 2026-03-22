@@ -127,9 +127,11 @@ function restoreHistory() {
         }
         
         const state = AppState.history[AppState.historyIndex];
-    AppState.sheets = state.sheets;
-    AppState.currentSheetIndex = state.currentSheetIndex;
-    AppState.fps = state.fps;
+    // structuredCloneで復元し、履歴エントリへの参照共有を防止
+    const restored = structuredClone({ sheets: state.sheets, currentSheetIndex: state.currentSheetIndex, fps: state.fps });
+    AppState.sheets = restored.sheets;
+    AppState.currentSheetIndex = restored.currentSheetIndex;
+    AppState.fps = restored.fps;
     
     // FPSセレクトがある場合のみ更新
     const fpsSelect = document.getElementById('fps-select');
