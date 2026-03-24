@@ -5,18 +5,36 @@
 
 /**
  * 現在の状態を履歴に保存
- * Undo/Redo機能のために、シートデータと選択範囲をstructuredCloneで保存
+ * Undo/Redo機能のために、現在のシートのdataのみstructuredCloneで保存
+ * 他のシートは参照を保持し、メモリ使用量を削減
  * 最大100段階まで保存可能
  */
 function saveHistory(label = '') {
     try {
-        const state = structuredClone({
-            sheets: AppState.sheets,
-            currentSheetIndex: AppState.currentSheetIndex,
+        const sheetIndex = AppState.currentSheetIndex;
+        const currentSheet = AppState.sheets[sheetIndex];
+        
+        // 現在のシートのdataのみディープコピー (最大コスト部分)
+        const clonedData = structuredClone(currentSheet.data);
+        
+        const state = {
+            sheetIndex: sheetIndex,
+            // 現在のシートのスナップショット (dataだけdeep、残りはshallow)
+            sheetSnapshot: {
+                data: clonedData,
+                layers: currentSheet.layers.map(l => ({ ...l })),
+                name: currentSheet.name,
+                frames: currentSheet.frames,
+                fps: currentSheet.fps,
+                disabledFrames: currentSheet.disabledFrames ? [...currentSheet.disabledFrames] : [],
+                visibleRows: currentSheet.visibleRows,
+                columnWidths: currentSheet.columnWidths ? { ...currentSheet.columnWidths } : undefined,
+            },
+            sheetsLength: AppState.sheets.length,
             fps: AppState.fps,
             selectedCells: AppState.selectedCells.map(s => ({ frame: s.frame, layerId: s.layerId })),
             label: label
-        });
+        };
         
         // 現在位置以降の履歴を削除し、新状態を追加（最大MAX_HISTORY件）
         AppState.history = [
@@ -127,8 +145,20 @@ function restoreHistory() {
         }
         
         const state = AppState.history[AppState.historyIndex];
-    AppState.sheets = state.sheets;
-    AppState.currentSheetIndex = state.currentSheetIndex;
+    // シートスナップショットから復元（dataのみディープコピーで参照共有を防止）
+    const snapshot = state.sheetSnapshot;
+    AppState.sheets[state.sheetIndex] = {
+        ...AppState.sheets[state.sheetIndex],
+        data: structuredClone(snapshot.data),
+        layers: snapshot.layers.map(l => ({ ...l })),
+        name: snapshot.name,
+        frames: snapshot.frames,
+        fps: snapshot.fps,
+        disabledFrames: snapshot.disabledFrames ? [...snapshot.disabledFrames] : [],
+        visibleRows: snapshot.visibleRows,
+        columnWidths: snapshot.columnWidths ? { ...snapshot.columnWidths } : undefined,
+    };
+    AppState.currentSheetIndex = state.sheetIndex;
     AppState.fps = state.fps;
     
     // FPSセレクトがある場合のみ更新
@@ -189,7 +219,8 @@ function restoreHistory() {
         if (AppState.debugMode) console.log(`  復元後のAppState.selectedCells.length: ${AppState.selectedCells.length}`);
         // 最初のセルまでスクロール
         if (AppState.selectedCells.length > 0) {
-            scrollToSelectionIfEnabled(AppState.selectedCells[0].cell);
+            const el = getCellElement(AppState.selectedCells[0].frame, AppState.selectedCells[0].layerId);
+            if (el) scrollToSelectionIfEnabled(el);
         }
     } else {
         debugLog("操作", "選択範囲なし");

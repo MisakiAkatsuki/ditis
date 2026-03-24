@@ -177,6 +177,9 @@ const i18n = {
         // エラーメッセージ
         error: {
             noLayers: 'コンポジションに適用できるレイヤーがありません',
+            noActiveComp: 'アクティブなコンポジションがありません',
+            insufficientFrames: 'タイムリマップ情報が不足しています',
+            layerInfo: 'レイヤー "{0}" - 必要フレーム: {1}, ソースフレーム: {2}',
             aeNotRunning: '起動中のAfter Effectsが見つかりませんでした',
             aeDesktopOnly: 'After EffectsとのAE連携機能はWindows版でのみ利用可能です。\nExtendScriptファイルとして保存し、After Effectsで手動実行してください。'
         },
@@ -469,6 +472,9 @@ const i18n = {
         // Error messages
         error: {
             noLayers: 'No applicable layers in composition',
+            noActiveComp: 'No active composition',
+            insufficientFrames: 'Insufficient time remap information',
+            layerInfo: 'Layer "{0}" - Required frames: {1}, Source frames: {2}',
             aeNotRunning: 'No running After Effects found',
             aeDesktopOnly: 'After Effects integration is only available on Windows.\nPlease save as an ExtendScript file and run manually in After Effects.'
         },

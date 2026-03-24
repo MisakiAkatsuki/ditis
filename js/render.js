@@ -82,29 +82,24 @@ function calculateSpecialDisplayCache(sheet) {
             }
         }
         
-        // 縦線範囲を計算（同じ値が最後まで続く範囲）
-        for (let f = 2; f <= maxRows; f++) {
-            const value = (sheet.data[f] && sheet.data[f][layerId]) || '';
-            const prevValue = (sheet.data[f-1] && sheet.data[f-1][layerId]) || '';
-            
-            // 前のセルと同じ値（つまり表示が'-'になる）
-            if (value !== '' && value !== '-' && value === prevValue) {
-                // この位置から最後まで同じ値が続くかチェック
-                let continueToEnd = true;
-                for (let checkF = f; checkF <= maxRows; checkF++) {
-                    const checkValue = (sheet.data[checkF] && sheet.data[checkF][layerId]) || '';
-                    if (checkValue !== value) {
-                        continueToEnd = false;
-                        break;
-                    }
-                }
-                
-                if (continueToEnd) {
+        // 後方1パスで「最後まで同じ値が続く開始フレーム」を求める
+        // tailValue: maxRowsの値、tailStart: その値が連続して始まるフレーム
+        const lastValue = (sheet.data[maxRows] && sheet.data[maxRows][layerId]) || '';
+        if (lastValue !== '' && lastValue !== '-' && maxRows >= 2) {
+            let tailStart = maxRows;
+            for (let f = maxRows - 1; f >= 1; f--) {
+                const v = (sheet.data[f] && sheet.data[f][layerId]) || '';
+                if (v !== lastValue) break;
+                tailStart = f;
+            }
+            // tailStartの1つ前と同じ値かチェック (前フレームとの連続)
+            if (tailStart >= 2) {
+                const prevValue = (sheet.data[tailStart - 1] && sheet.data[tailStart - 1][layerId]) || '';
+                if (prevValue === lastValue) {
                     layerCache.verticalLineRanges.push({
-                        start: f,
+                        start: tailStart,
                         end: maxRows
                     });
-                    break; // 一度見つけたら終了
                 }
             }
         }
@@ -488,15 +483,8 @@ function renderSpreadsheetImmediate(forceFullRender = false) {
                 html += `<td class="intermediate-frame-number ${frameClass}">${frameLabel}</td>`;
             }
             
-            // データが存在しない場合は空文字
-            if (!sheet.data[frame]) {
-                sheet.data[frame] = {};
-            }
-            if (sheet.data[frame][layer.id] === undefined) {
-                sheet.data[frame][layer.id] = '';
-            }
-            
-            const value = sheet.data[frame][layer.id] || '';
+            // データが存在しない場合は空文字として扱う（書き込みはしない）
+            const value = (sheet.data[frame] && sheet.data[frame][layer.id]) || '';
             let cellClass = '';
             let cellContent = value;
             let cellStyle = ''; // インラインスタイル用
@@ -569,7 +557,7 @@ function renderSpreadsheetImmediate(forceFullRender = false) {
             const cellClasses = [cellClass];
             if (isInserted) {
                 cellClasses.push('inserted-cell');
-                debugLog('表示', `挿入セル: frame=${frame}, layer=${layer.id}, classes="${cellClasses.join(' ')}"`);
+                if (AppState.debugMode) debugLog('表示', `挿入セル: frame=${frame}, layer=${layer.id}, classes="${cellClasses.join(' ')}"`);
             }
             
             // styleがある場合は追加
@@ -582,6 +570,9 @@ function renderSpreadsheetImmediate(forceFullRender = false) {
     
     html += '</tbody></table>';
     container.innerHTML = html;
+
+    // セル要素のMapキャッシュを再構築
+    buildCellElementCache();
 
     // 再レンダリングでDOMが差し替わるため、選択状態を新しいセル要素に復元する
     if (AppState.selectedCells.length > 0) {

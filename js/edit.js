@@ -283,8 +283,9 @@ function finishEditing(save, suppressMove = false) {
                     updateStatusBar(`${sortedCells.length}セルに入力しました（最終行）`);
                 } else {
                     // 最初のセルまでスクロール
-                    if (AppState.selectedCells.length > 0 && AppState.selectedCells[0].cell) {
-                        scrollToSelectionIfEnabled(AppState.selectedCells[0].cell);
+                    if (AppState.selectedCells.length > 0) {
+                        const el = getCellElement(AppState.selectedCells[0].frame, AppState.selectedCells[0].layerId);
+                        if (el) scrollToSelectionIfEnabled(el);
                     }
                     updateStatusBar(`${sortedCells.length}セルに入力しました`);
                 }
@@ -638,7 +639,8 @@ function handleMultiCellInput(key) {
     
     // 最初のセルまでスクロール
     if (AppState.selectedCells.length > 0) {
-        scrollToSelectionIfEnabled(AppState.selectedCells[0].cell);
+        const el = getCellElement(AppState.selectedCells[0].frame, AppState.selectedCells[0].layerId);
+        if (el) scrollToSelectionIfEnabled(el);
     }
     
     updateStatusBar(`${sortedCells.length}セルに入力しました`);
@@ -883,7 +885,8 @@ function handlePlusMinusKey(key) {
         }
         
         if (AppState.selectedCells.length > 0) {
-            scrollToSelectionIfEnabled(AppState.selectedCells[0].cell);
+            const el = getCellElement(AppState.selectedCells[0].frame, AppState.selectedCells[0].layerId);
+            if (el) scrollToSelectionIfEnabled(el);
         }
         
         const moveMsg = AppState.selectedCells.length < sortedCells.length ? '（一部移動、最終行到達）' : '次へ移動しました';

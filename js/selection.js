@@ -59,7 +59,7 @@ function restoreSelectionCoords(coords, retryCount = 0) {
         const cell = getCellElement(pos.frame, pos.layerId);
         if (cell) {
             cell.classList.add('selected');
-            AppState.selectedCells.push({ cell, frame: pos.frame, layerId: pos.layerId });
+            AppState.selectedCells.push({ frame: pos.frame, layerId: pos.layerId });
             restored++;
         }
     });
@@ -80,7 +80,7 @@ function restoreSelectionCoords(coords, retryCount = 0) {
  */
 function selectCell(cell, frame, layerId) {
     cell.classList.add('selected');
-    AppState.selectedCells.push({ cell, frame, layerId });
+    AppState.selectedCells.push({ frame, layerId });
     if (AppState.debugMode) console.log(`[選択] セル追加: F${frame}L${layerId}`);
 }
 
@@ -123,8 +123,8 @@ function selectRange(start, end) {
     
     // layerIdは"L1", "L17"などの文字列なので、シート内のインデックスで比較
     const sheet = getCurrentSheet();
-    const startLayerIndex = sheet.layers.findIndex(l => l.id === start.layerId);
-    const endLayerIndex = sheet.layers.findIndex(l => l.id === end.layerId);
+    const startLayerIndex = getLayerIndex(start.layerId, sheet);
+    const endLayerIndex = getLayerIndex(end.layerId, sheet);
     const minLayerIndex = Math.min(startLayerIndex, endLayerIndex);
     const maxLayerIndex = Math.max(startLayerIndex, endLayerIndex);
     
@@ -150,16 +150,10 @@ function clearSelection() {
         console.log(`[選択] クリア: ${AppState.selectedCells.length}個のセル`);
     }
     AppState.selectedCells.forEach(s => {
-        // 保存されたDOM参照から直接削除
-        if (s.cell && s.cell.parentNode) {
-            s.cell.classList.remove('selected');
-            s.cell.classList.remove('anchor');
-        }
-        // DOM再構築後は参照が古いため、data属性で検索もする
-        const liveCell = getCellElement(s.frame, s.layerId);
-        if (liveCell) {
-            liveCell.classList.remove('selected');
-            liveCell.classList.remove('anchor');
+        const el = getCellElement(s.frame, s.layerId);
+        if (el) {
+            el.classList.remove('selected');
+            el.classList.remove('anchor');
         }
     });
     AppState.selectedCells = [];
@@ -255,7 +249,7 @@ function selectAllInputtedCells() {
             const value = sheet.data[frame][layerId];
             if (value && value !== '') {
                 const f = parseInt(frame);
-                const lIdx = sheet.layers.findIndex(l => l.id === layerId);
+                const lIdx = getLayerIndex(layerId, sheet);
                 if (lIdx === -1) continue;
                 minFrame = Math.min(minFrame, f);
                 maxFrame = Math.max(maxFrame, f);
@@ -331,7 +325,7 @@ function expandSelectionWithShift(arrowKey) {
     const maxFrame = Math.max(...frames);
     
     // layerIdは文字列なので、シート内のインデックスで比較
-    const layerIndices = layerIds.map(id => sheet.layers.findIndex(l => l.id === id));
+    const layerIndices = layerIds.map(id => getLayerIndex(id, sheet));
     const minLayerIndex = Math.min(...layerIndices);
     const maxLayerIndex = Math.max(...layerIndices);
     
@@ -369,12 +363,12 @@ function expandSelectionWithShift(arrowKey) {
             oppositeFrame = Math.min(getMaxVisibleRows(sheet), oppositeFrame + 1);
             break;
         case 'ArrowLeft':
-            const prevLayerIndex = sheet.layers.findIndex(l => l.id === oppositeLayerId) - 1;
+            const prevLayerIndex = getLayerIndex(oppositeLayerId, sheet) - 1;
             if (prevLayerIndex < 0) return; // 移動不可
             oppositeLayerId = sheet.layers[prevLayerIndex].id;
             break;
         case 'ArrowRight':
-            const nextLayerIndex = sheet.layers.findIndex(l => l.id === oppositeLayerId) + 1;
+            const nextLayerIndex = getLayerIndex(oppositeLayerId, sheet) + 1;
             if (nextLayerIndex >= sheet.layers.length) return; // 移動不可
             oppositeLayerId = sheet.layers[nextLayerIndex].id;
             break;
@@ -390,7 +384,8 @@ function expandSelectionWithShift(arrowKey) {
     // スクロール
     const lastCell = AppState.selectedCells[AppState.selectedCells.length - 1];
     if (lastCell) {
-        scrollToSelectionIfEnabled(lastCell.cell);
+        const el = getCellElement(lastCell.frame, lastCell.layerId);
+        if (el) scrollToSelectionIfEnabled(el);
     }
     
     updateStatusBar();
@@ -417,19 +412,20 @@ function moveSelectionDown() {
     // 全セルを1フレーム下に移動
     const newSelection = AppState.selectedCells.map(cell => ({
         frame: cell.frame + 1,
-        layerId: cell.layerId,
-        cell: getCellElement(cell.frame + 1, cell.layerId)
-    })).filter(cell => cell.cell !== null);
+        layerId: cell.layerId
+    })).filter(c => getCellElement(c.frame, c.layerId) !== null);
     
     // 選択をクリアして新しい選択を設定
     clearSelection();
-    newSelection.forEach(({ cell, frame, layerId }) => {
-        selectCell(cell, frame, layerId);
+    newSelection.forEach(({ frame, layerId }) => {
+        const el = getCellElement(frame, layerId);
+        if (el) selectCell(el, frame, layerId);
     });
     
     // 最初のセルにスクロール
     if (newSelection.length > 0) {
-        scrollToSelectionIfEnabled(newSelection[0].cell);
+        const el = getCellElement(newSelection[0].frame, newSelection[0].layerId);
+        if (el) scrollToSelectionIfEnabled(el);
     }
     
     updateStatusBar();
@@ -492,7 +488,8 @@ function shrinkSelection() {
     
     if (cellsToRemove.length > 0) {
         cellsToRemove.forEach(cellData => {
-            cellData.cell.classList.remove('selected');
+            const el = getCellElement(cellData.frame, cellData.layerId);
+            if (el) el.classList.remove('selected');
         });
         
         AppState.selectedCells = AppState.selectedCells.filter(s => s.frame !== maxFrame);
@@ -502,8 +499,9 @@ function shrinkSelection() {
         if (AppState.selectedCells.length > 0) {
             const newMaxFrame = Math.max(...AppState.selectedCells.map(s => s.frame));
             const firstCellInLastRow = AppState.selectedCells.find(s => s.frame === newMaxFrame);
-            if (firstCellInLastRow && firstCellInLastRow.cell) {
-                scrollToSelectionIfEnabled(firstCellInLastRow.cell);
+            if (firstCellInLastRow) {
+                const el = getCellElement(firstCellInLastRow.frame, firstCellInLastRow.layerId);
+                if (el) scrollToSelectionIfEnabled(el);
             }
         }
     }
@@ -537,13 +535,13 @@ function moveCellSelection(arrowKey) {
                 nextFrame = Math.min(getMaxVisibleRows(sheet), current.frame + 1);
                 break;
             case 'ArrowLeft':
-                const prevLayerIndex = sheet.layers.findIndex(l => l.id === current.layerId) - 1;
+                const prevLayerIndex = getLayerIndex(current.layerId, sheet) - 1;
                 if (prevLayerIndex >= 0) {
                     nextLayerId = sheet.layers[prevLayerIndex].id;
                 }
                 break;
             case 'ArrowRight':
-                const nextLayerIndex = sheet.layers.findIndex(l => l.id === current.layerId) + 1;
+                const nextLayerIndex = getLayerIndex(current.layerId, sheet) + 1;
                 if (nextLayerIndex < sheet.layers.length) {
                     nextLayerId = sheet.layers[nextLayerIndex].id;
                 }
@@ -571,7 +569,7 @@ function moveCellSelection(arrowKey) {
         
         const minFrame = Math.min(...frames);
         const maxFrame = Math.max(...frames);
-        const layerIndices = layerIds.map(id => sheet.layers.findIndex(l => l.id === id)).filter(i => i !== -1);
+        const layerIndices = layerIds.map(id => getLayerIndex(id, sheet)).filter(i => i !== -1);
         const minLayerIndex = Math.min(...layerIndices);
         const maxLayerIndex = Math.max(...layerIndices);
         
@@ -631,7 +629,7 @@ function moveCellSelection(arrowKey) {
             let newLayerId = s.layerId;
             
             if (shiftLayer !== 0) {
-                const layerIndex = sheet.layers.findIndex(l => l.id === s.layerId);
+                const layerIndex = getLayerIndex(s.layerId, sheet);
                 const newLayerIndex = layerIndex + shiftLayer;
                 if (newLayerIndex >= 0 && newLayerIndex < sheet.layers.length) {
                     newLayerId = sheet.layers[newLayerIndex].id;
@@ -647,7 +645,8 @@ function moveCellSelection(arrowKey) {
         
         // 最初のセルまでスクロール
         if (AppState.selectedCells.length > 0) {
-            scrollToSelectionIfEnabled(AppState.selectedCells[0].cell);
+            const el = getCellElement(AppState.selectedCells[0].frame, AppState.selectedCells[0].layerId);
+            if (el) scrollToSelectionIfEnabled(el);
         }
         
         updateStatusBar();

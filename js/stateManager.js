@@ -317,8 +317,27 @@ function deleteSelection() {
 /**
  * 現在の状態をLocalStorageに自動保存
  * ページリロード時に復元可能
+ * デバウンス処理で500ms以内の連続呼び出しをまとめる
  */
+let _saveTimerId = null;
+
 function saveToLocalStorage() {
+    if (_saveTimerId !== null) {
+        clearTimeout(_saveTimerId);
+    }
+    _saveTimerId = setTimeout(_saveToLocalStorageImmediate, 500);
+}
+
+function saveToLocalStorageImmediate() {
+    if (_saveTimerId !== null) {
+        clearTimeout(_saveTimerId);
+        _saveTimerId = null;
+    }
+    _saveToLocalStorageImmediate();
+}
+
+function _saveToLocalStorageImmediate() {
+    _saveTimerId = null;
     const data = {
         sheets: AppState.sheets,
         currentSheetIndex: AppState.currentSheetIndex,
@@ -369,7 +388,7 @@ function loadFromLocalStorage() {
                 return;
             }
             AppState.sheets = data.sheets;
-            AppState.currentSheetIndex = data.currentSheetIndex;
+            AppState.currentSheetIndex = Math.max(0, Math.min(data.currentSheetIndex || 0, data.sheets.length - 1));
             // fps はシート単位で管理（後方互換: 旧データの root fps を各シートに配布）
             AppState.theme = data.theme || 'green';
             AppState.fontSize = data.fontSize || 12;
