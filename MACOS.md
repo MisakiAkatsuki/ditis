@@ -8,7 +8,8 @@ JavaScript for Automation. It does not publish a release.
 - `npm ci && npm run test:run`: existing tests plus real keyboard-handler,
   file-listener ordering and AE bridge regression tests.
 - `node tools/basic-smoke.mjs`: Chromium exercises the actual app UI: input,
-  range selection, Command-click, copy/paste/cut/delete, Undo/Redo, save/load,
+  range selection, Command-click, copy/paste/cut/delete, Undo/Redo, save/load
+  in DiTiS/STS/TDTS/XDTS formats,
   new sheets, tabs, closing, print layout and help. Native IPC and file dialogs
   are mocked. Set `CHROME_PATH` if Chrome is installed in a different location.
 - PR CI compiles the Tauri application for Apple Silicon and Intel without
@@ -20,6 +21,8 @@ JavaScript for Automation. It does not publish a release.
   installed on the CI runner, so Windows AE integration requires a manual check.
   The job then builds the PR's base commit and runs those same expectations to
   compare existing Windows behavior with this PR.
+  To exercise Control shortcuts in the Chromium harness as well, run
+  `SMOKE_MODIFIER=Control node tools/basic-smoke.mjs` (bash).
 
 ## Mac hardware checklist
 

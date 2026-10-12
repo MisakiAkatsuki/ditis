@@ -40,7 +40,9 @@ try {
                 case 'plugin:dialog|open': return '/Users/test/カット 01.ditis';
                 case 'plugin:dialog|confirm': return true;
                 case 'save_file': window.smokeFiles[args.path] = args.contents; return;
+                case 'save_binary_file': window.smokeFiles[args.path] = args.contents; return;
                 case 'load_file': return window.smokeFiles[args.path];
+                case 'load_binary_file': return window.smokeFiles[args.path];
                 case 'check_for_updates': return null;
                 case 'get_current_version': return '26.324.0';
                 default: return;
@@ -52,8 +54,13 @@ try {
     await page.waitForFunction(() => document.querySelector('td.selected[data-frame][data-layer]') && window.smokeOpenEvents['open-file']);
     // Let the initial render/selection timer finish before exercising the UI.
     await page.waitForFunction(() => typeof handleKeyboard === 'function');
-    await runBasicOperations(page, 'Meta');
+    await runBasicOperations(page, process.env.SMOKE_MODIFIER || 'Meta');
     assert.deepEqual(errors, [], 'no browser JavaScript errors');
+    if (process.env.SMOKE_SCREENSHOT_PATH) {
+        await page.setViewport({ width: 1000, height: 750 });
+        await page.click('.sheet-tab');
+        await page.screenshot({ path: process.env.SMOKE_SCREENSHOT_PATH });
+    }
 } finally {
     if (browser) await browser.close();
     server.close();
