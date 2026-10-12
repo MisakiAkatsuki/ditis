@@ -79,6 +79,36 @@ try {
         window.smokeErrors = [];
         window.addEventListener('error', e => window.smokeErrors.push(e.message));
         window.addEventListener('unhandledrejection', e => window.smokeErrors.push(String(e.reason)));
+        // Diagnose intermittent lost digits without changing input timing or
+        // retrying assertions. This only observes the synthetic CI fixture.
+        window.smokeInputTrace = [];
+        const started = performance.now();
+        const record = (kind, event) => {
+            const editing = AppState.editingCell;
+            const active = document.activeElement;
+            window.smokeInputTrace.push({
+                ms: Math.round(performance.now() - started), kind,
+                key: event?.key, target: event?.target?.tagName,
+                active: active?.tagName, activeValue: active?.value,
+                editing: Boolean(editing), connected: editing?.cell?.isConnected,
+                editorValue: editing?.cell?.querySelector('input')?.value,
+                savedValue: getCurrentSheet().data[1]?.L1,
+            });
+            if (window.smokeInputTrace.length > 120) window.smokeInputTrace.shift();
+        };
+        for (const event of ['keydown', 'keyup', 'beforeinput', 'input', 'focusin', 'focusout']) {
+            document.addEventListener(event, e => {
+                record(event, e);
+                queueMicrotask(() => record(`${event}:after`, e));
+            }, true);
+        }
+        const render = renderSpreadsheetImmediate;
+        renderSpreadsheetImmediate = function (...args) {
+            record('render:before');
+            const result = render.apply(this, args);
+            record('render:after');
+            return result;
+        };
     }, filePath);
     await runBasicOperations(page, 'Control');
     const saved = JSON.parse(await readFile(filePath, 'utf8'));
@@ -88,6 +118,11 @@ try {
     await screenshot();
     console.log('PASS: Windows WebView2 and Rust disk IPC agree with shared basic-operation expectations');
 } catch (error) {
+    if (session) {
+        try {
+            console.error('INPUT_TRACE ' + JSON.stringify(await page.evaluate(() => window.smokeInputTrace || [])));
+        } catch (traceError) { console.error('Input trace unavailable:', String(traceError)); }
+    }
     await screenshot().catch(console.error);
     // Preserve diagnostics as a GitHub check annotation, even if logs cannot
     // be downloaded outside the runner.
