@@ -90,6 +90,13 @@ function normalizeSheetForSave(sheet) {
     const newData = colArrays.slice(0, lastCol + 1);
 
     const { visibleRows, visibleColumns, id, filePath, ...rest } = sheet;
+    // Stored .ditis layers are numbered again when opened. Remap the original
+    // track references so annotations follow a layer after column reordering.
+    if (rest.timesheetSource?.layerTrackNos) {
+        rest.timesheetSource = { ...rest.timesheetSource, layerTrackNos: Object.fromEntries(
+            sheet.layers.map((layer, i) => [`L${i + 1}`, rest.timesheetSource.layerTrackNos[layer.id]])
+        ) };
+    }
     return { ...rest, layers: layerNames, data: newData };
 }
 
