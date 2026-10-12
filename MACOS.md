@@ -108,15 +108,48 @@ The existing **Blinds** empty-cell mode applies successfully, but the importer
 reads time-remap values without reading the Blinds effect. Empty cells therefore
 do not round trip in that mode. This is separate from the macOS bridge fix.
 
-Follow-up: when sending immediately during AE shutdown, AE was detected before
-it exited and the Apple Event relaunched it once. The fully-stopped case above
-passes. Reproduce the shutdown race and avoid launching a replacement process
-after selecting the original running instance.
+### AE shutdown race follow-up (2026-10-13)
+
+At PR #5 `67dcae4`, a bundle-path target could relaunch AE after the detected
+instance exited. The follow-up bridge addresses `misc/dosc` (AE's DoScript)
+directly to the detected process identifier with `NSAppleEventDescriptor`.
+It never falls back to launching or looking up an application by bundle path.
+
+- On the same Mac/AE environment, a temporary 10-second wait after creating the
+  PID descriptor allowed AE to be quit before sending. Cmd+I returned a
+  communication-error alert, AE stayed stopped, and DiTiS remained usable.
+  The wait is removed from the committed source and the final build.
+- An initial implementation read an NSError out-pointer through JXA. On send
+  failure this crashed osascript in `JSOCRefPrototypeCreate` / `objc_retain`.
+  The final bridge passes null for that optional pointer and explicitly checks
+  the Objective-C nil reply. Transport failure gives an actionable, general
+  error; the underlying NSError/OSStatus code is not available. Script errors
+  returned in AE's reply retain their message and code. JXA's `-2700` wrapper
+  must not be mistaken for the underlying transport error.
+- The final rebuilt app again sent, applied, imported and saved the 30fps
+  fixture. All 60 cells across the two fixture layers, FPS and frame count
+  matched after hold expansion and blank padding. The importer also creates
+  its usual 24 additional empty columns; this comparison does not require an
+  identical total column count.
+- Vitest: 363 passed, 7 existing skipped. Tests cover PID addressing, escaped
+  paths, nil replies without launch/retry, and AE script error replies.
+
+The earlier 24fps/108-property-sample results above belong to the prior bridge;
+only the 30fps round trip was repeated for the final PID bridge. Automation
+denial and multiple running AE versions still require hardware validation.
+PR #4 advanced to `140cf13` with CI/documentation-only changes; its CI passed.
+PR #5 `67dcae4` passed frontend and both Mac architecture jobs, but its Windows
+smoke run 38302962055 failed at `tools/smoke-scenario.mjs:33` (expected `12`,
+got `1`). This failure remains open and is not evidence of a Mac regression.
+
+API references: Apple's [PID descriptor](https://developer.apple.com/documentation/foundation/nsappleeventdescriptor/init(processidentifier:)?language=objc)
+and [event send](https://developer.apple.com/documentation/foundation/nsappleeventdescriptor/sendevent(options:timeout:)?language=objc).
+Objective-C nil handling follows Apple's [JXA WWDC session](https://devstreaming-cdn.apple.com/videos/wwdc/2014/306xxjtg7uz13v0/306/306_javascript_for_automation.pdf).
 
 ## Limits
 
 - macOS AE integration requires exactly one running AE application. The bridge
-  selects its bundle dynamically and does not require Accessibility permissions.
+  selects its process dynamically and does not require Accessibility permissions.
 - Hardware results and remaining cases are listed above; CI compilation alone
   does not verify AE automation or native behavior.
 - Signing/notarization and distribution are outside this PR.

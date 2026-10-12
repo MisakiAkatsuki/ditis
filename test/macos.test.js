@@ -109,34 +109,71 @@ describe('Finder open-file listener', () => {
 });
 
 describe('After Effects JXA bridge', () => {
-    function bridge(apps) {
-        const ae = { doscript: vi.fn() };
-        const Application = vi.fn(() => ae);
+    function bridge(apps, { scriptError, noReply = false } = {}) {
+        // Match JXA's truthy Objective-C nil wrapper, not JavaScript null.
+        const nil = { isNil: () => true };
+        const native = value => ({ ...value, isNil: () => false });
+        const reply = native({ paramDescriptorForKeyword: vi.fn(key => {
+            if (key === 0x6572726e && scriptError) return native({ int32Value: scriptError.code }); // errn
+            if (key === 0x65727273 && scriptError) return native({ stringValue: scriptError.message }); // errs
+            return nil;
+        }) });
+        const event = {
+            setParamDescriptorForKeyword: vi.fn(),
+            sendEventWithOptionsTimeoutError: vi.fn(() => noReply ? nil : reply),
+        };
+        const descriptor = {
+            descriptorWithProcessIdentifier: vi.fn(pid => ({ pid })),
+            descriptorWithString: vi.fn(text => ({ text })),
+            appleEventWithEventClassEventIDTargetDescriptorReturnIDTransactionID: vi.fn(() => event),
+        };
+        const Application = vi.fn(() => { throw new Error('App lookup can relaunch AE'); });
         const ctx = vm.createContext({
-            $: { NSWorkspace: { sharedWorkspace: { runningApplications: { js: apps } } } },
+            $: {
+                NSWorkspace: { sharedWorkspace: { runningApplications: { js: apps } } },
+                NSAppleEventDescriptor: descriptor,
+                NSAppleEventSendDefaultOptions: 35, NSAppleEventSendCanSwitchLayer: 512,
+            },
             ObjC: { import: vi.fn(), unwrap: v => v }, Application,
         });
         vm.runInContext(source('src-tauri/src/ae-macos.js'), ctx);
-        return { ctx, Application, ae };
+        return { ctx, Application, descriptor, event };
     }
     const app = (version, executable = 'After Effects') => ({
         executableURL: { lastPathComponent: executable },
         bundleURL: { path: `/Applications/Adobe After Effects ${version}/Adobe After Effects ${version}.app` },
+        processIdentifier: version + 1000,
     });
     it('targets the running version and passes quotes/Unicode in paths as data', () => {
-        const { ctx, Application, ae } = bridge([app(2025), app(2026, 'aerender')]);
+        const { ctx, Application, descriptor, event } = bridge([app(2025), app(2026, 'aerender')]);
         const path = '/Users/test/カット "1" \\ backslash\n\u2028\u2029.jsx';
         ctx.run([path]);
-        expect(Application).toHaveBeenCalledWith(app(2025).bundleURL.path);
+        expect(Application).not.toHaveBeenCalled();
+        expect(descriptor.descriptorWithProcessIdentifier).toHaveBeenCalledExactlyOnceWith(3025);
+        expect(descriptor.appleEventWithEventClassEventIDTargetDescriptorReturnIDTransactionID)
+            .toHaveBeenCalledExactlyOnceWith(0x6d697363, 0x646f7363, { pid: 3025 }, -1, 0); // misc/dosc
+        expect(event.setParamDescriptorForKeyword.mock.calls[0][1]).toBe(0x2d2d2d2d); // direct parameter
+        const script = event.setParamDescriptorForKeyword.mock.calls[0][0].text;
         const evalFile = vi.fn();
-        expect(ae.doscript.mock.calls[0][0]).not.toMatch(/[\u2028\u2029]/);
-        vm.runInNewContext(ae.doscript.mock.calls[0][0], { $: { evalFile } });
+        expect(script).not.toMatch(/[\u2028\u2029]/);
+        vm.runInNewContext(script, { $: { evalFile } });
         expect(evalFile).toHaveBeenCalledExactlyOnceWith(path);
+        expect(event.sendEventWithOptionsTimeoutError).toHaveBeenCalledExactlyOnceWith(547, 120, null);
     });
     it('reports no running AE and refuses ambiguous destinations', () => {
         expect(() => bridge([]).ctx.run(['/tmp/a.jsx'])).toThrow('起動してください');
         const { ctx, Application } = bridge([app(2025), app(2026)]);
         expect(() => ctx.run(['/tmp/a.jsx'])).toThrow('複数');
+        expect(Application).not.toHaveBeenCalled();
+    });
+    it('surfaces AE script errors from the reply', () => {
+        const { ctx } = bridge([app(2026)], { scriptError: { code: -2700, message: 'Script failed' } });
+        expect(() => ctx.run(['/tmp/a.jsx'])).toThrow('Script failed (-2700)');
+    });
+    it('reports a failed send without retrying or launching a replacement process', () => {
+        const { ctx, Application, event } = bridge([app(2026)], { noReply: true });
+        expect(() => ctx.run(['/tmp/a.jsx'])).toThrow('AEが終了・応答待ちでないか、macOSのオートメーション許可');
+        expect(event.sendEventWithOptionsTimeoutError).toHaveBeenCalledOnce();
         expect(Application).not.toHaveBeenCalled();
     });
 });
