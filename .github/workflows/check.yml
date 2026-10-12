@@ -73,3 +73,19 @@ jobs:
           $PWD.Path >> $env:GITHUB_PATH
       - name: Run basic operations in Windows app
         run: node tools/windows-smoke.mjs
+      - name: Check out existing Windows baseline
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: baseline
+      - run: npm ci
+        working-directory: baseline
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: 'true'
+      - name: Build existing Windows baseline
+        working-directory: baseline
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/src-tauri/target
+        run: npm run tauri:build -- --debug --no-bundle
+      - name: Compare same operations against existing Windows baseline
+        run: node tools/windows-smoke.mjs

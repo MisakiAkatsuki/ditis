@@ -5,6 +5,7 @@ export async function runBasicOperations(page, modifier) {
     await page.evaluate(() => { AppState.numericKeyMode = 'number-input'; AppState.showNewSheetDialog = false; });
     const cell = (frame, layer = 'L1') => `td[data-frame="${frame}"][data-layer="${layer}"]`;
     const value = (frame, layer = 'L1') => page.evaluate((f, l) => getCurrentSheet().data[f]?.[l] || '', frame, layer);
+    const waitValue = (frame, expected) => page.waitForFunction((f, v) => (getCurrentSheet().data[f]?.L1 || '') === v, {}, frame, expected);
     async function shortcut(key, shift = false, keyModifier = modifier) {
         await page.keyboard.down(keyModifier);
         if (shift) await page.keyboard.down('Shift');
@@ -36,17 +37,23 @@ export async function runBasicOperations(page, modifier) {
     await shortcut('c');
     await page.click(cell(4));
     await shortcut('v');
+    await waitValue(4, '12');
     assert.equal(await value(4), '12');
     await shortcut('z');
+    await waitValue(4, '');
     assert.equal(await value(4), '');
     await shortcut(modifier === 'Meta' ? 'z' : 'y', modifier === 'Meta');
+    await waitValue(4, '12');
     assert.equal(await value(4), '12');
     await shortcut('x');
+    await waitValue(4, '');
     assert.equal(await value(4), '');
     await page.click(cell(5));
     await shortcut('v');
+    await waitValue(5, '12');
     assert.equal(await value(5), '12');
     await page.keyboard.press('Delete');
+    await waitValue(5, '');
     assert.equal(await value(5), '');
     console.log('PASS: copy/paste, cut, delete, Undo and Redo');
     await shortcut('s');
@@ -70,6 +77,7 @@ export async function runBasicOperations(page, modifier) {
     assert.equal(await page.evaluate(() => AppState.sheets.length), count);
     console.log('PASS: new sheet, tab switching and closing');
     await shortcut('p');
+    await page.waitForFunction(() => window.smokePrinted);
     assert.ok(await page.evaluate(() => window.smokePrinted && document.querySelector('#print-container table')));
     await page.keyboard.press('F1');
     await page.waitForFunction(() => document.getElementById('help-dialog').style.display === 'flex');

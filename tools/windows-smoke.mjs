@@ -60,7 +60,7 @@ try {
         try { await request('GET', '/status'); return true; } catch { return false; }
     });
     const value = await request('POST', '/session', {
-        capabilities: { alwaysMatch: { 'tauri:options': { application: resolve('src-tauri/target/debug/ditis.exe') } } },
+        capabilities: { alwaysMatch: { 'tauri:options': { application: resolve(process.env.DITIS_BINARY || 'src-tauri/target/debug/ditis.exe') } } },
     });
     session = value.sessionId;
     await command('/timeouts', { script: 15000 });
@@ -80,6 +80,11 @@ try {
     assert.equal(saved.sheets[0].data[0][0], '12');
     assert.deepEqual(await page.evaluate(() => window.smokeErrors), []);
     console.log('PASS: Windows WebView2 and Rust disk IPC agree with shared basic-operation expectations');
+} catch (error) {
+    // Preserve diagnostics as a GitHub check annotation, even if logs cannot
+    // be downloaded outside the runner.
+    console.error(`::error::${String(error.stack || error).replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A')}`);
+    throw error;
 } finally {
     if (session) await command('', undefined, 'DELETE').catch(console.error);
     driver.kill();

@@ -13,6 +13,13 @@ JavaScript for Automation. It does not publish a release.
   are mocked. Set `CHROME_PATH` if Chrome is installed in a different location.
 - PR CI compiles the Tauri application for Apple Silicon and Intel without
   bundling, signing, creating tags or uploading releases.
+- Windows CI runs the same basic-operation expectations through `tauri-driver`
+  in the compiled app's WebView2, using Control instead of Command. File-dialog
+  selection, confirmation and printing are bypassed, but file save/load uses
+  the real Rust backend and a temporary Unicode path on disk. AE is not
+  installed on the CI runner, so Windows AE integration requires a manual check.
+  The job then builds the PR's base commit and runs those same expectations to
+  compare existing Windows behavior with this PR.
 
 ## Mac hardware checklist
 
