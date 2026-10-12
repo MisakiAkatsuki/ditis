@@ -651,7 +651,14 @@ function handleKeyboard(e) {
     // Ctrl+Z: Undo
     // ===== Ctrl+Z/Y: Undo/Redo =====
     // 履歴の前後移動で編集操作を取り消し/やり直し
-    if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+    // macOS標準のCmd+Shift+Z。Undoより先に判定する。
+    if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        redo();
+        return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         undo();
         return;

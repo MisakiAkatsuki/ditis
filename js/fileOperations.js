@@ -680,11 +680,13 @@ function addToRecentFiles(filePath) {
     }
 }
 
-// Tauriイベントリスナー（ファイル関連付けからの起動時）
-if (window.__TAURI__ && window.__TAURI__.event) {
+// リスナーとシートが準備できるまでRust側でFinder/起動引数のファイルを保持する。
+async function initializeFileOpenEvents() {
+    if (!window.__TAURI__?.event || !window.__TAURI_INTERNALS__) return;
     let lastOpenFilePath = null;
     let lastOpenFileTime = 0;
-    window.__TAURI__.event.listen('open-file', (event) => {
+    let pending = Promise.resolve();
+    await window.__TAURI__.event.listen('open-file', (event) => {
         const now = Date.now();
         // 同じファイルが1.5秒以内に再度開かれた場合は無視（重複イベント防止）
         if (event.payload === lastOpenFilePath && now - lastOpenFileTime < 1500) return;
@@ -692,7 +694,9 @@ if (window.__TAURI__ && window.__TAURI__.event) {
         lastOpenFileTime = now;
         const filePath = event.payload;
         if (filePath && window.loadFileFromPath) {
-            window.loadFileFromPath(filePath);
+            // 複数ファイルを同時に受け取っても順番に読み込む。
+            pending = pending.then(() => window.loadFileFromPath(filePath)).catch(console.error);
         }
     });
+    await window.__TAURI_INTERNALS__.invoke('frontend_ready');
 }

@@ -94,7 +94,11 @@
         ]
       }
     },
-    "publisher": "SUNRISE MOON"
+    "publisher": "SUNRISE MOON",
+    "macOS": {
+      "infoPlist": "Info.plist",
+      "entitlements": "Entitlements.plist"
+    }
   },
   "plugins": {
     "updater": {
