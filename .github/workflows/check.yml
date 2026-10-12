@@ -2,8 +2,6 @@ name: Check
 
 on:
   pull_request:
-  push:
-    branches: ['fix/macos-support']
 
 permissions:
   contents: read
@@ -49,3 +47,29 @@ jobs:
       - run: npm run test:run
       # Compile the application only. No bundles, signing, tags or releases.
       - run: npm run tauri:build -- --target ${{ matrix.target }} --no-bundle
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+      - run: npm ci
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: 'true'
+      - run: npm run test:run
+      - run: npm run tauri:build -- --debug --no-bundle
+      - name: Install native WebView2 drivers
+        run: |
+          cargo install tauri-driver --locked
+          cargo install --git https://github.com/chippers/msedgedriver-tool
+          msedgedriver-tool
+          $PWD.Path >> $env:GITHUB_PATH
+      - name: Run basic operations in Windows app
+        run: node tools/windows-smoke.mjs
