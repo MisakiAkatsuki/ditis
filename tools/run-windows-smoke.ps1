@@ -1,9 +1,8 @@
 $ErrorActionPreference = 'Stop'
 
 try {
-    # Chocolatey exposes gsudo through its PATH shim; its installation directory
-    # differs from the standalone/winget installer.
-    $gsudoExecutable = (Get-Command gsudo -ErrorAction SilentlyContinue).Source
+    # Select the executable, not gsudoModule's same-named PowerShell function.
+    $gsudoExecutable = (Get-Command gsudo.exe -CommandType Application -ErrorAction SilentlyContinue).Source
     if (!$gsudoExecutable) {
         # A newly installed machine PATH may not be inherited by the runner.
         # Use the package binary documented by gsudo's Chocolatey installer.
