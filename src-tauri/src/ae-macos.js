@@ -15,5 +15,8 @@ function run(argv) {
         throw new Error('複数のAfter Effectsが起動しています。送信先以外のAEを終了してください。');
     }
     const ae = Application(ObjC.unwrap(candidates[0].bundleURL.path));
-    ae.doscriptfile(argv[0]);
+    // DoScriptFile can time out on recent AE versions. Evaluate the file via
+    // DoScript instead; keep the path a quoted string rather than executable code.
+    const scriptPath = JSON.stringify(argv[0]).replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+    ae.doscript('$.evalFile(' + scriptPath + ');');
 }

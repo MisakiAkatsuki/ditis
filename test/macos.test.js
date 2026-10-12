@@ -79,7 +79,7 @@ describe('Finder open-file listener', () => {
 
 describe('After Effects JXA bridge', () => {
     function bridge(apps) {
-        const ae = { doscriptfile: vi.fn() };
+        const ae = { doscript: vi.fn() };
         const Application = vi.fn(() => ae);
         const ctx = vm.createContext({
             $: { NSWorkspace: { sharedWorkspace: { runningApplications: { js: apps } } } },
@@ -94,10 +94,13 @@ describe('After Effects JXA bridge', () => {
     });
     it('targets the running version and passes quotes/Unicode in paths as data', () => {
         const { ctx, Application, ae } = bridge([app(2025), app(2026, 'aerender')]);
-        const path = '/Users/test/カット "1".jsx';
+        const path = '/Users/test/カット "1" \\ backslash\n\u2028\u2029.jsx';
         ctx.run([path]);
         expect(Application).toHaveBeenCalledWith(app(2025).bundleURL.path);
-        expect(ae.doscriptfile).toHaveBeenCalledWith(path);
+        const evalFile = vi.fn();
+        expect(ae.doscript.mock.calls[0][0]).not.toMatch(/[\u2028\u2029]/);
+        vm.runInNewContext(ae.doscript.mock.calls[0][0], { $: { evalFile } });
+        expect(evalFile).toHaveBeenCalledExactlyOnceWith(path);
     });
     it('reports no running AE and refuses ambiguous destinations', () => {
         expect(() => bridge([]).ctx.run(['/tmp/a.jsx'])).toThrow('起動してください');

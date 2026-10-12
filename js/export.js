@@ -29,7 +29,6 @@ async function sendToAfterEffects() {
     
     // エラーメッセージを現在の言語に変換
     const currentLang = getCurrentLanguage();
-    const errorMsg = i18n[currentLang].error.aeNotRunning;
     
     try {
         if (window.TauriAPI && window.TauriAPI.executeAfterEffectsScript) {
@@ -45,10 +44,7 @@ async function sendToAfterEffects() {
         console.error('After Effects実行エラー:', error);
         // エラーメッセージを多言語対応に変換
         const errorStr = String(error?.message || error || '');
-        let displayError = errorStr;
-        if (errorStr.includes('After Effects')) {
-            displayError = errorMsg;
-        }
+        const displayError = errorStr || i18n[currentLang].error.aeNotRunning;
         
         if (window.__TAURI__ && window.__TAURI__.dialog) {
             await window.__TAURI__.dialog.message(displayError, { 
@@ -812,12 +808,7 @@ async function getTimeremapFromAE(aeMultiInstanceMode = false) {
         console.error('AEタイムリマップ取得エラー:', error);
         updateStatusBar('AEからの取得に失敗しました');
         
-        let errorMessage = String(error);
-        if (errorMessage.includes('timeout')) {
-            errorMessage = 'AEからの応答がタイムアウトしました。\nAEが起動していて、タイムリマップ付きレイヤーが選択されているか確認してください。';
-        } else if (errorMessage.includes('After Effects')) {
-            errorMessage = 'After Effectsが見つかりません。\nAEが起動しているか確認してください。';
-        }
+        const errorMessage = String(error?.message || error || i18n[currentLang].error.aeNotRunning);
         
         if (window.__TAURI__ && window.__TAURI__.dialog) {
             await window.__TAURI__.dialog.message(errorMessage, { 
