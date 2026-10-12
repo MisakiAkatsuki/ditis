@@ -819,6 +819,15 @@ function setupCellInfoDoubleClick() {
  * Rust側から呼び出されるグローバル関数
  */
 window.handleMenuEvent = async function(menuId) {
+    // ネイティブメニューのUndo/Redoは、入力欄にフォーカスがある間は
+    // シート履歴ではなくテキスト編集に適用する（MacのCmd+Zもここを通る）。
+    const focused = document.activeElement;
+    if ((menuId === 'undo' || menuId === 'redo') && focused &&
+        (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA' || focused.isContentEditable)) {
+        document.execCommand(menuId);
+        return;
+    }
+
     // メニューが選択されたらコンテキストメニューを閉じる
     closeAllContextMenus();
     

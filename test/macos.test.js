@@ -4,6 +4,37 @@ import { describe, it, expect, vi } from 'vitest';
 
 const source = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
+describe('native menu undo/redo focus', () => {
+    function app(activeElement) {
+        const ctx = vm.createContext({
+            CONSTANTS: { MAX_HISTORY: 500 }, window: {},
+            document: { addEventListener: vi.fn(), activeElement, execCommand: vi.fn() },
+            closeAllContextMenus: vi.fn(), undo: vi.fn(), redo: vi.fn(), console,
+        });
+        vm.runInContext(source('js/app.js'), ctx);
+        return ctx;
+    }
+    it.each(['undo', 'redo'])('routes %s to focused text editing', async command => {
+        const ctx = app({ tagName: 'INPUT' });
+        await ctx.window.handleMenuEvent(command);
+        expect(ctx.document.execCommand).toHaveBeenCalledWith(command);
+        expect(ctx.undo).not.toHaveBeenCalled();
+        expect(ctx.redo).not.toHaveBeenCalled();
+    });
+    it.each(['TEXTAREA', 'DIV'])('protects sheet history while editing a %s', async tagName => {
+        const ctx = app({ tagName, isContentEditable: tagName === 'DIV' });
+        await ctx.window.handleMenuEvent('undo');
+        expect(ctx.document.execCommand).toHaveBeenCalledWith('undo');
+        expect(ctx.undo).not.toHaveBeenCalled();
+    });
+    it.each(['undo', 'redo'])('keeps sheet %s behavior outside input fields', async command => {
+        const ctx = app({ tagName: 'BODY' });
+        await ctx.window.handleMenuEvent(command);
+        expect(ctx[command]).toHaveBeenCalledOnce();
+        expect(ctx.document.execCommand).not.toHaveBeenCalled();
+    });
+});
+
 describe('macOS shortcuts (real keyboard handler)', () => {
     function keyboard() {
         const ctx = vm.createContext({

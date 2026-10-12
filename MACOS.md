@@ -64,7 +64,8 @@ WKWebView, Finder, native menus, printing or Apple Events permissions.
 Tested on Apple Silicon, macOS 26.7 (25G229), After Effects 2026, with the
 application changes from PR #4 at `95cce4b` plus the AE fixes in this branch.
 The subsequent PR updates through `f61003a` only change CI, smoke tests and this
-document; the native application sources are unchanged.
+document. The native text-field Undo/Redo update at `73dce24` is also merged,
+rebuilt and checked separately below; it does not change the AE bridge.
 
 - The debug `.app` builds and launches. On this machine, the installed CLT
   linker rejects the default macOS 27 SDK, so the build uses
@@ -73,7 +74,13 @@ document; the native application sources are unchanged.
   and spaces. Number entry, Command+Z, Command+Shift+Z, Command+C and Command+V
   work in WKWebView. Native Save As writes data matching the imported fixture.
 - Finder opens STS, TDTS and XDTS into the already-running app, adding one tab
-  per file. These checks do not cover cold launch or simultaneous files.
+  per file. After rebuilding with `73dce24`, opening DiTiS, STS, TDTS and XDTS
+  together from Finder while the app is stopped adds exactly four file tabs
+  beside the default sheet, with no missing or duplicated file.
+- The rebuilt app's new-sheet name field changes from `Sheet6` to `UndoCheck`,
+  back to `Sheet6` with Command+Z and to `UndoCheck` with Command+Shift+Z.
+  Command-click adds and removes a cell while retaining the initial selection;
+  clicking a tab switches to that sheet and its file path.
 - The original `DoScriptFile` bridge stalls and eventually returns Apple Event
   error `-1712` on this AE version. Running `$.evalFile(quotedPath)` through
   `DoScript` opens the AE apply dialog and completes both send and receive.
@@ -88,12 +95,12 @@ document; the native application sources are unchanged.
 - With AE fully stopped, both send and receive show the detailed start-AE
   warning without launching AE. Sending with no active composition shows AE's
   own notification; dismissing it lets the application continue.
-- The full Vitest suite passes: 355 passed, 7 existing skipped. Error regression
+- The full Vitest suite passes: 361 passed, 7 existing skipped. Error regression
   tests execute the actual send/receive functions and verify that actionable
   backend details reach the dialog instead of becoming “AE not found”.
 
-Remaining hardware checks include cold/batch Finder opening, the other UI
-checklist items, large AE sheets, denied Automation permission, multiple running
+Remaining hardware checks include the other UI checklist items (such as native
+printing and language-switch menus), large AE sheets, denied Automation permission, multiple running
 AE versions and Intel hardware. The above results are not a claim that every
 checklist item or every AE version has passed.
 
