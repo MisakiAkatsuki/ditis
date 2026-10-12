@@ -887,6 +887,9 @@ async function importTimeremapData(data) {
     for (let layerIdx = 0; layerIdx < data.layers.length; layerIdx++) {
         const layer = data.layers[layerIdx];
         const layerId = `L${layerIdx + 1}`;
+        // 空セルの送り先は素材の末尾。旧ペイロードでは従来の判定を維持する。
+        const sourceDuration = Number.isFinite(layer.sourceDuration) && layer.sourceDuration > 0
+            ? layer.sourceDuration : data.duration;
         
         if (layer.keyframes && layer.keyframes.length > 0) {
             // キーフレームを時間順にソート
@@ -901,8 +904,8 @@ async function importTimeremapData(data) {
                 // 次のキーフレームの開始フレーム（なければ最終フレーム）
                 const endFrame = nextKf ? Math.round(nextKf.time * fps) : totalFrames;
                 
-                // タイムリマップ値が範囲外（duration以上）の場合は空セル（ブラインド）
-                const isBlind = kf.value >= data.duration;
+                // 配置先コンポではなく、各素材の範囲外なら空セル。
+                const isBlind = kf.value >= sourceDuration;
                 
                 // セル値（タイムリマップ値をフレームに変換、0秒=コマ1）
                 const cellValue = isBlind ? '' : (Math.round(kf.value * fps) + 1).toString();

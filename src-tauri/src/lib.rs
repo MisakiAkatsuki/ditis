@@ -1520,6 +1520,7 @@ fn generate_get_timeremap_jsx(port: u16, nonce: &str) -> String {
             json += '{{';
             json += '"layerName":"' + escapeString(layer.name) + '",';
             json += '"layerIndex":' + layer.index + ',';
+            json += '"sourceDuration":' + layer.sourceDuration + ',';
             json += '"keyframes":[';
             
             for (var k = 0; k < layer.keyframes.length; k++) {{
@@ -1580,6 +1581,7 @@ fn generate_get_timeremap_jsx(port: u16, nonce: &str) -> String {
             result.push({{
                 name: layer.name,
                 index: layer.index,
+                sourceDuration: layer.source ? layer.source.duration : comp.duration,
                 keyframes: keyframes
             }});
         }}

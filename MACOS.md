@@ -99,8 +99,7 @@ rebuilt and checked separately below; it does not change the AE bridge.
   tests execute the actual send/receive functions and verify that actionable
   backend details reach the dialog instead of becoming “AE not found”.
 
-Remaining hardware checks include the other UI checklist items (such as
-language-switch menus), large AE sheets, denied Automation permission, multiple running
+Remaining hardware checks include large AE sheet round trips, denied Automation permission, multiple running
 AE versions and Intel hardware. The above results are not a claim that every
 checklist item or every AE version has passed.
 
@@ -156,8 +155,41 @@ to the existing main-window capability fixes the native command.
 After rebuilding and restarting, Command+P opened the macOS print dialog with
 one preview page containing the Japanese sheet title, two columns and all
 30 frame rows. Cancel returned to the sheet. No printer was configured, so
-physical paper output and PDF export were not tested. The existing Chromium
+physical paper output was not tested. The existing Chromium
 smoke test mocks printing and could not detect this native permission failure.
+
+At `d22b741`, the same native dialog also saved an A4 portrait PDF containing
+the Japanese title, two columns and all 30 rows. Independent PDFium rendering
+showed no missing text or clipping. Switching to English rebuilt the native
+File/Edit/Sheet/View/Help menus; Command+O and Command+N worked, as did
+Command+Z/Shift+Z in the new-sheet name field. Japanese was restored afterward.
+The new-sheet dialog's Japanese body is an existing localization limitation.
+CI run 38305320488 passed frontend, both Mac builds and Windows including the
+existing-baseline comparison. That success does not establish the cause of
+PR #5's earlier intermittent Windows input failure.
+
+### Source-duration import follow-up (2026-10-13)
+
+The large-sheet exercise exposed an incorrect boundary in the shared importer:
+it compares time-remap values against the destination composition's duration,
+although the exporter represents a blank with the source's duration. A 2-second
+source in a 48-second comp therefore imports a blank as cel 61. Conversely, a
+valid cel 60 from that source becomes blank in a 1-second destination comp.
+
+The receive JSX now includes each layer's source duration, and the importer
+uses that boundary independently for each layer. Legacy payloads without a
+usable source duration retain the previous fallback. This change does not read
+Blinds effect values or alter the separate Blinds-mode limitation.
+
+- Executing the production JSX template and importer with mocked AE properties
+  reproduced all three boundary failures before the fix. The regression suite
+  covers longer/shorter destination comps, different layer source lengths,
+  hold expansion, trailing blanks and legacy payloads.
+- Full Vitest: 370 passed, 7 existing skipped. Apple Silicon debug app builds.
+- On AE 2026, the 8-layer, 1,440-frame fixture sent and applied successfully
+  using `d22b741`. The Mac locked before receive; the 11,520-cell native round
+  trip and the fixed app's native receive remain pending. A successful unit
+  test or build is not a substitute for that check.
 
 ## Limits
 
