@@ -99,8 +99,8 @@ rebuilt and checked separately below; it does not change the AE bridge.
   tests execute the actual send/receive functions and verify that actionable
   backend details reach the dialog instead of becoming “AE not found”.
 
-Remaining hardware checks include the other UI checklist items (such as native
-printing and language-switch menus), large AE sheets, denied Automation permission, multiple running
+Remaining hardware checks include the other UI checklist items (such as
+language-switch menus), large AE sheets, denied Automation permission, multiple running
 AE versions and Intel hardware. The above results are not a claim that every
 checklist item or every AE version has passed.
 
@@ -145,6 +145,19 @@ got `1`). This failure remains open and is not evidence of a Mac regression.
 API references: Apple's [PID descriptor](https://developer.apple.com/documentation/foundation/nsappleeventdescriptor/init(processidentifier:)?language=objc)
 and [event send](https://developer.apple.com/documentation/foundation/nsappleeventdescriptor/sendevent(options:timeout:)?language=objc).
 Objective-C nil handling follows Apple's [JXA WWDC session](https://devstreaming-cdn.apple.com/videos/wwdc/2014/306xxjtg7uz13v0/306/306_javascript_for_automation.pdf).
+
+### Native printing (2026-10-13)
+
+At `04215b0`, Command+P showed the generic asynchronous-error toast instead of
+the macOS print dialog. Web Inspector reported `webview.print not allowed` and
+named the missing `core:webview:allow-print` permission. Adding that permission
+to the existing main-window capability fixes the native command.
+
+After rebuilding and restarting, Command+P opened the macOS print dialog with
+one preview page containing the Japanese sheet title, two columns and all
+30 frame rows. Cancel returned to the sheet. No printer was configured, so
+physical paper output and PDF export were not tested. The existing Chromium
+smoke test mocks printing and could not detect this native permission failure.
 
 ## Limits
 
