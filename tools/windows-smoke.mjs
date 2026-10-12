@@ -17,7 +17,7 @@ async function request(method, path, data) {
     const response = await fetch(base + path, {
         method, headers: { 'Content-Type': 'application/json' },
         body: data === undefined ? undefined : JSON.stringify(data),
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(path === '/session' ? 90000 : 30000),
     });
     const body = await response.json();
     if (!response.ok || body.value?.error) throw new Error(JSON.stringify(body));

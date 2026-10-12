@@ -21,6 +21,8 @@ JavaScript for Automation. It does not publish a release.
   installed on the CI runner, so Windows AE integration requires a manual check.
   The job then builds the PR's base commit and runs those same expectations to
   compare existing Windows behavior with this PR.
+  Windows UI checks run at medium integrity, following Tauri's E2E workflow,
+  because current WebView2 ignores driver arguments in elevated CI processes.
   To exercise Control shortcuts in the Chromium harness as well, run
   `SMOKE_MODIFIER=Control node tools/basic-smoke.mjs` (bash).
 

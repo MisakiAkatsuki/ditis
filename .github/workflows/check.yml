@@ -73,8 +73,15 @@ jobs:
           cargo install --git https://github.com/chippers/msedgedriver-tool
           msedgedriver-tool
           $PWD.Path >> $env:GITHUB_PATH
+      - name: Prepare non-elevated WebView2 test process
+        # Current WebView2 ignores the driver's browser arguments when elevated.
+        # Follow Tauri's own Windows E2E workflow and use medium integrity.
+        # https://github.com/tauri-apps/tauri/blob/dev/.github/workflows/test-api-e2e.yml
+        run: |
+          choco install gsudo -y --no-progress
+          icacls "$env:GITHUB_WORKSPACE" /grant "Everyone:(OI)(CI)F"
       - name: Run basic operations in Windows app
-        run: node tools/windows-smoke.mjs
+        run: '& "C:\Program Files\gsudo\Current\bin\gsudo.exe" --integrity Medium node tools/windows-smoke.mjs'
       - name: Check out existing Windows baseline
         uses: actions/checkout@v4
         with:
@@ -90,4 +97,4 @@ jobs:
           CARGO_TARGET_DIR: ${{ github.workspace }}/src-tauri/target
         run: npm run tauri:build -- --debug --no-bundle
       - name: Compare same operations against existing Windows baseline
-        run: node tools/windows-smoke.mjs
+        run: '& "C:\Program Files\gsudo\Current\bin\gsudo.exe" --integrity Medium node tools/windows-smoke.mjs'
