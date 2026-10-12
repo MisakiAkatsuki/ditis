@@ -82,6 +82,8 @@ jobs:
           icacls "$env:GITHUB_WORKSPACE" /grant "Everyone:(OI)(CI)F"
       - name: Run basic operations in Windows app
         run: '& "C:\Program Files\gsudo\Current\bin\gsudo.exe" --integrity Medium node tools/windows-smoke.mjs'
+        env:
+          SMOKE_SCREENSHOT_PATH: windows-pr.png
       - name: Check out existing Windows baseline
         uses: actions/checkout@v4
         with:
@@ -98,3 +100,12 @@ jobs:
         run: npm run tauri:build -- --debug --no-bundle
       - name: Compare same operations against existing Windows baseline
         run: '& "C:\Program Files\gsudo\Current\bin\gsudo.exe" --integrity Medium node tools/windows-smoke.mjs'
+        env:
+          SMOKE_SCREENSHOT_PATH: windows-baseline.png
+      - name: Save Windows screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-ui-screenshots
+          path: windows-*.png
+          if-no-files-found: warn

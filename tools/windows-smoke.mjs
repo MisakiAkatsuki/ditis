@@ -2,7 +2,7 @@
 // File/confirmation dialogs and print are bypassed; Rust file IPC is real.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -32,6 +32,11 @@ async function until(predicate, timeout = 15000) {
     throw new Error('Windows smoke check timed out');
 }
 const command = (path, data, method = 'POST') => request(method, `/session/${session}${path}`, data);
+async function screenshot() {
+    if (!session) return;
+    const png = await command('/screenshot', undefined, 'GET');
+    await writeFile(process.env.SMOKE_SCREENSHOT_PATH || 'windows-smoke.png', Buffer.from(png, 'base64'));
+}
 const keys = { Meta: '\uE03D', Control: '\uE009', Shift: '\uE008', Enter: '\uE007', Delete: '\uE017', Escape: '\uE00C', F1: '\uE031' };
 async function actions(items) {
     await command('/actions', { actions: [{ type: 'key', id: 'keyboard', actions: items }] });
@@ -79,8 +84,11 @@ try {
     const saved = JSON.parse(await readFile(filePath, 'utf8'));
     assert.equal(saved.sheets[0].data[0][0], '12');
     assert.deepEqual(await page.evaluate(() => window.smokeErrors), []);
+    await page.evaluate(() => switchSheet(0));
+    await screenshot();
     console.log('PASS: Windows WebView2 and Rust disk IPC agree with shared basic-operation expectations');
 } catch (error) {
+    await screenshot().catch(console.error);
     // Preserve diagnostics as a GitHub check annotation, even if logs cannot
     // be downloaded outside the runner.
     console.error(`::error::${String(error.stack || error).replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A')}`);
