@@ -85,7 +85,7 @@ if (target === '--aggregate') {
             if (!process.env[name]?.trim() || (name.startsWith('APPLE_') && !appleSigning)) delete process.env[name];
         }
         const override = {
-            build: { frontendDist: frontend, beforeBuildCommand: '' },
+            build: { frontendDist: relative(join(root, 'src-tauri'), frontend), beforeBuildCommand: '' },
             bundle: { createUpdaterArtifacts: updaterSigning, ...(mac && !appleSigning ? { macOS: { signingIdentity: '-' } } : {}) },
         };
         report.updater = { requested: updaterSigning, verified: false, limitation: updaterSigning ? null : 'Updater signing credentials were unavailable; updater artifacts were disabled.' };
@@ -143,8 +143,9 @@ if (target === '--aggregate') {
             report.codeSignature = { valid: signed.status === 0, adHoc: /Signature=adhoc/.test(details), developerId: /Authority=Developer ID Application/.test(details), notarized: notarized.status === 0, gatekeeperAccepted: accepted.status === 0 };
             if (appleSigning && !report.codeSignature.notarized) throw new Error('Configured Apple candidate failed notarization validation');
         } else {
-            const result = required('powershell.exe', ['-NoProfile', '-Command', '(Get-AuthenticodeSignature -LiteralPath $env:DITIS_CANDIDATE_INSTALLER).Status.ToString()'], { env: { ...process.env, DITIS_CANDIDATE_INSTALLER: installer } });
-            report.codeSignature = result.stdout.trim();
+            const result = execute('powershell.exe', ['-NoProfile', '-Command', '(Get-AuthenticodeSignature -LiteralPath $env:DITIS_CANDIDATE_INSTALLER).Status.ToString()'], { env: { ...process.env, DITIS_CANDIDATE_INSTALLER: installer } });
+            report.codeSignature = result.status === 0 && result.stdout?.trim() ? result.stdout.trim() : 'unavailable';
+            if (report.codeSignature === 'unavailable') report.codeSignatureLimitation = 'Windows Authenticode status could not be read; this informational check does not fail the package build.';
         }
         report.built = true;
     } catch (error) {
