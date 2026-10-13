@@ -204,9 +204,9 @@ Blinds effect values or alter the separate Blinds-mode limitation.
   matched after native receive/save. These keys were prepared directly in AE,
   so this is a receive-boundary test rather than another send round trip.
 - CI run 38309169219 at `18f4b48` passed frontend, both Mac architecture builds
-  and Windows including the main-baseline comparison. Earlier intermittent
-  Windows input failures remain unexplained; diagnostic logging does not
-  change input timing or expected values.
+  and Windows including the PR-base comparison (`d22b741`, not main).
+  Diagnostic logging does not change input timing or expected values.
+  A later failure trace is analyzed below.
 
 An additional recovery observation remains open: receiving while a validation
 helper's AE error dialog was open timed out. After the AE dialog was dismissed,
@@ -216,7 +216,46 @@ waiting in the normal AppKit event loop, not an established deadlock. Normal
 Command+Q and restart recovered, and another receive/save then succeeded.
 The helper error itself came from removing all time-remap keys before adding
 replacements; retaining keys until replacements exist fixed the helper.
-The persistent-alert cause and an isolated reproduction still need investigation.
+An isolated probe with an AE alert produced the expected concurrent-script
+warning and a roughly 30-second timeout. Closing the AE and DiTiS alerts
+allowed another receive confirmation without restarting. The persistent alert
+was not reproduced; an automation-tool connection error also occurred during
+dismissal, so the application versus tool cause remains unresolved.
+
+### Cell editor lost during redraw (2026-10-13)
+
+CI run [38325492279](https://github.com/MisakiAkatsuki/ditis/actions/runs/38325492279)
+at `5a30bd4` passed frontend, both Mac builds and the PR-version Windows smoke.
+Its Windows comparison against PR base `d22b741` failed with expected `12`,
+actual `1`. The workflow uses `github.event.pull_request.base.sha`; earlier
+references to a main baseline were incorrect for this stacked PR.
+
+The failed Windows trace captured a redraw at 138ms while the input held `1`.
+At 164ms the input had lost focus, editing was false and `1` had been saved;
+the `2` key arrived at BODY at 320ms and started another edit. Replacing the
+table during editing removes its focused input and can trigger an early blur
+commit. This explains the observed trace, without asserting that every earlier
+intermittent failure had the same cause.
+
+The renderer now defers table replacement while a cell editor is active,
+preserves a requested full redraw, and flushes after commit or Escape.
+Programmatic sheet switching commits to the original sheet before switching.
+Smoke input timing, waits and expected values are unchanged.
+
+- Five regression cases load the actual HTML and JavaScript in JSDOM: immediate
+  and scheduled redraw between digits, Escape, real blur, and sheet switching.
+  All five fail without the fix and pass with it. JSDOM simulates default text
+  insertion; native behavior is verified separately.
+- Full Vitest: 375 passed, 7 existing skipped. Apple Silicon debug app build
+  succeeded with updater artifacts disabled for local validation.
+- After stopping the previous app and launching the rebuilt app, native Mac
+  typing across a scroll retained the input. The Japanese IME first produced
+  a full-width second digit; converting with F10 and committing saved ASCII
+  `12`. Escape retained the prior value, Undo/Redo restored values, a new sheet
+  was empty, and switching back retained `12`. The saved `.ditis` file also
+  contained `12`. Screenshots and the fixture were kept in the validation task.
+- Windows validation of this fix is pending the follow-up PR's CI. A successful
+  intermittent smoke run alone is not proof that every race has been removed.
 
 ## Limits
 

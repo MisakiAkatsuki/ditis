@@ -33,6 +33,7 @@ let _eventsSetupFlags = {
 // レンダリング最適化：requestAnimationFrameでバッチ処理
 let _renderScheduled = false;
 let _renderForceFullRender = false;
+let _deferredFullRender = false;
 
 /**
  * レンダリングをスケジュールする（バッチ処理）
@@ -231,6 +232,16 @@ function renderSpreadsheet(forceFullRender = false) {
  * @param {boolean} forceFullRender - 強制的に全範囲をレンダリングするか
  */
 function renderSpreadsheetImmediate(forceFullRender = false) {
+    // Replacing the table destroys the focused editor. A queued startup/scroll
+    // render can otherwise commit the first digit through blur before the next
+    // digit arrives. Both save and cancel render after clearing editingCell.
+    if (AppState.editingCell) {
+        _deferredFullRender = _deferredFullRender || forceFullRender;
+        return;
+    }
+    forceFullRender = forceFullRender || _deferredFullRender;
+    _deferredFullRender = false;
+
     const startTime = performance.now();
     const sheet = getCurrentSheet();
     const container = document.getElementById('spreadsheet');

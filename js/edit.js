@@ -427,6 +427,7 @@ function finishEditing(save, suppressMove = false) {
     } else {
         cell.classList.toggle('dash-value', newValue === '-');
         cell.textContent = newValue;
+        renderSpreadsheetImmediate();
     }
 }
 
