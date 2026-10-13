@@ -227,8 +227,10 @@ Macでは以下の`Ctrl`を`Command (⌘)`に読み替えてください。や�
 |---|---|---|---|---|
 | DiTiS JSON | `.json` | Y | Y | DiTiS独自形式（全データ保持） |
 | STS | `.sts` | Y | Y | レガシータイムシート形式 |
-| XDTS | `.xdts` | Y | Y | OpenToonz互換形式 |
+| XDTS | `.xdts` | Y | Y | 汎用デジタルタイムシート情報（CLIP STUDIO PAINT等） |
 | TDTS | `.tdts` | Y | Y | Toei Digital Timesheet形式 |
+
+TDTS・XDTSの旧版互換と検証範囲は[FORMATS.md](FORMATS.md)を参照してください。
 
 ---
 

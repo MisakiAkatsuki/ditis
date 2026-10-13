@@ -6,6 +6,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join, extname } from 'node:path';
 import puppeteer from 'puppeteer';
+import { runFormatOperations } from './format-scenario.mjs';
 import { runBasicOperations } from './smoke-scenario.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -54,11 +55,11 @@ try {
     await page.waitForFunction(() => document.querySelector('td.selected[data-frame][data-layer]') && window.smokeOpenEvents['open-file']);
     // Let the initial render/selection timer finish before exercising the UI.
     await page.waitForFunction(() => typeof handleKeyboard === 'function');
-    await runBasicOperations(page, process.env.SMOKE_MODIFIER || 'Meta');
+    await runBasicOperations(page, process.env.SMOKE_MODIFIER || (process.platform === 'darwin' ? 'Meta' : 'Control'));
+    await runFormatOperations(page);
     assert.deepEqual(errors, [], 'no browser JavaScript errors');
     if (process.env.SMOKE_SCREENSHOT_PATH) {
         await page.setViewport({ width: 1000, height: 750 });
-        await page.click('.sheet-tab');
         await page.screenshot({ path: process.env.SMOKE_SCREENSHOT_PATH });
     }
 } finally {

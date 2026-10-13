@@ -6,6 +6,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { runFormatOperations } from './format-scenario.mjs';
 import { runBasicOperations } from './smoke-scenario.mjs';
 
 const directory = await mkdtemp(join(tmpdir(), 'ditis-smoke-'));
@@ -111,6 +112,7 @@ try {
         };
     }, filePath);
     await runBasicOperations(page, 'Control');
+    await runFormatOperations(page);
     const saved = JSON.parse(await readFile(filePath, 'utf8'));
     assert.equal(saved.sheets[0].data[0][0], '12');
     assert.deepEqual(await page.evaluate(() => window.smokeErrors), []);

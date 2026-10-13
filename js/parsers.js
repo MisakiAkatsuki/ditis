@@ -44,153 +44,84 @@ async function saveXdtsFileInternal(filePath, sheet) {
     await window.TauriAPI.saveFile(filePath, content);
 }
 
-/**
- * TDTS形式のデータを生成
- * @param {Object} sheet - シートデータ
- * @returns {Object} TDTS形式のデータ
- */
+// XDTS v5 (2018) / v10 (2022) share the same cell instruction format.
+const TIMESHEET_SYMBOLS = Object.freeze({
+    SYMBOL_NULL_CELL: '×', SYMBOL_TICK_1: '○', SYMBOL_TICK_2: '●'
+});
+
+function encodeTimesheetValue(value) {
+    if (value === '-' || value === 'SYMBOL_HYPHEN') return 'SYMBOL_HYPHEN';
+    if (value === undefined || value === null || value === '' || value === '×') return 'SYMBOL_NULL_CELL';
+    if (value === '○') return 'SYMBOL_TICK_1';
+    if (value === '●') return 'SYMBOL_TICK_2';
+    return String(value);
+}
+
+function cloneTimesheetData(value) { return JSON.parse(JSON.stringify(value)); }
+
+function buildTimesheetTable(sheet, fieldId, sourceTable) {
+    if (!Number.isInteger(sheet.frames) || sheet.frames < 1) throw new Error('シートの尺が不正です');
+    // These file formats do not define an FPS property; Toei uses 24 fps.
+    if ((sheet.fps ?? 24) !== 24) throw new Error('TDTS・XDTSの保存は24fpsのみ対応しています');
+    const table = sourceTable ? cloneTimesheetData(sourceTable) : {};
+    const originalField = table.fields?.find(field => field.fieldId === fieldId);
+    const tracks = sheet.layers.map((layer, trackNo) => {
+        const sourceTrackNo = sheet.timesheetSource?.layerTrackNos?.[layer.id];
+        const originalTrack = originalField?.tracks?.find(track => track.trackNo === sourceTrackNo);
+        const originalFrames = new Map((originalTrack?.frames || []).map(frame => [frame.frame, frame]));
+        const frames = [];
+        let previous = 'SYMBOL_NULL_CELL';
+        for (let f = 1; f <= sheet.frames; f++) {
+            const value = encodeTimesheetValue(sheet.data[f]?.[layer.id]);
+            const original = originalFrames.get(f - 1);
+            // Keep source entries (including memos/colour/other instructions),
+            // and explicit blank transitions so sparse data cannot extend a cel.
+            if (original || value !== previous || value === 'SYMBOL_HYPHEN') {
+                const entry = original ? cloneTimesheetData(original) : { frame: f - 1, data: [] };
+                entry.data ||= [];
+                const instruction = entry.data.find(data => data.id === 0);
+                if (instruction) instruction.values = [value];
+                else entry.data.unshift({ id: 0, values: [value] });
+                frames.push(entry);
+            }
+            if (value !== 'SYMBOL_HYPHEN') previous = value;
+        }
+        return { ...(originalTrack || {}), trackNo, frames };
+    });
+    const field = { ...(originalField || {}), fieldId, tracks };
+    table.fields = [...(table.fields || []).filter(f => f.fieldId !== fieldId), field];
+    const oldHeader = table.timeTableHeaders?.find(h => h.fieldId === fieldId);
+    table.timeTableHeaders = [...(table.timeTableHeaders || []).filter(h => h.fieldId !== fieldId),
+        { ...(oldHeader || {}), fieldId, names: sheet.layers.map(layer => layer.name) }];
+    table.duration = sheet.frames;
+    table.name = sheet.name;
+    return table;
+}
+
 function generateTdtsData(sheet) {
-    // レイヤーをトラックに変換
-    const tracks = [];
-    sheet.layers.forEach((layer, index) => {
-        const frames = [];
-        
-        // フレームデータを収集
-        for (let frame = 1; frame <= sheet.frames; frame++) {
-            const value = sheet.data[frame]?.[layer.id];
-            if (value !== undefined) {
-                frames.push({
-                    data: [{
-                        fontColorId: 0,
-                        id: 0,
-                        values: [value === '' ? 'SYMBOL_NULL_CELL' : value]
-                    }],
-                    frame: frame - 1 // 1-basedから0-basedに変換
-                });
-            }
-        }
-        
-        if (frames.length > 0) {
-            tracks.push({
-                frames: frames,
-                trackNo: index
-            });
-        }
-    });
-    
-    // timeTableHeadersを生成
-    const timeTableHeaders = [{
-        fieldId: 4,
-        names: sheet.layers.map(l => l.name)
-    }];
-    
-    return {
-        timeSheets: [{
-            free: [],
-            header: {
-                cut: '',
-                episode: '',
-                scene: '',
-                showHeadDummy: false,
-                timeTableFontColors: [
-                    [0, 0, 0],
-                    [224, 0, 0],
-                    [32, 128, 32],
-                    [32, 32, 192],
-                    [192, 32, 192],
-                    [255, 128, 32]
-                ],
-                workSlip: {
-                    memo: '',
-                    processes: [],
-                    works: []
-                }
-            },
-            timeTables: [{
-                color: 0,
-                direction: '',
-                duration: sheet.frames,
-                fields: [{
-                    fieldId: 4,
-                    tracks: tracks
-                }],
-                footDummykomas: 24,
-                headDummykomas: 24,
-                name: sheet.name,
-                operatorName: '',
-                timeTableHeaders: timeTableHeaders
-            }]
-        }],
-        version: 11
-    };
+    const source = sheet.timesheetSource?.format === 'TDTS' ? sheet.timesheetSource : null;
+    const fieldId = source?.fieldId ?? 0; // ACTION supports both cel names and inbetween symbols.
+    if (fieldId === 4 && sheet.layers.some(layer => Object.values(sheet.data).some(row => {
+        const value = encodeTimesheetValue(row?.[layer.id]);
+        return !['SYMBOL_NULL_CELL', 'SYMBOL_HYPHEN'].includes(value) && !/^\d+$/.test(value);
+    }))) throw new Error('TDTSのCELL欄は数字と空セルのみ対応しています。文字列や中割を保存する場合はXDTSまたはDiTiS形式を使用してください');
+    const document = source ? cloneTimesheetData(source.document) : { header: { cut: '', scene: '', episode: '', direction: '', colors: [[255, 255, 255], [255, 255, 255], [255, 255, 255]] },
+        timeTables: [{ color: 0, operatorName: '', direction: '', headDummykomas: 24, footDummykomas: 24 }] };
+    const tableIndex = source?.tableIndex ?? 0;
+    document.timeTables[tableIndex] = buildTimesheetTable(sheet, fieldId, document.timeTables[tableIndex]);
+    const version = source?.version ?? 5;
+    return version < 7 ? { ...document, version } : { timeSheets: [document], version };
 }
 
-/**
- * XDTS形式のデータを生成
- * @param {Object} sheet - シートデータ
- * @returns {Object} XDTS形式のデータ
- */
 function generateXdtsData(sheet) {
-    // レイヤーをトラックに変換
-    const tracks = [];
-    sheet.layers.forEach((layer, index) => {
-        const frames = [];
-        
-        // フレームデータを収集
-        for (let frame = 1; frame <= sheet.frames; frame++) {
-            const value = sheet.data[frame]?.[layer.id];
-            if (value !== undefined) {
-                frames.push({
-                    data: [{
-                        fontColorId: 0,
-                        id: 0,
-                        values: [value === '' ? 'SYMBOL_NULL_CELL' : value]
-                    }],
-                    frame: frame - 1 // 1-basedから0-basedに変換
-                });
-            }
-        }
-        
-        if (frames.length > 0) {
-            tracks.push({
-                frames: frames,
-                trackNo: index
-            });
-        }
-    });
-    
-    // timeTableHeadersを生成
-    const timeTableHeaders = [{
-        fieldId: 0,
-        names: sheet.layers.map(l => l.name)
-    }];
-    
-    return {
-        free: [],
-        timeTables: [{
-            comas: null,
-            duration: sheet.frames,
-            fields: [{
-                fieldId: 0,
-                tracks: tracks
-            }],
-            footDummykomas: 24,
-            headDummykomas: 24,
-            komas: null,
-            name: sheet.name,
-            tableHeader: null,
-            tableHeaders: null,
-            timeLineHeaders: null,
-            timeTableData: null,
-            timeTableHeaders: timeTableHeaders
-        }],
-        version: 11
-    };
+    const source = sheet.timesheetSource?.format === 'XDTS' ? sheet.timesheetSource : null;
+    const document = source ? cloneTimesheetData(source.document) : {};
+    const table = buildTimesheetTable(sheet, 0, source?.document.timeTables[source.tableIndex]);
+    // v10 is required for camera coordinates; v5 remains compatible with older readers.
+    const version = source?.version === 10 || table.fields.some(f => f.fieldId === 5 &&
+        f.tracks?.some(t => t.frames?.some(frame => frame.data?.some(d => d.values?.length > 1)))) ? 10 : 5;
+    return { ...document, timeTables: [table], version };
 }
-
-// ========================================
-// TDTS形式（東映タイムシート）
-// ========================================
 
 /**
  * 東映タイムシート形式(.tdts)ファイルをTauri環境で読み込み
@@ -240,137 +171,85 @@ function loadTdtsFile(e) {
  * TDTSファイルの内容を解析してシートに変換
  */
 function parseTdtsFile(fileContent, fileName) {
+    importExchangeTimesheet(fileContent, fileName, 'TDTS');
+}
+
+/** Read old flat TDTS v5 and wrapped TDTS v7+ without changing cel names. */
+function importExchangeTimesheet(fileContent, fileName, format) {
     try {
-        // 最初の行（"toeiDigitalTimeSheet Save Data"）をスキップ
-        const lines = fileContent.split('\n');
-        const jsonContent = lines.slice(1).join('\n');
-        
-        const tdtsData = JSON.parse(jsonContent);
-        
-        if (!tdtsData.timeSheets || !Array.isArray(tdtsData.timeSheets)) {
-            throw new Error('無効なTDTS形式です: timeSheets配列が見つかりません');
-        }
-    
-    debugLog('ファイル', `TDTSファイル読み込み: ${fileName}`);
-    
-    const startIndex = AppState.sheets.length;
-    
-    // 各タイムシートをシートに変換
-    tdtsData.timeSheets.forEach((timeSheet, sheetIndex) => {
-        if (!timeSheet.timeTables || timeSheet.timeTables.length === 0) return;
-        
-        const timeTable = timeSheet.timeTables[0]; // 最初のtimeTableを使用
-        const sheetName = timeTable.name || `TDTS_Sheet${sheetIndex + 1}`;
-        const duration = timeTable.duration || 144;
-        
-        // 新しいシートを作成
-        const newSheet = {
-            name: sheetName,
-            frames: duration,
-            visibleRows: duration,
-            layers: [],
-            data: {},
-            insertedFrames: [],
-            disabledFrames: []
-        };
-        
-        // フィールドからレイヤーを作成
-        if (timeTable.fields && timeTable.fields.length > 0) {
-            const field = timeTable.fields[0]; // fieldId=4を使用
-            const fieldHeader = timeTable.timeTableHeaders
-                ? timeTable.timeTableHeaders.find(h => h.fieldId === field.fieldId)
-                : null;
-            
-            if (field.tracks && fieldHeader) {
-                field.tracks.forEach((track, trackIndex) => {
-                    const layerName = fieldHeader.names[trackIndex] || `Layer${trackIndex + 1}`;
-                    const layerId = `L${newSheet.layers.length + 1}`;
-                    
-                    newSheet.layers.push({
-                        id: layerId,
-                        name: layerName
-                    });
-                    
-                    // フレームデータを変換（キーフレーム間にホールド"-"を挿入）
-                    if (track.frames && track.frames.length > 0) {
-                        // フレームをソート
-                        const sortedFrames = [...track.frames].sort((a, b) => a.frame - b.frame);
-                        
-                        for (let i = 0; i < sortedFrames.length; i++) {
-                            const frameData = sortedFrames[i];
-                            const frameNum = frameData.frame + 1; // 0-basedから1-basedに変換
-                            
-                            if (!newSheet.data[frameNum]) {
-                                newSheet.data[frameNum] = {};
-                            }
-                            
-                            if (frameData.data && frameData.data.length > 0) {
-                                const cellData = frameData.data[0];
-                                const value = cellData.values[0];
-                                
-                                // "SYMBOL_NULL_CELL"は空セルとして扱う
-                                if (value !== "SYMBOL_NULL_CELL") {
-                                    newSheet.data[frameNum][layerId] = value;
-                                    
-                                    // 次のキーフレームまでの間に実際の値を保持（ホールド）
-                                    const nextFrame = sortedFrames[i + 1];
-                                    if (nextFrame) {
-                                        const nextFrameNum = nextFrame.frame + 1;
-                                        for (let f = frameNum + 1; f < nextFrameNum; f++) {
-                                            if (!newSheet.data[f]) {
-                                                newSheet.data[f] = {};
-                                            }
-                                            newSheet.data[f][layerId] = value;
-                                        }
-                                    }
-                                }
-                            }
+        const lines = fileContent.replace(/^\uFEFF/, '').split(/\r?\n/);
+        const signature = format === 'TDTS' ? 'toeiDigitalTimeSheet Save Data' : 'exchangeDigitalTimeSheet Save Data';
+        if (lines.shift() !== signature) throw new Error('ファイル先頭の識別行が不正です');
+        const root = JSON.parse(lines.join('\n'));
+        const documents = format === 'TDTS' && Array.isArray(root.timeSheets) ? root.timeSheets : [root];
+        const imported = [];
+        for (const document of documents) {
+            if (!Array.isArray(document.timeTables) || !document.timeTables.length) throw new Error('timeTables配列がありません');
+            // TDTS tables are successive revisions; import the newest revision.
+            // XDTS tables are independent timelines and are all imported.
+            const indexes = format === 'TDTS' ? [document.timeTables.length - 1] : document.timeTables.map((_, i) => i);
+            for (const tableIndex of indexes) {
+                const table = document.timeTables[tableIndex];
+                if (!Number.isInteger(table.duration) || table.duration < 1) throw new Error('durationが不正です');
+                const fields = table.fields || [];
+                const hasContent = f => f?.tracks?.some(t => t.frames?.some(frame =>
+                    frame.frame >= 0 && frame.frame < table.duration && frame.data?.some(d =>
+                        d.id === 0 && d.values?.some(v => v !== '' && v !== 'SYMBOL_NULL_CELL'))));
+                const cell = fields.find(f => f.fieldId === 4);
+                const action = fields.find(f => f.fieldId === 0);
+                const field = format === 'TDTS' && hasContent(cell) ? cell : action || cell;
+                const fieldId = field?.fieldId ?? (format === 'TDTS' ? 4 : 0);
+                const names = table.timeTableHeaders?.find(h => h.fieldId === fieldId)?.names || [];
+                const tracks = field?.tracks || [];
+                const numbers = tracks.map(t => t.trackNo);
+                if (numbers.some(n => !Number.isInteger(n) || n < 0) || new Set(numbers).size !== numbers.length) {
+                    throw new Error('trackNoが不正または重複しています');
+                }
+                const count = Math.max(26, names.length, ...numbers.map(n => n + 1));
+                const sheet = { name: table.name || `${format}_Sheet${imported.length + 1}`, frames: table.duration,
+                    fps: 24, visibleRows: table.duration, layers: [], data: {}, insertedFrames: [], disabledFrames: [],
+                    timesheetSource: { format, version: root.version ?? 5, document: cloneTimesheetData(document), tableIndex, fieldId } };
+                sheet.timesheetSource.layerTrackNos = {};
+                for (let i = 0; i < count; i++) {
+                    sheet.layers.push({ id: `L${i + 1}`, name: names[i] ?? getLayerName(i) });
+                    sheet.timesheetSource.layerTrackNos[`L${i + 1}`] = i;
+                }
+                for (const track of tracks) {
+                    const entries = new Map();
+                    for (const frame of track.frames || []) {
+                        if (!Number.isInteger(frame.frame)) throw new Error('frameが不正です');
+                        if (format === 'XDTS' && frame.frame < 0) throw new Error('frameが負数です');
+                        if (frame.frame < 0 || frame.frame >= table.duration) continue;
+                        const instruction = frame.data?.find(d => d.id === 0);
+                        if (!instruction) continue;
+                        if (!Array.isArray(instruction.values) || typeof instruction.values[0] !== 'string') throw new Error('valuesが不正です');
+                        entries.set(frame.frame, instruction.values[0]);
+                    }
+                    let value = '';
+                    for (let frame = 0; frame < table.duration; frame++) {
+                        const instruction = entries.get(frame);
+                        if (instruction !== undefined && instruction !== 'SYMBOL_HYPHEN') value = TIMESHEET_SYMBOLS[instruction] ?? instruction;
+                        if (value !== '') {
+                            sheet.data[frame + 1] ||= {};
+                            sheet.data[frame + 1][`L${track.trackNo + 1}`] = value;
                         }
                     }
-                });
+                }
+                imported.push(sheet);
             }
         }
-        
-        // シートを追加
-        AppState.sheets.push(newSheet);
-    });
-    
-    // 新しく追加したシートのみ列が26未満の場合は26列に設定
-    const newTdtsSheets = AppState.sheets.slice(startIndex);
-    newTdtsSheets.forEach(sheet => {
-        if (sheet.layers.length < 26) {
-            const maxId = Math.max(...sheet.layers.map(l => {
-                const num = parseInt(l.id.replace(/\D/g, ''));
-                return isNaN(num) ? 0 : num;
-            }), 0);
-            const currentCount = sheet.layers.length;
-            for (let i = currentCount; i < 26; i++) {
-                sheet.layers.push({
-                    id: `L${maxId + (i - currentCount) + 1}`,
-                    name: String.fromCharCode(65 + i)
-                });
-            }
-        }
-    });
-    
-    // 最後に追加したシートに切り替え
-    if (AppState.sheets.length > 0) {
+        if (!imported.length) throw new Error('読み込めるシートがありません');
+        // Validate the entire file first; a bad later table must not leave partial tabs.
+        AppState.sheets.push(...imported);
         AppState.currentSheetIndex = AppState.sheets.length - 1;
-        
-        // 選択状態をクリア
         AppState.selectedCells = [];
         AppState.selectionAnchor = null;
-        
         saveHistory('ファイル読み込み');
-        renderTabs();
-        renderSpreadsheet(true);
-        updateWindowTitle();
-        showErrorToast(`TDTSファイルから${tdtsData.timeSheets.length}個のシートを読み込みました`, ErrorLevel.INFO, 3000);
-    }
-    
+        renderTabs(); renderSpreadsheet(true); updateWindowTitle();
+        debugLog('ファイル', `${format}ファイル読み込み: ${fileName}`);
+        showErrorToast(`${format}ファイルから${imported.length}個のシートを読み込みました`, ErrorLevel.INFO, 3000);
     } catch (error) {
-        console.error('TDTSファイル解析エラー:', error);
-        throw new Error(`TDTSファイルの解析に失敗しました: ${error.message}`);
+        throw new Error(`${format}ファイルの解析に失敗しました: ${error.message}`);
     }
 }
 
@@ -426,142 +305,7 @@ function loadXdtsFile(e) {
  * XDTSファイルの内容を解析してシートに変換
  */
 function parseXdtsFile(fileContent, fileName) {
-    try {
-        // 最初の行（"exchangeDigitalTimeSheet Save Data"）をスキップ
-        const lines = fileContent.split('\n');
-        const jsonContent = lines.slice(1).join('\n');
-        
-        const xdtsData = JSON.parse(jsonContent);
-        
-        if (!xdtsData.timeTables || !Array.isArray(xdtsData.timeTables)) {
-            throw new Error('無効なXDTS形式です: timeTables配列が見つかりません');
-        }
-    
-    debugLog('ファイル', `XDTSファイル読み込み: ${fileName}`);
-    
-    const startIndex = AppState.sheets.length;
-    
-    // 各タイムテーブルをシートに変換
-    xdtsData.timeTables.forEach((timeTable, tableIndex) => {
-        const sheetName = timeTable.name || `XDTS_Sheet${tableIndex + 1}`;
-        const duration = timeTable.duration || 144;
-        
-        // 新しいシートを作成
-        const newSheet = {
-            name: sheetName,
-            frames: duration,
-            visibleRows: duration,
-            layers: [],
-            data: {},
-            insertedFrames: [],
-            disabledFrames: []
-        };
-        
-        // フィールドからレイヤーを作成
-        if (timeTable.fields && timeTable.fields.length > 0) {
-            const field = timeTable.fields[0]; // 最初のfieldを使用
-            const fieldHeader = timeTable.timeTableHeaders ? 
-                timeTable.timeTableHeaders.find(h => h.fieldId === field.fieldId) : null;
-            
-            if (field.tracks) {
-                field.tracks.forEach((track, trackIndex) => {
-                    const layerName = (fieldHeader && fieldHeader.names[trackIndex]) || 
-                                      String.fromCharCode(97 + trackIndex); // a, b, c, ...
-                    const layerId = `L${newSheet.layers.length + 1}`;
-                    
-                    newSheet.layers.push({
-                        id: layerId,
-                        name: layerName
-                    });
-                    
-                    // フレームデータを変換（キーフレーム間にホールド"-"を挿入）
-                    if (track.frames && track.frames.length > 0) {
-                        // フレームをソート
-                        const sortedFrames = [...track.frames].sort((a, b) => a.frame - b.frame);
-                        
-                        for (let i = 0; i < sortedFrames.length; i++) {
-                            const frameData = sortedFrames[i];
-                            const frameNum = frameData.frame + 1; // 0-basedから1-basedに変換
-                            
-                            if (!newSheet.data[frameNum]) {
-                                newSheet.data[frameNum] = {};
-                            }
-                            
-                            if (frameData.data && frameData.data.length > 0) {
-                                const cellData = frameData.data[0];
-                                let value = cellData.values[0];
-                                
-                                // "SYMBOL_NULL_CELL"は空セルとして扱う
-                                if (value !== "SYMBOL_NULL_CELL") {
-                                    // xdts形式では"a0001"のような形式なので数字部分のみ抽出
-                                    // 先頭のゼロを除去して数字のみにする
-                                    const numMatch = value.match(/(\d+)$/);
-                                    if (numMatch) {
-                                        value = String(parseInt(numMatch[1], 10));
-                                    }
-                                    
-                                    newSheet.data[frameNum][layerId] = value;
-                                    
-                                    // 次のキーフレームまでの間に実際の値を保持（ホールド）
-                                    const nextFrame = sortedFrames[i + 1];
-                                    if (nextFrame) {
-                                        const nextFrameNum = nextFrame.frame + 1;
-                                        for (let f = frameNum + 1; f < nextFrameNum; f++) {
-                                            if (!newSheet.data[f]) {
-                                                newSheet.data[f] = {};
-                                            }
-                                            newSheet.data[f][layerId] = value;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-        }
-        
-        // シートを追加
-        AppState.sheets.push(newSheet);
-    });
-    
-    // 新しく追加したシートのみ列が26未満の場合は26列に設定
-    const newXdtsSheets = AppState.sheets.slice(startIndex);
-    newXdtsSheets.forEach(sheet => {
-        if (sheet.layers.length < 26) {
-            const maxId = Math.max(...sheet.layers.map(l => {
-                const num = parseInt(l.id.replace(/\D/g, ''));
-                return isNaN(num) ? 0 : num;
-            }), 0);
-            const currentCount = sheet.layers.length;
-            for (let i = currentCount; i < 26; i++) {
-                sheet.layers.push({
-                    id: `L${maxId + (i - currentCount) + 1}`,
-                    name: String.fromCharCode(65 + i)
-                });
-            }
-        }
-    });
-    
-    // 最後に追加したシートに切り替え
-    if (AppState.sheets.length > 0) {
-        AppState.currentSheetIndex = AppState.sheets.length - 1;
-        
-        // 選択状態をクリア
-        AppState.selectedCells = [];
-        AppState.selectionAnchor = null;
-        
-        saveHistory('ファイル読み込み');
-        renderTabs();
-        renderSpreadsheet(true);
-        updateWindowTitle();
-        showErrorToast(`XDTSファイルから${xdtsData.timeTables.length}個のシートを読み込みました`, ErrorLevel.INFO, 3000);
-    }
-    
-    } catch (error) {
-        console.error('XDTSファイル解析エラー:', error);
-        throw new Error(`XDTSファイルの解析に失敗しました: ${error.message}`);
-    }
+    importExchangeTimesheet(fileContent, fileName, 'XDTS');
 }
 
 // ========================================

@@ -224,8 +224,10 @@ See [macOS validation](MACOS.md) for development and verification steps.
 |---|---|---|---|---|
 | DiTiS JSON | `.json` | Y | Y | DiTiS native format (preserves all data) |
 | STS | `.sts` | Y | Y | Legacy timesheet format |
-| XDTS | `.xdts` | Y | Y | OpenToonz-compatible format |
+| XDTS | `.xdts` | Y | Y | Exchange digital timesheet (CLIP STUDIO PAINT, etc.) |
 | TDTS | `.tdts` | Y | Y | Toei Digital Timesheet format |
+
+See [FORMATS.md](FORMATS.md) for legacy TDTS/XDTS compatibility and validation limits.
 
 ---
 
