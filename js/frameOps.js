@@ -1,5 +1,34 @@
 /** frameOps.js - フレーム（行）操作モジュール */
 
+/** Move retained cell instructions with rows, without changing earlier history. */
+function remapTimesheetSourceFrames(sheet, remapFrame) {
+    const source = sheet.timesheetSource;
+    const table = source?.document?.timeTables?.[source.tableIndex];
+    if (!table?.fields) return;
+    const fields = table.fields.map(field => field.fieldId !== source.fieldId ? field : {
+        ...field,
+        tracks: (field.tracks || []).map(track => ({
+            ...track,
+            frames: (track.frames || []).flatMap(entry => {
+                const currentFrame = entry.frame + 1;
+                // Dummy frames outside the displayed sheet must not become
+                // visible annotations when rows are added.
+                if (currentFrame < 1 || currentFrame > sheet.frames) return [];
+                const frame = remapFrame(currentFrame);
+                return frame === null ? [] : [{ ...entry, frame: frame - 1 }];
+            })
+        }))
+    });
+    sheet.timesheetSource = {
+        ...source,
+        document: {
+            ...source.document,
+            timeTables: source.document.timeTables.map((value, index) =>
+                index === source.tableIndex ? { ...table, fields } : value)
+        }
+    };
+}
+
 /**
  * 選択位置にフレームを挿入する
  * - 選択中の最小フレーム位置に挿入
@@ -103,6 +132,7 @@ async function insertFramesAtSelection() {
     });
     
     // 総尺を挿入分増やす
+    remapTimesheetSourceFrames(sheet, frame => frame >= minFrame ? frame + count : frame);
     sheet.frames = oldFrames + count;
     sheet.visibleRows = sheet.frames;
     sheet.data = newData;
@@ -409,6 +439,8 @@ async function deleteSelectedFrames() {
         sheet.disabledFrames = newDisabledFrames;
     }
     
+    remapTimesheetSourceFrames(sheet, frame => frame < minFrame ? frame :
+        frame > maxFrame ? frame - deleteCount : null);
     sheet.frames -= deleteCount;
     sheet.visibleRows = sheet.frames;
     sheet.data = newData;
@@ -485,6 +517,7 @@ async function insertFramesStart() {
     if (!sheet.disabledFrames) sheet.disabledFrames = [];
     sheet.disabledFrames = sheet.disabledFrames.map(f => f + count);
     
+    remapTimesheetSourceFrames(sheet, frame => frame + count);
     sheet.frames += count;
     sheet.visibleRows = sheet.frames;
     sheet.data = newData;
@@ -564,6 +597,7 @@ async function insertFramesMiddle() {
         newData[frame + count] = sheet.data[frame];
     }
     
+    remapTimesheetSourceFrames(sheet, frame => frame >= position ? frame + count : frame);
     sheet.frames += count;
     sheet.visibleRows = sheet.frames;
     sheet.data = newData;
@@ -719,6 +753,11 @@ async function shiftDataDownFromFrame() {
     }
     
     // キャッシュを更新して再描画
+    remapTimesheetSourceFrames(sheet, frame => {
+        if (frame < startFrame) return frame;
+        const shifted = frame + shiftAmount;
+        return shifted >= startFrame && shifted <= maxRows ? shifted : null;
+    });
     saveHistory('データシフト');
     calculateSpecialDisplayCache(sheet);
     renderSpreadsheet(true);

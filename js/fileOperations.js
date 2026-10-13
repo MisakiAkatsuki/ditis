@@ -90,6 +90,13 @@ function normalizeSheetForSave(sheet) {
     const newData = colArrays.slice(0, lastCol + 1);
 
     const { visibleRows, visibleColumns, id, filePath, ...rest } = sheet;
+    // Stored .ditis layers are numbered again when opened. Remap the original
+    // track references so annotations follow a layer after column reordering.
+    if (rest.timesheetSource?.layerTrackNos) {
+        rest.timesheetSource = { ...rest.timesheetSource, layerTrackNos: Object.fromEntries(
+            sheet.layers.map((layer, i) => [`L${i + 1}`, rest.timesheetSource.layerTrackNos[layer.id]])
+        ) };
+    }
     return { ...rest, layers: layerNames, data: newData };
 }
 
@@ -492,6 +499,8 @@ async function closeFileByIndex(index) {
     const sheet = AppState.sheets[index];
     if (!sheet) return;
     const sheetName = sheet.name;
+
+    if (AppState.editingCell) finishEditing(true, true);
     
     // 確認ダイアログ
     const confirmed = await showConfirmDialog(
@@ -523,6 +532,8 @@ async function closeFileByIndex(index) {
  * すべてのシートを閉じて初期化する
  */
 async function closeAllSheets() {
+    if (AppState.editingCell) finishEditing(true, true);
+
     // 確認ダイアログ
     const confirmed = await showConfirmDialog(
         'すべてのシートを閉じますか？\n保存していないデータは失われます。'
@@ -553,6 +564,10 @@ async function closeAllSheets() {
  * 新規シートを作成（オプションでダイアログ表示）
  */
 async function createNewSheetWithPrompt() {
+    // Native menu actions can keep the old cell input focused. Commit its value
+    // before changing currentSheetIndex, including creation without a dialog.
+    if (AppState.editingCell) finishEditing(true, true);
+
     if (AppState.showNewSheetDialog) {
         // ダイアログを表示して作成
         const sheet = await createNewSheetWithDialog();
@@ -589,6 +604,8 @@ async function loadFileFromPath(filePath) {
         console.warn('[loadFileFromPath] Tauri環境でのみ動作します');
         return;
     }
+
+    if (AppState.editingCell) finishEditing(true, true);
     
     try {
         debugLog('ファイル', `ファイル関連付けから読み込み: ${filePath}`);
@@ -680,19 +697,48 @@ function addToRecentFiles(filePath) {
     }
 }
 
-// Tauriイベントリスナー（ファイル関連付けからの起動時）
-if (window.__TAURI__ && window.__TAURI__.event) {
+// Rust keeps native open requests until this page has finished loading and acknowledged them.
+async function initializeFileOpenEvents() {
+    if (!window.__TAURI__?.event || !window.__TAURI_INTERNALS__) return;
+    let active = true;
+    let generation = null;
+    let pending = Promise.resolve();
+    const scheduled = new Set();
+    const beforeReady = [];
     let lastOpenFilePath = null;
     let lastOpenFileTime = 0;
-    window.__TAURI__.event.listen('open-file', (event) => {
-        const now = Date.now();
-        // 同じファイルが1.5秒以内に再度開かれた場合は無視（重複イベント防止）
-        if (event.payload === lastOpenFilePath && now - lastOpenFileTime < 1500) return;
-        lastOpenFilePath = event.payload;
-        lastOpenFileTime = now;
-        const filePath = event.payload;
-        if (filePath && window.loadFileFromPath) {
-            window.loadFileFromPath(filePath);
+    const invoke = (command, args) => window.__TAURI_INTERNALS__.invoke(command, args);
+    const queueDelivery = delivery => {
+        if (!active || !delivery || !Array.isArray(delivery.files)) return;
+        if (generation === null) { beforeReady.push(delivery); return; }
+        if (delivery.generation !== generation) return;
+        for (const request of delivery.files) {
+            if (!request || typeof request.path !== 'string' || !Number.isSafeInteger(request.id) ||
+                scheduled.has(request.id)) continue;
+            scheduled.add(request.id);
+            pending = pending.then(async () => {
+                if (!active) return;
+                // Keep suppression of duplicate OS opens while consuming both request IDs.
+                if (request.path !== lastOpenFilePath || Date.now() - lastOpenFileTime >= 1500) {
+                    await window.loadFileFromPath(request.path);
+                    lastOpenFilePath = request.path;
+                    lastOpenFileTime = Date.now();
+                }
+                if (active) await invoke('acknowledge_open_file', { generation, id: request.id });
+            }).catch(console.error);
         }
-    });
+    };
+    const unlisten = await window.__TAURI__.event.listen('open-file', event => queueDelivery(event.payload));
+    const stop = () => {
+        if (!active) return;
+        active = false;
+        Promise.resolve(unlisten?.()).catch(console.error);
+    };
+    window.addEventListener?.('pagehide', stop, { once: true });
+    window.addEventListener?.('beforeunload', stop, { once: true });
+    const delivery = await invoke('frontend_ready');
+    if (!active) return;
+    generation = delivery.generation;
+    queueDelivery(delivery);
+    beforeReady.forEach(queueDelivery);
 }

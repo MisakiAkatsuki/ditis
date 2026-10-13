@@ -337,6 +337,9 @@ async function initApp() {
     
     // ウィンドウタイトルを初期化
     await updateWindowTitle();
+
+    // OSから渡されたファイルはシート初期化とリスナー登録の完了後に開く。
+    await initializeFileOpenEvents();
 }
 
 
@@ -426,7 +429,7 @@ function handleCellMouseDown(cell, event) {
     const frame = parseInt(cell.dataset.frame);
     const layerId = cell.dataset.layer; // "L1" などの文字列IDをそのまま使用
     
-    if (event.ctrlKey) {
+    if (event.ctrlKey || event.metaKey) {
         // 複数選択
         toggleCellSelection(cell, frame, layerId);
     } else if (event.shiftKey && AppState.selectedCells.length > 0) {
@@ -816,6 +819,15 @@ function setupCellInfoDoubleClick() {
  * Rust側から呼び出されるグローバル関数
  */
 window.handleMenuEvent = async function(menuId) {
+    // ネイティブメニューのUndo/Redoは、入力欄にフォーカスがある間は
+    // シート履歴ではなくテキスト編集に適用する（MacのCmd+Zもここを通る）。
+    const focused = document.activeElement;
+    if ((menuId === 'undo' || menuId === 'redo') && focused &&
+        (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA' || focused.isContentEditable)) {
+        document.execCommand(menuId);
+        return;
+    }
+
     // メニューが選択されたらコンテキストメニューを閉じる
     closeAllContextMenus();
     

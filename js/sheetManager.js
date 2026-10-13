@@ -199,6 +199,10 @@ function getCurrentSheet() {
  * @param {number} index - 切り替え先のシートインデックス
  */
 function switchSheet(index) {
+    // A native menu can switch sheets without first blurring the cell input.
+    // Commit against the original sheet before changing the render target.
+    if (AppState.editingCell) finishEditing(true, true);
+
     // 現在のシートの選択座標を保存
     const currentSheet = getCurrentSheet();
     if (currentSheet && AppState.selectedCells.length > 0) {

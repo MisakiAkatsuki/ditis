@@ -1,0 +1,95 @@
+name: Check
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/check.yml'
+      - 'js/**'
+      - 'css/**'
+      - 'index.html'
+      - 'package*.json'
+      - 'src-tauri/**'
+      - 'test/**'
+      - 'tools/**'
+      - 'vitest.config.js'
+
+concurrency:
+  group: ditis-check-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+          key: both-macos-targets
+          cache-on-failure: true
+      - run: npm ci
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: 'true'
+      # Compile the application only. No bundles, signing, tags or releases.
+      - name: Build both macOS architectures
+        run: |
+          npm run tauri:build -- --target aarch64-apple-darwin --no-bundle
+          npm run tauri:build -- --target x86_64-apple-darwin --no-bundle
+      - name: Basic operations and format compatibility in Chromium
+        run: node tools/basic-smoke.mjs
+        env:
+          CHROME_PATH: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+          cache-on-failure: true
+      - run: npm ci
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: 'true'
+      - run: npm run test:run
+      - run: npm run tauri:build -- --debug --no-bundle
+      - name: Install native WebView2 drivers
+        run: |
+          cargo install tauri-driver --version '=2.1.0' --locked
+          # v0.2.2: entry point/manifest reviewed; lockfile present; commit signed.
+          cargo install --git https://github.com/chippers/msedgedriver-tool --rev 8c4b34f51b45f5cf08013366d703de464ab871d1 --locked
+          msedgedriver-tool
+          $PWD.Path >> $env:GITHUB_PATH
+      - name: Prepare non-elevated WebView2 test process
+        # Current WebView2 ignores the driver's browser arguments when elevated.
+        # Follow Tauri's own Windows E2E workflow and use medium integrity.
+        # https://github.com/tauri-apps/tauri/blob/dev/.github/workflows/test-api-e2e.yml
+        run: |
+          choco install gsudo -y --no-progress
+          icacls "$env:GITHUB_WORKSPACE" /grant "Everyone:(OI)(CI)F"
+      - name: Basic operations and format compatibility in Windows app
+        run: ./tools/run-windows-smoke.ps1
+        env:
+          SMOKE_SCREENSHOT_PATH: windows-pr.png
+      - name: Save Windows screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-ui-screenshots
+          path: windows-*.png
+          if-no-files-found: warn
