@@ -598,11 +598,12 @@ async function createNewSheetWithPrompt() {
  * ファイルパスから直接ファイルを読み込む
  * ファイル関連付けからの起動時に使用
  * @param {string} filePath - 読み込むファイルのパス
+ * @returns {Promise<boolean>} シートの読み込みに成功したか
  */
 async function loadFileFromPath(filePath) {
     if (!window.TauriAPI || !window.TauriAPI.isRunningInTauri()) {
         console.warn('[loadFileFromPath] Tauri環境でのみ動作します');
-        return;
+        return false;
     }
 
     if (AppState.editingCell) finishEditing(true, true);
@@ -618,15 +619,15 @@ async function loadFileFromPath(filePath) {
         if (extension === 'sts') {
             const binaryData = await window.TauriAPI.loadBinaryFile(filePath);
             parseStsFile(binaryData, fileName);
-            return;
+            return true;
         } else if (extension === 'tdts') {
             const contents = await window.TauriAPI.loadFile(filePath);
             parseTdtsFile(contents, fileName);
-            return;
+            return true;
         } else if (extension === 'xdts') {
             const contents = await window.TauriAPI.loadFile(filePath);
             parseXdtsFile(contents, fileName);
-            return;
+            return true;
         }
         
         // DiTiS/JSONファイル
@@ -638,17 +639,22 @@ async function loadFileFromPath(filePath) {
         } catch (parseError) {
             console.error('JSON解析エラー:', parseError);
             showErrorToast(`ファイル形式が不正です: ${parseError.message}`, ErrorLevel.ERROR, 5000);
-            return;
+            return false;
         }
         
         // データバリデーション
-        if (!data.sheets || !Array.isArray(data.sheets)) {
+        if (!Array.isArray(data?.sheets)) {
             showErrorToast('ファイル形式が不正です: sheetsが見つかりません', ErrorLevel.ERROR, 5000);
-            return;
+            return false;
+        }
+        if (data.sheets.length === 0) {
+            showErrorToast('ファイル形式が不正です: 読み込めるシートがありません', ErrorLevel.ERROR, 5000);
+            return false;
         }
         
-        // シートを追加
+        // 全シートを変換してから追加し、失敗した要求の再送でタブが重複しないようにする。
         const startIndex = AppState.sheets.length;
+        const newSheets = [];
         data.sheets.forEach((sheet, index) => {
             loadSheetData(sheet);
             // 最初のシートだけにfilePathを設定（他は個別ファイルとして保存させる）
@@ -657,8 +663,9 @@ async function loadFileFromPath(filePath) {
             } else {
                 sheet.filePath = null;
             }
-            AppState.sheets.push(sheet);
+            newSheets.push(sheet);
         });
+        newSheets.forEach(sheet => AppState.sheets.push(sheet));
         
         AppState.currentSheetIndex = startIndex; // 最初に読み込んだシートを選択
         
@@ -671,9 +678,11 @@ async function loadFileFromPath(filePath) {
         addToRecentFiles(filePath);
         
         debugLog('ファイル', `ファイル関連付けから読み込み完了: ${fileName}`);
+        return true;
     } catch (error) {
         console.error('ファイル読み込みエラー:', error);
         showErrorToast(`ファイルの読み込みに失敗しました: ${error.message}`, ErrorLevel.ERROR, 5000);
+        return false;
     }
 }
 
@@ -720,12 +729,20 @@ async function initializeFileOpenEvents() {
                 if (!active) return;
                 // Keep suppression of duplicate OS opens while consuming both request IDs.
                 if (request.path !== lastOpenFilePath || Date.now() - lastOpenFileTime >= 1500) {
-                    await window.loadFileFromPath(request.path);
+                    const loaded = await window.loadFileFromPath(request.path);
+                    if (loaded !== true) {
+                        // Native keeps the request for reload or a later delivery.
+                        scheduled.delete(request.id);
+                        return;
+                    }
                     lastOpenFilePath = request.path;
                     lastOpenFileTime = Date.now();
                 }
                 if (active) await invoke('acknowledge_open_file', { generation, id: request.id });
-            }).catch(console.error);
+            }).catch(error => {
+                scheduled.delete(request.id);
+                console.error(error);
+            });
         }
     };
     const unlisten = await window.__TAURI__.event.listen('open-file', event => queueDelivery(event.payload));
