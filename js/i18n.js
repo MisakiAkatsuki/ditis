@@ -694,10 +694,14 @@ function generateHelpHTML() {
     const help = i18n[lang].help;
     
     const E = escapeHtml;
+    const isMac = /^Mac/i.test(navigator.userAgentData?.platform || navigator.platform);
+    const shortcutKey = key => isMac
+        ? key.replace(/Ctrl \+ Y/g, 'Cmd + Shift + Z').replace(/Ctrl/g, 'Cmd')
+        : key;
     const shortcutEntries = (section) =>
         Object.entries(section).filter(([k]) => k !== 'title').map(([_, v]) => `
                     <div class="shortcut-item">
-                        <span class="shortcut-key">${E(v.key)}</span>
+                        <span class="shortcut-key">${E(shortcutKey(v.key))}</span>
                         <span class="shortcut-desc">${E(v.desc)}</span>
                     </div>
                 `).join('');

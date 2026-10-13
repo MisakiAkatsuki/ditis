@@ -15,6 +15,7 @@
     "core:menu:allow-get",
     "core:menu:allow-popup",
     "core:window:allow-set-always-on-top",
+    "core:webview:allow-print",
     "dialog:allow-open",
     "dialog:allow-save",
     "dialog:allow-message",

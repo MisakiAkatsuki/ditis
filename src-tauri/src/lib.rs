@@ -1,3 +1,6 @@
+#[cfg(target_os = "macos")]
+mod macos_ae;
+
 use tauri::menu::{MenuBuilder, SubmenuBuilder, MenuItemBuilder, PredefinedMenuItem, CheckMenuItemBuilder, CheckMenuItem};
 use tauri::{Manager, Runtime, Emitter};
 use std::collections::HashMap;
@@ -284,6 +287,51 @@ impl<R: Runtime> MenuItems<R> {
     }
 }
 
+
+#[derive(Default)]
+struct OpenFiles {
+    ready: bool,
+    paths: Vec<String>,
+}
+
+fn open_associated_file(app: &tauri::AppHandle, path: String) {
+    if validate_file_path(&path).is_err() { return; }
+    let state = app.state::<Mutex<OpenFiles>>();
+    let mut files = state.lock().unwrap_or_else(|e| e.into_inner());
+    if files.ready {
+        if let Err(e) = app.emit("open-file", path) {
+            eprintln!("open-file emit failed: {e}");
+        }
+    } else {
+        files.paths.push(path);
+    }
+}
+
+#[tauri::command]
+fn frontend_ready(app: tauri::AppHandle) -> Result<(), String> {
+    let state = app.state::<Mutex<OpenFiles>>();
+    let mut files = state.lock().unwrap_or_else(|e| e.into_inner());
+    for path in files.paths.drain(..) {
+        app.emit("open-file", path).map_err(|e| e.to_string())?;
+    }
+    files.ready = true;
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn macos_app_menu(app: &tauri::AppHandle, texts: &MenuTexts) -> tauri::Result<tauri::menu::Submenu<tauri::Wry>> {
+    SubmenuBuilder::new(app, "DiTiS")
+        .item(&MenuItemBuilder::new(&texts.help_about).id("app-about").build(app)?)
+        .separator()
+        .item(&PredefinedMenuItem::services(app, None)?)
+        .separator()
+        .item(&PredefinedMenuItem::hide(app, None)?)
+        .item(&PredefinedMenuItem::hide_others(app, None)?)
+        .item(&PredefinedMenuItem::show_all(app, None)?)
+        .separator()
+        .item(&PredefinedMenuItem::quit(app, Some(&texts.file_quit))?)
+        .build()
+}
 
 /// ファイルパスの拡張子を検証（許可された拡張子のみ）
 fn validate_file_path(path: &str) -> Result<(), String> {
@@ -611,29 +659,32 @@ async fn rebuild_menu(
         b.build().map_err(|e| e.to_string())?
     };
 
-    // メニューを再構築
-    let menu = MenuBuilder::new(&app)
+    // macOS uses the first submenu as the application menu.
+    let menu = MenuBuilder::new(&app);
+    #[cfg(target_os = "macos")]
+    let menu = menu.item(&macos_app_menu(&app, &texts).map_err(|e| e.to_string())?);
+    let menu = menu
         // ファイルメニュー
         .item(&SubmenuBuilder::new(&app, &texts.file)
-          .item(&MenuItemBuilder::new(&texts.file_new).id("new-sheet").accelerator("Ctrl+N").build(&app).map_err(|e| e.to_string())?)
-          .item(&MenuItemBuilder::new(&texts.file_open).id("open-file").accelerator("Ctrl+O").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.file_new).id("new-sheet").accelerator("CmdOrCtrl+N").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.file_open).id("open-file").accelerator("CmdOrCtrl+O").build(&app).map_err(|e| e.to_string())?)
           .item(&recent_submenu)
           .separator()
-          .item(&MenuItemBuilder::new(&texts.file_save).id("save-file").accelerator("Ctrl+S").build(&app).map_err(|e| e.to_string())?)
-          .item(&MenuItemBuilder::new(&texts.file_save_as).id("save-as-file").accelerator("Ctrl+Shift+S").build(&app).map_err(|e| e.to_string())?)
-          .item(&MenuItemBuilder::new(&texts.file_export_jsx).id("export-jsx").accelerator("Ctrl+Shift+E").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.file_save).id("save-file").accelerator("CmdOrCtrl+S").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.file_save_as).id("save-as-file").accelerator("CmdOrCtrl+Shift+S").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.file_export_jsx).id("export-jsx").accelerator("CmdOrCtrl+Shift+E").build(&app).map_err(|e| e.to_string())?)
           .separator()
-          .item(&MenuItemBuilder::new(&texts.file_close).id("close-file").accelerator("Ctrl+W").build(&app).map_err(|e| e.to_string())?)
-          .item(&MenuItemBuilder::new(&texts.file_close_all).id("close-all-sheets").accelerator("Ctrl+Shift+W").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.file_close).id("close-file").accelerator("CmdOrCtrl+W").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.file_close_all).id("close-all-sheets").accelerator("CmdOrCtrl+Shift+W").build(&app).map_err(|e| e.to_string())?)
           .separator()
-          .item(&MenuItemBuilder::new(&texts.file_print).id("print-sheet").accelerator("Ctrl+P").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.file_print).id("print-sheet").accelerator("CmdOrCtrl+P").build(&app).map_err(|e| e.to_string())?)
           .separator()
           .item(&PredefinedMenuItem::quit(&app, Some(&texts.file_quit)).map_err(|e| e.to_string())?)
           .build().map_err(|e| e.to_string())?)
         // 編集メニュー
         .item(&SubmenuBuilder::new(&app, &texts.edit)
-          .item(&MenuItemBuilder::new(&texts.edit_undo).id("undo").accelerator("Ctrl+Z").build(&app).map_err(|e| e.to_string())?)
-          .item(&MenuItemBuilder::new(&texts.edit_redo).id("redo").accelerator("Ctrl+Y").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.edit_undo).id("undo").accelerator("CmdOrCtrl+Z").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.edit_redo).id("redo").accelerator(if cfg!(target_os = "macos") { "Cmd+Shift+Z" } else { "Ctrl+Y" }).build(&app).map_err(|e| e.to_string())?)
           .separator()
           .item(&create_check_item("reopen-last-file", &texts.edit_reopen_last_file, reopen_last_file)?)
           .item(&MenuItemBuilder::new(&texts.edit_ae_keyframe_version_change).id("change-ae-keyframe-version").build(&app).map_err(|e| e.to_string())?)
@@ -650,17 +701,17 @@ async fn rebuild_menu(
           .build().map_err(|e| e.to_string())?)
         // シートメニュー
         .item(&SubmenuBuilder::new(&app, &texts.sheet)
-          .item(&MenuItemBuilder::new(&texts.sheet_send_to_ae).id("send-to-ae").accelerator("Ctrl+E").build(&app).map_err(|e| e.to_string())?)
-          .item(&MenuItemBuilder::new(&texts.sheet_get_from_ae).id("get-from-ae").accelerator("Ctrl+I").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.sheet_send_to_ae).id("send-to-ae").accelerator("CmdOrCtrl+E").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.sheet_get_from_ae).id("get-from-ae").accelerator("CmdOrCtrl+I").build(&app).map_err(|e| e.to_string())?)
           .item(&create_check_item("ae-multi-instance-mode", &texts.sheet_ae_multi_instance_mode, ae_multi_instance_mode)?)
           .separator()
-          .item(&MenuItemBuilder::new(&texts.sheet_settings).id("sheet-settings").accelerator("Ctrl+,").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.sheet_settings).id("sheet-settings").accelerator("CmdOrCtrl+,").build(&app).map_err(|e| e.to_string())?)
           .item(&create_check_item("show-new-sheet-dialog", &texts.sheet_new_sheet_dialog, show_new_sheet_dialog)?)
           .separator()
-          .item(&MenuItemBuilder::new(&texts.sheet_change_duration).id("change-duration").accelerator("Ctrl+Shift+D").build(&app).map_err(|e| e.to_string())?)
-          .item(&MenuItemBuilder::new(&texts.sheet_change_fps).id("change-fps").accelerator("Ctrl+Shift+F").build(&app).map_err(|e| e.to_string())?)
-          .item(&MenuItemBuilder::new(&texts.sheet_change_frame_page).id("change-frame-page").accelerator("Ctrl+Shift+P").build(&app).map_err(|e| e.to_string())?)
-          .item(&MenuItemBuilder::new(&texts.sheet_change_columns).id("change-max-columns").accelerator("Ctrl+Shift+C").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.sheet_change_duration).id("change-duration").accelerator("CmdOrCtrl+Shift+D").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.sheet_change_fps).id("change-fps").accelerator("CmdOrCtrl+Shift+F").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.sheet_change_frame_page).id("change-frame-page").accelerator("CmdOrCtrl+Shift+P").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.sheet_change_columns).id("change-max-columns").accelerator("CmdOrCtrl+Shift+C").build(&app).map_err(|e| e.to_string())?)
           .separator()
           .item(&MenuItemBuilder::new(&texts.sheet_reset_column_names).id("reset-column-names").build(&app).map_err(|e| e.to_string())?)
           .separator()
@@ -703,7 +754,7 @@ async fn rebuild_menu(
             .item(&create_check_item("language-en", &texts.view_language_en, lang == "en")?)
             .build().map_err(|e| e.to_string())?)
           .separator()
-          .item(&MenuItemBuilder::new(&texts.view_reload).id("reload-page").accelerator("Ctrl+Shift+R").build(&app).map_err(|e| e.to_string())?)
+          .item(&MenuItemBuilder::new(&texts.view_reload).id("reload-page").accelerator("CmdOrCtrl+Shift+R").build(&app).map_err(|e| e.to_string())?)
           .build().map_err(|e| e.to_string())?)
         // ヘルプメニュー
         .item(&SubmenuBuilder::new(&app, &texts.help)
@@ -814,8 +865,16 @@ async fn execute_after_effects_script(
     std::fs::write(&temp_file, script_content)
         .map_err(|e| format!("一時ファイル作成エラー: {}", e))?;
 
-    // Windows以外は未対応
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
+    {
+        let script_path = temp_file.clone();
+        let result = tauri::async_runtime::spawn_blocking(move || macos_ae::run_script(&script_path))
+            .await.map_err(|e| e.to_string()).and_then(|r| r);
+        let _ = std::fs::remove_file(&temp_file);
+        return result;
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
         let _ = std::fs::remove_file(&temp_file);
         return Err("このOS環境ではサポートされていません".to_string());
@@ -1266,62 +1325,79 @@ async fn get_timeremap_from_ae(ae_multi_instance_mode: bool) -> Result<String, S
 
     eprintln!("[get_timeremap_from_ae] JSX生成完了: {:?}", temp_file);
 
-    // 4. After Effectsを検出してJSXを実行 / 接続待機 / データ受信（Windows専用）
-    #[cfg(not(target_os = "windows"))]
+    // 4. After Effectsを検出してJSXを実行 / 接続待機 / データ受信
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
         let _ = std::fs::remove_file(&temp_file);
         return Err("このOS環境ではサポートされていません".to_string());
     }
 
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
     {
         use std::io::Read;
         use std::time::Duration;
-        let ae_info = match find_active_after_effects() {
-            Ok(info) => info,
-            Err(e) => {
-                let _ = std::fs::remove_file(&temp_file);
-                return Err(e);
-            }
-        };
-        eprintln!("[get_timeremap_from_ae] AE実行: {} (PID: {})", ae_info.exe_path, ae_info.pid);
-
-        if ae_multi_instance_mode {
-            // 複数インスタンス対応: メニュー自動化でスクリプトを実行
-            if let Some(hwnd_isize) = ae_info.hwnd {
-                if let Err(e) = run_jsx_via_menu(hwnd_isize, ae_info.pid, &temp_file.to_string_lossy()) {
-                    let _ = std::fs::remove_file(&temp_file);
-                    return Err(format!(
-                        "After Effectsへのスクリプト送信に失敗しました: {}\n\
-                         AEの環境設定で「スクリプトによるファイルへのアクセスとネットワークアクセスを許可」が\
-                         有効になっているか確認してください。",
-                        e
-                    ));
-                }
-                eprintln!("[get_timeremap_from_ae] メニュー自動化でJSX実行");
-            } else {
-                let _ = std::fs::remove_file(&temp_file);
-                return Err("After EffectsのウィンドウHWNDが取得できませんでした。AEが完全に起動しているか確認してください。".to_string());
-            }
-        } else {
-            // 従来方式: -r フラグでスクリプトを渡す（単一インスタンス時のみ動作）
-            // C-3: ブロッキングI/Oをspawn_blockingで包みTokioスレッドプールの枯渇を防ぐ
-            let exe_path = ae_info.exe_path.clone();
-            let temp_file_for_spawn = temp_file.clone();
-            let status = tauri::async_runtime::spawn_blocking(move || {
-                std::process::Command::new(&exe_path)
-                    .arg("-r")
-                    .arg(&temp_file_for_spawn)
-                    .status()
-            }).await.map_err(|e| e.to_string())?;
-            match status {
-                Ok(_) => eprintln!("[get_timeremap_from_ae] -r フラグでJSX実行"),
+        #[cfg(target_os = "windows")]
+        {
+            let ae_info = match find_active_after_effects() {
+                Ok(info) => info,
                 Err(e) => {
                     let _ = std::fs::remove_file(&temp_file);
-                    return Err(format!("After Effects起動エラー: {}", e));
+                    return Err(e);
                 }
-            }
+            };
+            eprintln!("[get_timeremap_from_ae] AE実行: {} (PID: {})", ae_info.exe_path, ae_info.pid);
+
+            if ae_multi_instance_mode {
+                // 複数インスタンス対応: メニュー自動化でスクリプトを実行
+                if let Some(hwnd_isize) = ae_info.hwnd {
+                    if let Err(e) = run_jsx_via_menu(hwnd_isize, ae_info.pid, &temp_file.to_string_lossy()) {
+                        let _ = std::fs::remove_file(&temp_file);
+                        return Err(format!(
+                            "After Effectsへのスクリプト送信に失敗しました: {}\n\
+                             AEの環境設定で「スクリプトによるファイルへのアクセスとネットワークアクセスを許可」が\
+                             有効になっているか確認してください。",
+                            e
+                        ));
+                    }
+                    eprintln!("[get_timeremap_from_ae] メニュー自動化でJSX実行");
+                } else {
+                    let _ = std::fs::remove_file(&temp_file);
+                    return Err("After EffectsのウィンドウHWNDが取得できませんでした。AEが完全に起動しているか確認してください。".to_string());
+                }
+            } else {
+                // 従来方式: -r フラグでスクリプトを渡す（単一インスタンス時のみ動作）
+                // C-3: ブロッキングI/Oをspawn_blockingで包みTokioスレッドプールの枯渇を防ぐ
+                let exe_path = ae_info.exe_path.clone();
+                let temp_file_for_spawn = temp_file.clone();
+                let status = tauri::async_runtime::spawn_blocking(move || {
+                    std::process::Command::new(&exe_path)
+                        .arg("-r")
+                        .arg(&temp_file_for_spawn)
+                        .status()
+                }).await.map_err(|e| e.to_string())?;
+                match status {
+                    Ok(_) => eprintln!("[get_timeremap_from_ae] -r フラグでJSX実行"),
+                    Err(e) => {
+                        let _ = std::fs::remove_file(&temp_file);
+                        return Err(format!("After Effects起動エラー: {}", e));
+                    }
+                }
         }
+
+        }
+        // Apple Events are synchronous. Start AE on another worker so the
+        // socket can be read while AE writes a large response.
+        #[cfg(target_os = "macos")]
+        let execution_rx = {
+            let script_path = temp_file.clone();
+            let (tx, rx) = std::sync::mpsc::channel();
+            std::thread::spawn(move || {
+                let result = macos_ae::run_script(&script_path);
+                let _ = std::fs::remove_file(&script_path);
+                let _ = tx.send(result);
+            });
+            rx
+        };
 
         // 5. 接続待機（タイムアウト付き）
         let accept_result = std::thread::spawn(move || {
@@ -1329,6 +1405,10 @@ async fn get_timeremap_from_ae(ae_multi_instance_mode: bool) -> Result<String, S
             let start = std::time::Instant::now();
             let timeout = Duration::from_secs(30);
             loop {
+                #[cfg(target_os = "macos")]
+                if let Ok(Err(e)) = execution_rx.try_recv() {
+                    return Err(e);
+                }
                 listener.set_nonblocking(true).ok();
                 match listener.accept() {
                     Ok((stream, _)) => return Ok(stream),
@@ -1440,6 +1520,7 @@ fn generate_get_timeremap_jsx(port: u16, nonce: &str) -> String {
             json += '{{';
             json += '"layerName":"' + escapeString(layer.name) + '",';
             json += '"layerIndex":' + layer.index + ',';
+            json += '"sourceDuration":' + layer.sourceDuration + ',';
             json += '"keyframes":[';
             
             for (var k = 0; k < layer.keyframes.length; k++) {{
@@ -1500,6 +1581,7 @@ fn generate_get_timeremap_jsx(port: u16, nonce: &str) -> String {
             result.push({{
                 name: layer.name,
                 index: layer.index,
+                sourceDuration: layer.source ? layer.source.duration : comp.duration,
                 keyframes: keyframes
             }});
         }}
@@ -1530,7 +1612,9 @@ pub fn run() {
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_fs::init())
     .manage(menu_items)
+    .manage(Mutex::new(OpenFiles::default()))
     .invoke_handler(tauri::generate_handler![
+        frontend_ready,
         save_file,
         load_file,
         load_binary_file,
@@ -1567,27 +1651,30 @@ pub fn run() {
       };
 
       // ネイティブメニューバーの構築
-      let menu = MenuBuilder::new(app)
+      let menu = MenuBuilder::new(app);
+      #[cfg(target_os = "macos")]
+      let menu = menu.item(&macos_app_menu(app.handle(), &MenuTexts::new("ja"))?);
+      let menu = menu
         // ファイルメニュー
         .item(&SubmenuBuilder::new(app, "ファイル")
-          .item(&MenuItemBuilder::new("新規作成").id("new-sheet").accelerator("Ctrl+N").build(app)?)
-          .item(&MenuItemBuilder::new("開く").id("open-file").accelerator("Ctrl+O").build(app)?)
+          .item(&MenuItemBuilder::new("新規作成").id("new-sheet").accelerator("CmdOrCtrl+N").build(app)?)
+          .item(&MenuItemBuilder::new("開く").id("open-file").accelerator("CmdOrCtrl+O").build(app)?)
           .separator()
-          .item(&MenuItemBuilder::new("保存").id("save-file").accelerator("Ctrl+S").build(app)?)
-          .item(&MenuItemBuilder::new("名前を付けて保存...").id("save-as-file").accelerator("Ctrl+Shift+S").build(app)?)
-          .item(&MenuItemBuilder::new("ExtendScriptとして出力").id("export-jsx").accelerator("Ctrl+Shift+E").build(app)?)
+          .item(&MenuItemBuilder::new("保存").id("save-file").accelerator("CmdOrCtrl+S").build(app)?)
+          .item(&MenuItemBuilder::new("名前を付けて保存...").id("save-as-file").accelerator("CmdOrCtrl+Shift+S").build(app)?)
+          .item(&MenuItemBuilder::new("ExtendScriptとして出力").id("export-jsx").accelerator("CmdOrCtrl+Shift+E").build(app)?)
           .separator()
-          .item(&MenuItemBuilder::new("閉じる").id("close-file").accelerator("Ctrl+W").build(app)?)
-          .item(&MenuItemBuilder::new("すべてのシートを閉じる").id("close-all-sheets").accelerator("Ctrl+Shift+W").build(app)?)
+          .item(&MenuItemBuilder::new("閉じる").id("close-file").accelerator("CmdOrCtrl+W").build(app)?)
+          .item(&MenuItemBuilder::new("すべてのシートを閉じる").id("close-all-sheets").accelerator("CmdOrCtrl+Shift+W").build(app)?)
           .separator()
-          .item(&MenuItemBuilder::new("印刷...").id("print-sheet").accelerator("Ctrl+P").build(app)?)
+          .item(&MenuItemBuilder::new("印刷...").id("print-sheet").accelerator("CmdOrCtrl+P").build(app)?)
           .separator()
           .item(&PredefinedMenuItem::quit(app, Some("終了"))?)
           .build()?)
         // 編集メニュー
         .item(&SubmenuBuilder::new(app, "編集")
-          .item(&MenuItemBuilder::new("元に戻す").id("undo").accelerator("Ctrl+Z").build(app)?)
-          .item(&MenuItemBuilder::new("やり直し").id("redo").accelerator("Ctrl+Y").build(app)?)
+          .item(&MenuItemBuilder::new("元に戻す").id("undo").accelerator("CmdOrCtrl+Z").build(app)?)
+          .item(&MenuItemBuilder::new("やり直し").id("redo").accelerator(if cfg!(target_os = "macos") { "Cmd+Shift+Z" } else { "Ctrl+Y" }).build(app)?)
           .separator()
           .item(&create_check_item("reopen-last-file", "起動時に前回のシート状態を復元する", false)?)
           .separator()
@@ -1603,16 +1690,16 @@ pub fn run() {
           .build()?)
         // シートメニュー
         .item(&SubmenuBuilder::new(app, "シート")
-          .item(&MenuItemBuilder::new("After Effectsに送信").id("send-to-ae").accelerator("Ctrl+E").build(app)?)
-          .item(&MenuItemBuilder::new("After Effectsからタイムリマップを取得").id("get-from-ae").accelerator("Ctrl+I").build(app)?)
+          .item(&MenuItemBuilder::new("After Effectsに送信").id("send-to-ae").accelerator("CmdOrCtrl+E").build(app)?)
+          .item(&MenuItemBuilder::new("After Effectsからタイムリマップを取得").id("get-from-ae").accelerator("CmdOrCtrl+I").build(app)?)
           .separator()
-          .item(&MenuItemBuilder::new("シート設定").id("sheet-settings").accelerator("Ctrl+,").build(app)?)
+          .item(&MenuItemBuilder::new("シート設定").id("sheet-settings").accelerator("CmdOrCtrl+,").build(app)?)
           .item(&create_check_item("show-new-sheet-dialog", "新規シート作成時にダイアログを表示", true)?)
           .separator()
-          .item(&MenuItemBuilder::new("尺を変更").id("change-duration").accelerator("Ctrl+Shift+D").build(app)?)
-          .item(&MenuItemBuilder::new("フレームレートを変更").id("change-fps").accelerator("Ctrl+Shift+F").build(app)?)
-          .item(&MenuItemBuilder::new("ページ辺りのコマ数を変更").id("change-frame-page").accelerator("Ctrl+Shift+P").build(app)?)
-          .item(&MenuItemBuilder::new("列数を変更").id("change-max-columns").accelerator("Ctrl+Shift+C").build(app)?)
+          .item(&MenuItemBuilder::new("尺を変更").id("change-duration").accelerator("CmdOrCtrl+Shift+D").build(app)?)
+          .item(&MenuItemBuilder::new("フレームレートを変更").id("change-fps").accelerator("CmdOrCtrl+Shift+F").build(app)?)
+          .item(&MenuItemBuilder::new("ページ辺りのコマ数を変更").id("change-frame-page").accelerator("CmdOrCtrl+Shift+P").build(app)?)
+          .item(&MenuItemBuilder::new("列数を変更").id("change-max-columns").accelerator("CmdOrCtrl+Shift+C").build(app)?)
           .separator()
           .item(&MenuItemBuilder::new("列名を初期化").id("reset-column-names").build(app)?)
           .separator()
@@ -1654,7 +1741,7 @@ pub fn run() {
             .item(&create_check_item("language-en", "English", false)?)
             .build()?)
           .separator()
-          .item(&MenuItemBuilder::new("ページを再読み込み").id("reload-page").accelerator("Ctrl+Shift+R").build(app)?)
+          .item(&MenuItemBuilder::new("ページを再読み込み").id("reload-page").accelerator("CmdOrCtrl+Shift+R").build(app)?)
           .build()?)
         // ヘルプメニュー
         .item(&SubmenuBuilder::new(app, "ヘルプ")
@@ -1681,37 +1768,14 @@ pub fn run() {
 
       app.set_menu(menu)?;
 
-      // コマンドライン引数からファイルパスを取得（ファイル関連付けからの起動時）
-      let args: Vec<String> = std::env::args().collect();
-      if args.len() > 1 {
-        let file_path = args[1].clone();
-        if validate_file_path(&file_path).is_ok() {
-          eprintln!("[起動] ファイル関連付けからの起動: {}", file_path);
-          // ウィンドウの準備ができたらイベントでファイルパスを送信
-          let app_handle = app.handle().clone();
-          std::thread::spawn(move || {
-            // メインウィンドウ生成を待つ（最大5秒、100ms間隔でポーリング）
-            for _ in 0..50 {
-              if app_handle.get_webview_window("main").is_some() {
-                // JSリスナー登録完了を待つ（ウィンドウ生成後もスクリプト読み込みに時間がかかる）
-                std::thread::sleep(std::time::Duration::from_millis(500));
-                if let Err(e) = app_handle.emit("open-file", file_path.clone()) {
-                  eprintln!("[起動] open-file emit失敗: {}", e);
-                }
-                return;
-              }
-              std::thread::sleep(std::time::Duration::from_millis(100));
-            }
-            eprintln!("[起動] open-file emit タイムアウト");
-          });
-        } else {
-          eprintln!("[起動] 不正なファイルパスを拒否: {}", file_path);
-        }
+      for file_path in std::env::args().skip(1) {
+        open_associated_file(app.handle(), file_path);
       }
 
       // メニューイベントハンドラ
       app.on_menu_event(move |app, event| {
         let menu_id = event.id().as_ref();
+        let menu_id = if menu_id == "app-about" { "show-about" } else { menu_id };
         
         // 最新のMenuItemsを取得（Arc<MenuItems>として登録されている）
         let menu_items_state = app.state::<Arc<MenuItems<tauri::Wry>>>();
@@ -1890,6 +1954,21 @@ pub fn run() {
 
       Ok(())
     })
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    .build(tauri::generate_context!())
+    .expect("error while building tauri application")
+    .run(|app, event| {
+      #[cfg(target_os = "macos")]
+      if let tauri::RunEvent::Opened { urls } = event {
+        for url in urls {
+          if let Ok(path) = url.to_file_path() {
+            open_associated_file(app, path.to_string_lossy().into_owned());
+          }
+        }
+        if let Some(window) = app.get_webview_window("main") {
+          let _ = window.set_focus();
+        }
+      }
+      #[cfg(not(target_os = "macos"))]
+      let _ = (app, event);
+    });
 }

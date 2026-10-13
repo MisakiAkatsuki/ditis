@@ -29,6 +29,10 @@ DiTiS is a desktop application that digitizes the timesheets used in anime produ
 
 Download the latest installer from the [Releases](https://github.com/MisakiAkatsuki/ditis/releases) page.
 
+On macOS, choose the Apple Silicon (`*_aarch64.dmg`) or Intel (`*_x64.dmg`) build and copy DiTiS to Applications.
+Use `Command (⌘)` for the `Ctrl` shortcuts below. Redo is `Cmd+Shift+Z`, and multiple cell selection uses `Cmd+click`.
+See [macOS validation](MACOS.md) for development and verification steps.
+
 ---
 
 ## Keyboard Shortcuts
@@ -230,8 +234,9 @@ Download the latest installer from the [Releases](https://github.com/MisakiAkats
 ### Direct Send (`Ctrl+E`)
 Sends timesheet data to the active composition in AE.
 
-- After Effects must be running (**Windows only**)
-- If multiple AE instances exist, the foreground one is used
+- After Effects must be running (**Windows / macOS**)
+- On Windows, if multiple AE instances exist, the foreground one is used
+- On macOS, keep only one AE application running. Allow DiTiS to control AE when macOS requests Automation permission, and enable AE's “Allow Scripts To Write Files And Access Network” setting
 - When no layer is selected, applies automatically to all AVLayers (excluding cameras and lights)
 - Automatically converts full-width alphabetic layer names to half-width for matching
 - Displays a warning if there is an FPS mismatch
