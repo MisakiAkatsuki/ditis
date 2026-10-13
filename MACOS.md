@@ -12,8 +12,10 @@ JavaScript for Automation. It does not publish a release.
   in DiTiS/STS/TDTS/XDTS formats,
   new sheets, tabs, closing, print layout and help. Native IPC and file dialogs
   are mocked. Set `CHROME_PATH` if Chrome is installed in a different location.
-- PR CI compiles the Tauri application for Apple Silicon and Intel without
-  bundling, signing, creating tags or uploading releases.
+- PR CI compiles Apple Silicon and Intel in one macOS job; the Windows job
+  runs unit tests and native UI comparisons. Stale runs are cancelled, and
+  documentation-only changes do not trigger CI. No bundles, signing, tags or
+  releases are created. The Chromium harness above is also available locally.
 - Windows CI runs the same basic-operation expectations through `tauri-driver`
   in the compiled app's WebView2, using Control instead of Command. File-dialog
   selection, confirmation and printing are bypassed, but file save/load uses
