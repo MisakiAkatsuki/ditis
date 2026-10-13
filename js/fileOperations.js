@@ -492,6 +492,8 @@ async function closeFileByIndex(index) {
     const sheet = AppState.sheets[index];
     if (!sheet) return;
     const sheetName = sheet.name;
+
+    if (AppState.editingCell) finishEditing(true, true);
     
     // 確認ダイアログ
     const confirmed = await showConfirmDialog(
@@ -523,6 +525,8 @@ async function closeFileByIndex(index) {
  * すべてのシートを閉じて初期化する
  */
 async function closeAllSheets() {
+    if (AppState.editingCell) finishEditing(true, true);
+
     // 確認ダイアログ
     const confirmed = await showConfirmDialog(
         'すべてのシートを閉じますか？\n保存していないデータは失われます。'
@@ -553,6 +557,10 @@ async function closeAllSheets() {
  * 新規シートを作成（オプションでダイアログ表示）
  */
 async function createNewSheetWithPrompt() {
+    // Native menu actions can keep the old cell input focused. Commit its value
+    // before changing currentSheetIndex, including creation without a dialog.
+    if (AppState.editingCell) finishEditing(true, true);
+
     if (AppState.showNewSheetDialog) {
         // ダイアログを表示して作成
         const sheet = await createNewSheetWithDialog();
@@ -589,6 +597,8 @@ async function loadFileFromPath(filePath) {
         console.warn('[loadFileFromPath] Tauri環境でのみ動作します');
         return;
     }
+
+    if (AppState.editingCell) finishEditing(true, true);
     
     try {
         debugLog('ファイル', `ファイル関連付けから読み込み: ${filePath}`);

@@ -13,6 +13,7 @@ async function app() {
     const w = dom.window;
     windows.push(w);
     await new Promise(resolve => w.addEventListener('load', resolve));
+    w.structuredClone = structuredClone;
     w.matchMedia = () => ({ matches: false, addEventListener() {}, addListener() {} });
     w.HTMLElement.prototype.scrollIntoView = function () {};
     w.console = { ...console, log() {}, warn() {} };
@@ -106,5 +107,62 @@ describe('real cell editor across spreadsheet rendering', () => {
         expect(w.AppState.editingCell).toBeNull();
         expect(w.getCurrentSheet()).toBe(other);
         expect(w.getCellElement(1, 'L1').querySelector('input')).toBeNull();
+    });
+
+    it('commits to the original sheet before a native-menu new sheet without a dialog', async () => {
+        const { w, sheet, key, tick } = await app();
+        w.AppState.showNewSheetDialog = false;
+        key('1');
+        w.renderSpreadsheetImmediate(true);
+        key('2');
+        await w.handleMenuEvent('new-sheet');
+        tick();
+        const other = w.getCurrentSheet();
+        expect(other).not.toBe(sheet);
+        expect(sheet.data[1].L1).toBe('12');
+        expect(other.data[1].L1).toBe('');
+        expect(w.AppState.editingCell).toBeNull();
+        expect(w.getCellElement(1, 'L1').querySelector('input')).toBeNull();
+        const savedEdit = w.AppState.history.find(state => state.label === 'セル編集');
+        expect(savedEdit.sheetIndex).toBe(0);
+        expect(savedEdit.sheetSnapshot.data[1].L1).toBe('12');
+    });
+
+    it('commits before opening an associated file while the editor is focused', async () => {
+        const { w, sheet, key, tick } = await app();
+        const loaded = { name: 'Loaded', fps: 24, frames: 3, visibleRows: 3,
+            layers: [{ id: 'L1', name: 'A' }], data: { 1: { L1: '8' }, 2: { L1: '' }, 3: { L1: '' } } };
+        w.TauriAPI = { isRunningInTauri: () => true, loadFile: async () => JSON.stringify({ sheets: [loaded] }) };
+        key('1');
+        w.renderSpreadsheetImmediate(true);
+        key('2');
+        await w.loadFileFromPath('C:\\カット\\受信.ditis');
+        tick();
+        expect(sheet.data[1].L1).toBe('12');
+        expect(w.getCurrentSheet().data[1].L1).toBe('8');
+        expect(w.AppState.editingCell).toBeNull();
+    });
+
+    it.each(['closeFile', 'closeAllSheets'])('preserves input on cancellation and clears its editor when %s closes the sheet', async action => {
+        const { w, sheet, key, tick } = await app();
+        w.createNewSheet('Other');
+        w.confirm = () => false;
+        key('1');
+        w.renderSpreadsheetImmediate(true);
+        key('2');
+        await w[action]();
+        tick();
+        expect(w.getCurrentSheet()).toBe(sheet);
+        expect(sheet.data[1].L1).toBe('12');
+        expect(w.AppState.editingCell).toBeNull();
+        w.confirm = () => true;
+        key('3');
+        w.renderSpreadsheetImmediate(true);
+        key('4');
+        await w[action]();
+        tick();
+        expect(w.AppState.editingCell).toBeNull();
+        expect(w.getCellElement(1, 'L1').querySelector('input')).toBeNull();
+        expect(w.getCurrentSheet().data[1].L1).toBe('');
     });
 });
