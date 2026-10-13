@@ -99,7 +99,7 @@ rebuilt and checked separately below; it does not change the AE bridge.
   tests execute the actual send/receive functions and verify that actionable
   backend details reach the dialog instead of becoming “AE not found”.
 
-Remaining hardware checks include large AE sheet round trips, denied Automation permission, multiple running
+Remaining hardware checks include denied Automation permission, multiple running
 AE versions and Intel hardware. The above results are not a claim that every
 checklist item or every AE version has passed.
 
@@ -187,9 +187,36 @@ Blinds effect values or alter the separate Blinds-mode limitation.
   hold expansion, trailing blanks and legacy payloads.
 - Full Vitest: 370 passed, 7 existing skipped. Apple Silicon debug app builds.
 - On AE 2026, the 8-layer, 1,440-frame fixture sent and applied successfully
-  using `d22b741`. The Mac locked before receive; the 11,520-cell native round
-  trip and the fixed app's native receive remain pending. A successful unit
-  test or build is not a substitute for that check.
+  using `d22b741`. Native receive/save with that same old process produced
+  exactly 680 mismatches: every blank became cel 61.
+- After verifying the old process had stopped and launching the rebuilt
+  `7031b80` app (production code unchanged at `18f4b48`), native receive/save
+  matched all 11,520 cells, including the 680 blanks. FPS and frame count also
+  matched. Comparison maps unique layer names because AE returned H through A,
+  expands hold marks and pads trailing blanks. The importer's 18 extra empty
+  columns were checked separately; identical column order/count is not claimed.
+- Independent AE property sampling matched all 11,520 expected values within
+  1e-6 seconds (maximum error 5.564e-8 seconds), with 805 keys per layer. This
+  validates the earlier `d22b741` send/apply; the fixed build was tested for
+  receive/save against those same AE values.
+- A separate 1-second, 30fps comp with 2-second and 4-second source layers
+  imported valid cels 60 and 120 plus 20 blank cells correctly: all 60 cells
+  matched after native receive/save. These keys were prepared directly in AE,
+  so this is a receive-boundary test rather than another send round trip.
+- CI run 38309169219 at `18f4b48` passed frontend, both Mac architecture builds
+  and Windows including the main-baseline comparison. Earlier intermittent
+  Windows input failures remain unexplained; diagnostic logging does not
+  change input timing or expected values.
+
+An additional recovery observation remains open: receiving while a validation
+helper's AE error dialog was open timed out. After the AE dialog was dismissed,
+a later receive/save succeeded, but a timeout alert remained visible and did
+not disappear after OK/Return/Escape. A process sample showed the main thread
+waiting in the normal AppKit event loop, not an established deadlock. Normal
+Command+Q and restart recovered, and another receive/save then succeeded.
+The helper error itself came from removing all time-remap keys before adding
+replacements; retaining keys until replacements exist fixed the helper.
+The persistent-alert cause and an isolated reproduction still need investigation.
 
 ## Limits
 
