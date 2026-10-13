@@ -85,7 +85,11 @@ if (target === '--aggregate') {
             if (!process.env[name]?.trim() || (name.startsWith('APPLE_') && !appleSigning)) delete process.env[name];
         }
         const override = {
-            build: { frontendDist: relative(join(root, 'src-tauri'), frontend), beforeBuildCommand: '' },
+            // A string such as C:\\... is parsed as a URL by Tauri. path.relative
+            // also returns an absolute path when the workspace and TEMP are on
+            // different Windows drives. The array selects embedded assets and
+            // Tauri recursively embeds this directory with its relative keys.
+            build: { frontendDist: [frontend], beforeBuildCommand: '' },
             bundle: { createUpdaterArtifacts: updaterSigning, ...(mac && !appleSigning ? { macOS: { signingIdentity: '-' } } : {}) },
         };
         report.updater = { requested: updaterSigning, verified: false, limitation: updaterSigning ? null : 'Updater signing credentials were unavailable; updater artifacts were disabled.' };
