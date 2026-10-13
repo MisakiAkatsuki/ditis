@@ -110,6 +110,11 @@ describe('official XDTS and legacy TDTS import', () => {
         t.fields[1].tracks[0].frames = [entry(0, '1'), entry(-1, '99'), entry(12, '98')];
         const sheet = load(ctx, 'TDTS', { version: 5, timeTables: [t] });
         expect([1, 12].map(f => val(sheet, f))).toEqual(['1', '1']);
+        // Head/foot dummy CELL values must not hide the real ACTION field.
+        t.fields.push({ fieldId: 4, tracks: [{ trackNo: 2, frames: [entry(-1, '99'), entry(12, '98')] }] });
+        const action = load(ctx, 'TDTS', { version: 5, timeTables: [t] });
+        expect(action.timesheetSource.fieldId).toBe(0);
+        expect([1, 12].map(f => val(action, f))).toEqual(['1', '1']);
     });
     it('rejects negative XDTS frames without partially importing tabs', () => {
         const ctx = app(); const t = table(); t.fields[1].tracks[0].frames.push(entry(-1, '99'));

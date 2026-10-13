@@ -192,8 +192,9 @@ function importExchangeTimesheet(fileContent, fileName, format) {
                 const table = document.timeTables[tableIndex];
                 if (!Number.isInteger(table.duration) || table.duration < 1) throw new Error('durationが不正です');
                 const fields = table.fields || [];
-                const hasContent = f => f?.tracks?.some(t => t.frames?.some(frame => frame.data?.some(d =>
-                    d.id === 0 && d.values?.some(v => v !== '' && v !== 'SYMBOL_NULL_CELL'))));
+                const hasContent = f => f?.tracks?.some(t => t.frames?.some(frame =>
+                    frame.frame >= 0 && frame.frame < table.duration && frame.data?.some(d =>
+                        d.id === 0 && d.values?.some(v => v !== '' && v !== 'SYMBOL_NULL_CELL'))));
                 const cell = fields.find(f => f.fieldId === 4);
                 const action = fields.find(f => f.fieldId === 0);
                 const field = format === 'TDTS' && hasContent(cell) ? cell : action || cell;
