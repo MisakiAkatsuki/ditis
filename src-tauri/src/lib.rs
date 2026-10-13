@@ -1,5 +1,7 @@
 #[cfg(target_os = "macos")]
 mod macos_ae;
+mod open_files;
+use open_files::{OpenFileDelivery, OpenFiles};
 
 use tauri::menu::{MenuBuilder, SubmenuBuilder, MenuItemBuilder, PredefinedMenuItem, CheckMenuItemBuilder, CheckMenuItem};
 use tauri::{Manager, Runtime, Emitter};
@@ -288,34 +290,37 @@ impl<R: Runtime> MenuItems<R> {
 }
 
 
-#[derive(Default)]
-struct OpenFiles {
-    ready: bool,
-    paths: Vec<String>,
-}
-
 fn open_associated_file(app: &tauri::AppHandle, path: String) {
     if validate_file_path(&path).is_err() { return; }
     let state = app.state::<Mutex<OpenFiles>>();
-    let mut files = state.lock().unwrap_or_else(|e| e.into_inner());
-    if files.ready {
-        if let Err(e) = app.emit("open-file", path) {
+    let delivery = state.lock().unwrap_or_else(|e| e.into_inner()).enqueue(path);
+    if let Some(delivery) = delivery {
+        // Emitting is not consumption: retain files until the active page acknowledges them.
+        if let Err(e) = app.emit("open-file", delivery) {
             eprintln!("open-file emit failed: {e}");
         }
-    } else {
-        files.paths.push(path);
     }
 }
 
 #[tauri::command]
-fn frontend_ready(app: tauri::AppHandle) -> Result<(), String> {
+fn frontend_ready(app: tauri::AppHandle) -> OpenFileDelivery {
     let state = app.state::<Mutex<OpenFiles>>();
-    let mut files = state.lock().unwrap_or_else(|e| e.into_inner());
-    for path in files.paths.drain(..) {
-        app.emit("open-file", path).map_err(|e| e.to_string())?;
+    let delivery = state.lock().unwrap_or_else(|e| e.into_inner()).frontend_ready();
+    delivery
+}
+
+#[tauri::command]
+fn acknowledge_open_file(app: tauri::AppHandle, generation: u64, id: u64) -> bool {
+    let state = app.state::<Mutex<OpenFiles>>();
+    let acknowledged = state.lock().unwrap_or_else(|e| e.into_inner()).acknowledge(generation, id);
+    acknowledged
+}
+
+fn associated_file_navigation_started(webview: &tauri::Webview) {
+    if webview.label() == "main" {
+        let state = webview.state::<Mutex<OpenFiles>>();
+        state.lock().unwrap_or_else(|e| e.into_inner()).navigation_started();
     }
-    files.ready = true;
-    Ok(())
 }
 
 #[cfg(target_os = "macos")]
@@ -1528,6 +1533,13 @@ fn generate_get_timeremap_jsx(port: u16, nonce: &str) -> String {
                 var kf = layer.keyframes[k];
                 json += '{{"time":' + kf.time + ',"value":' + kf.value + '}}';
             }}
+
+            json += '],"blankKeyframes":[';
+            for (var b = 0; b < layer.blankKeyframes.length; b++) {{
+                if (b > 0) json += ',';
+                var blank = layer.blankKeyframes[b];
+                json += '{{"time":' + blank.time + ',"value":' + blank.value + '}}';
+            }}
             
             json += ']}}';
         }}
@@ -1577,12 +1589,32 @@ fn generate_get_timeremap_jsx(port: u16, nonce: &str) -> String {
                     value: timeRemap.keyValue(k)
                 }});
             }}
+
+            // Only DiTiS-owned blanks participate; preserve unrelated effects.
+            var blankKeyframes = [];
+            var effects = layer.property("ADBE Effect Parade");
+            if (layer.effectsActive !== false && effects) {{
+                for (var e = 1; e <= effects.numProperties; e++) {{
+                    var effect = effects.property(e);
+                    if (effect.matchName !== "ADBE Venetian Blinds" ||
+                        effect.name !== "DiTiS Empty Cells" || !effect.enabled) continue;
+                    var completion = effect.property("ADBE Venetian Blinds-0001");
+                    if (!completion) continue;
+                    blankKeyframes.push({{time: 0, value: completion.valueAtTime(0, false)}});
+                    for (var b = 1; b <= completion.numKeys; b++) {{
+                        if (completion.keyTime(b) <= 0) continue;
+                        blankKeyframes.push({{time: completion.keyTime(b), value: completion.keyValue(b)}});
+                    }}
+                    break;
+                }}
+            }}
             
             result.push({{
                 name: layer.name,
                 index: layer.index,
                 sourceDuration: layer.source ? layer.source.duration : comp.duration,
-                keyframes: keyframes
+                keyframes: keyframes,
+                blankKeyframes: blankKeyframes
             }});
         }}
         
@@ -1613,8 +1645,21 @@ pub fn run() {
     .plugin(tauri_plugin_fs::init())
     .manage(menu_items)
     .manage(Mutex::new(OpenFiles::default()))
+    .plugin(tauri::plugin::Builder::<tauri::Wry, ()>::new("associated-file-navigation")
+        .on_navigation(|webview, _url| {
+            associated_file_navigation_started(webview);
+            true
+        })
+        .build())
+    .on_page_load(|webview, payload| {
+        if payload.event() == tauri::webview::PageLoadEvent::Started {
+            // Also cover reloads without a platform navigation callback.
+            associated_file_navigation_started(webview);
+        }
+    })
     .invoke_handler(tauri::generate_handler![
         frontend_ready,
+        acknowledge_open_file,
         save_file,
         load_file,
         load_binary_file,

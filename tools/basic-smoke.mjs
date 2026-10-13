@@ -46,6 +46,8 @@ try {
                 case 'load_binary_file': return window.smokeFiles[args.path];
                 case 'check_for_updates': return null;
                 case 'get_current_version': return '26.324.0';
+                case 'frontend_ready': return { generation: 0, files: [] };
+                case 'acknowledge_open_file': return true;
                 default: return;
             }
         } };

@@ -112,6 +112,18 @@ function generateJSXSingleComp() {
     jsx += '  var ADBE_EFFECT_PARADE = "ADBE Effect Parade";\n';
     jsx += '  var ADBE_VENETIAN_BLINDS = "ADBE Venetian Blinds";\n';
     jsx += '  var ADBE_VENETIAN_BLINDS_0001 = "ADBE Venetian Blinds-0001";\n';
+    jsx += '  var DITIS_BLINDS_NAME = "DiTiS Empty Cells";\n';
+    jsx += '  function getDitisBlind(layer, create) {\n';
+    jsx += '    var effects = layer.property(ADBE_EFFECT_PARADE);\n';
+    jsx += '    for (var e = 1; e <= effects.numProperties; e++) {\n';
+    jsx += '      var effect = effects.property(e);\n';
+    jsx += '      if (effect.matchName === ADBE_VENETIAN_BLINDS && effect.name === DITIS_BLINDS_NAME) return effect;\n';
+    jsx += '    }\n';
+    jsx += '    if (!create) return null;\n';
+    jsx += '    var effect = effects.addProperty(ADBE_VENETIAN_BLINDS);\n';
+    jsx += '    effect.name = DITIS_BLINDS_NAME;\n';
+    jsx += '    return effect;\n';
+    jsx += '  }\n';
     jsx += '  \n';
     
     // 多言語テキストを埋め込み
@@ -538,8 +550,10 @@ function generateJSXSingleComp() {
     jsx += '      if (remapEnable && layer.property(ADBE_TIME_REMAPPING) != null) {\n';
     jsx += '        layer.timeRemapEnabled = false;\n';
     jsx += '      }\n';
-    jsx += '      if (layer.property(ADBE_EFFECT_PARADE).property(ADBE_VENETIAN_BLINDS) != null) {\n';
-    jsx += '        layer.property(ADBE_EFFECT_PARADE).property(ADBE_VENETIAN_BLINDS).remove();\n';
+    jsx += '      var previousBlind = getDitisBlind(layer);\n';
+    jsx += '      while (previousBlind != null) {\n';
+    jsx += '        previousBlind.remove();\n';
+    jsx += '        previousBlind = getDitisBlind(layer);\n';
     jsx += '      }\n';
     jsx += '      \n';
     jsx += '      if (remapEnable) {\n';
@@ -616,8 +630,8 @@ function generateJSXSingleComp() {
     jsx += '            // ブラインド選択時\n';
     jsx += '            blindEnabled = false;\n';
     jsx += '            needsBlinds = true;\n';
-    jsx += '            if (layer.property(ADBE_EFFECT_PARADE).property(ADBE_VENETIAN_BLINDS) == null) {\n';
-    jsx += '              layer.property(ADBE_EFFECT_PARADE).addProperty(ADBE_VENETIAN_BLINDS);\n';
+    jsx += '            if (getDitisBlind(layer) == null) {\n';
+    jsx += '              getDitisBlind(layer, true);\n';
     jsx += '            }\n';
     jsx += '            blindTimes.push(frameIndex / fps);\n';
     jsx += '            blindValues.push(100);\n';
@@ -634,14 +648,14 @@ function generateJSXSingleComp() {
     jsx += '          }\n';
     jsx += '          \n';
     jsx += '          if (blindEnabled == false) {\n';
-    jsx += '            if (layer.property(ADBE_EFFECT_PARADE).property(ADBE_VENETIAN_BLINDS) != null) {\n';
+    jsx += '            if (getDitisBlind(layer) != null) {\n';
     jsx += '              blindTimes.push(frameIndex / fps);\n';
     jsx += '              blindValues.push(0);\n';
     jsx += '            }\n';
     jsx += '            blindEnabled = true;\n';
     jsx += '          } else {\n';
-    jsx += '            if (layer.property(ADBE_EFFECT_PARADE).property(ADBE_VENETIAN_BLINDS) == null) {\n';
-    jsx += '              layer.property(ADBE_EFFECT_PARADE).addProperty(ADBE_VENETIAN_BLINDS);\n';
+    jsx += '            if (getDitisBlind(layer) == null) {\n';
+    jsx += '              getDitisBlind(layer, true);\n';
     jsx += '              blindTimes.push(frameIndex / fps);\n';
     jsx += '              blindValues.push(0);\n';
     jsx += '            }\n';
@@ -664,8 +678,8 @@ function generateJSXSingleComp() {
     jsx += '            // コンポジション以外、またはオプション無効：ブラインドを使用\n';
     jsx += '            if (blindEnabled == true) {\n';
     jsx += '              needsBlinds = true;\n';
-    jsx += '              if (layer.property(ADBE_EFFECT_PARADE).property(ADBE_VENETIAN_BLINDS) == null) {\n';
-    jsx += '                layer.property(ADBE_EFFECT_PARADE).addProperty(ADBE_VENETIAN_BLINDS);\n';
+    jsx += '              if (getDitisBlind(layer) == null) {\n';
+    jsx += '                getDitisBlind(layer, true);\n';
     jsx += '              }\n';
     jsx += '              blindTimes.push(frameIndex / fps);\n';
     jsx += '              blindValues.push(100);\n';
@@ -687,7 +701,7 @@ function generateJSXSingleComp() {
     jsx += '      \n';
     jsx += '      // ブラインドエフェクトのキーフレーム設定\n';
     jsx += '      if (blindTimes.length > 0) {\n';
-    jsx += '        var blindProp = layer.property(ADBE_EFFECT_PARADE).property(ADBE_VENETIAN_BLINDS).property(ADBE_VENETIAN_BLINDS_0001);\n';
+    jsx += '        var blindProp = getDitisBlind(layer).property(ADBE_VENETIAN_BLINDS_0001);\n';
     jsx += '        \n';
     jsx += '        blindProp.setValuesAtTimes(blindTimes, blindValues);\n';
     jsx += '        \n';
@@ -698,7 +712,7 @@ function generateJSXSingleComp() {
     jsx += '        \n';
     jsx += '        // キーフレームが1つだけの場合はエフェクトを削除\n';
     jsx += '        if (blindProp.numKeys <= 1) {\n';
-    jsx += '          layer.property(ADBE_EFFECT_PARADE).property(ADBE_VENETIAN_BLINDS).remove();\n';
+    jsx += '          getDitisBlind(layer).remove();\n';
     jsx += '        }\n';
     jsx += '      }\n';
     jsx += '      \n';
@@ -890,6 +904,12 @@ async function importTimeremapData(data) {
         // 空セルの送り先は素材の末尾。旧ペイロードでは従来の判定を維持する。
         const sourceDuration = Number.isFinite(layer.sourceDuration) && layer.sourceDuration > 0
             ? layer.sourceDuration : data.duration;
+        const blankKeyframes = (layer.blankKeyframes || []).map(kf => ({
+            frame: Math.round(kf.time * fps) + 1, value: kf.value
+        })).sort((a, b) => a.frame - b.frame);
+        let blankIndex = 0;
+        let completion = blankKeyframes[0]?.value ?? 0;
+        let wasBlind = true;
         
         if (layer.keyframes && layer.keyframes.length > 0) {
             // キーフレームを時間順にソート
@@ -905,25 +925,32 @@ async function importTimeremapData(data) {
                 const endFrame = nextKf ? Math.round(nextKf.time * fps) : totalFrames;
                 
                 // 配置先コンポではなく、各素材の範囲外なら空セル。
-                const isBlind = kf.value >= sourceDuration;
+                const sourceIsBlank = kf.value >= sourceDuration;
                 
                 // セル値（タイムリマップ値をフレームに変換、0秒=コマ1）
-                const cellValue = isBlind ? '' : (Math.round(kf.value * fps) + 1).toString();
+                const cellValue = (Math.round(kf.value * fps) + 1).toString();
                 
                 // 開始フレームから次のキーフレームの直前まで値を設定
                 for (let frame = startFrame; frame <= endFrame && frame <= totalFrames; frame++) {
                     if (frame >= 1) {
+                        while (blankIndex < blankKeyframes.length && blankKeyframes[blankIndex].frame <= frame) {
+                            completion = blankKeyframes[blankIndex++].value;
+                        }
+                        const isBlind = sourceIsBlank || completion >= 100;
                         if (!newSheet.data[frame]) {
                             newSheet.data[frame] = {};
                         }
                         
-                        if (frame === startFrame) {
+                        if (isBlind) {
+                            newSheet.data[frame][layerId] = '';
+                        } else if (frame === startFrame || wasBlind) {
                             // キーフレーム位置には実際の値を設定
                             newSheet.data[frame][layerId] = cellValue;
                         } else {
                             // 継続フレームには「-」を設定（空セルは空のまま）
-                            newSheet.data[frame][layerId] = isBlind ? '' : '-';
+                            newSheet.data[frame][layerId] = '-';
                         }
+                        wasBlind = isBlind;
                     }
                 }
             }

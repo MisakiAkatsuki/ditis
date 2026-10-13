@@ -697,23 +697,48 @@ function addToRecentFiles(filePath) {
     }
 }
 
-// リスナーとシートが準備できるまでRust側でFinder/起動引数のファイルを保持する。
+// Rust keeps native open requests until this page has finished loading and acknowledged them.
 async function initializeFileOpenEvents() {
     if (!window.__TAURI__?.event || !window.__TAURI_INTERNALS__) return;
+    let active = true;
+    let generation = null;
+    let pending = Promise.resolve();
+    const scheduled = new Set();
+    const beforeReady = [];
     let lastOpenFilePath = null;
     let lastOpenFileTime = 0;
-    let pending = Promise.resolve();
-    await window.__TAURI__.event.listen('open-file', (event) => {
-        const now = Date.now();
-        // 同じファイルが1.5秒以内に再度開かれた場合は無視（重複イベント防止）
-        if (event.payload === lastOpenFilePath && now - lastOpenFileTime < 1500) return;
-        lastOpenFilePath = event.payload;
-        lastOpenFileTime = now;
-        const filePath = event.payload;
-        if (filePath && window.loadFileFromPath) {
-            // 複数ファイルを同時に受け取っても順番に読み込む。
-            pending = pending.then(() => window.loadFileFromPath(filePath)).catch(console.error);
+    const invoke = (command, args) => window.__TAURI_INTERNALS__.invoke(command, args);
+    const queueDelivery = delivery => {
+        if (!active || !delivery || !Array.isArray(delivery.files)) return;
+        if (generation === null) { beforeReady.push(delivery); return; }
+        if (delivery.generation !== generation) return;
+        for (const request of delivery.files) {
+            if (!request || typeof request.path !== 'string' || !Number.isSafeInteger(request.id) ||
+                scheduled.has(request.id)) continue;
+            scheduled.add(request.id);
+            pending = pending.then(async () => {
+                if (!active) return;
+                // Keep suppression of duplicate OS opens while consuming both request IDs.
+                if (request.path !== lastOpenFilePath || Date.now() - lastOpenFileTime >= 1500) {
+                    await window.loadFileFromPath(request.path);
+                    lastOpenFilePath = request.path;
+                    lastOpenFileTime = Date.now();
+                }
+                if (active) await invoke('acknowledge_open_file', { generation, id: request.id });
+            }).catch(console.error);
         }
-    });
-    await window.__TAURI_INTERNALS__.invoke('frontend_ready');
+    };
+    const unlisten = await window.__TAURI__.event.listen('open-file', event => queueDelivery(event.payload));
+    const stop = () => {
+        if (!active) return;
+        active = false;
+        Promise.resolve(unlisten?.()).catch(console.error);
+    };
+    window.addEventListener?.('pagehide', stop, { once: true });
+    window.addEventListener?.('beforeunload', stop, { once: true });
+    const delivery = await invoke('frontend_ready');
+    if (!active) return;
+    generation = delivery.generation;
+    queueDelivery(delivery);
+    beforeReady.forEach(queueDelivery);
 }

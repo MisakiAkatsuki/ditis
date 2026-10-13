@@ -16,11 +16,22 @@ function receiveFromAE(duration, layers) {
         frameRate: 30, duration, name: '検証コンポ',
         selectedLayers: layers.map((layer, i) => ({
             name: `原画 "${i + 1}"`, index: i + 1, source: { duration: layer.duration },
-            property: () => ({
-                numKeys: layer.keys.length,
-                keyTime: k => layer.keys[k - 1].time,
+            effectsActive: layer.effectsActive !== false,
+            property: name => name === 'ADBE Time Remapping' ? {
+                numKeys: layer.keys.length, keyTime: k => layer.keys[k - 1].time,
                 keyValue: k => layer.keys[k - 1].value,
-            }),
+            } : name === 'ADBE Effect Parade' ? {
+                numProperties: (layer.effects || []).length,
+                property: index => {
+                    const effect = layer.effects[index - 1];
+                    const keys = effect.keys || [];
+                    return { name: effect.name, matchName: effect.matchName || 'ADBE Venetian Blinds',
+                        enabled: effect.enabled !== false,
+                        property: () => ({ numKeys: keys.length, value: effect.value ?? keys[0]?.value ?? 0,
+                            valueAtTime: () => effect.value ?? keys[0]?.value ?? 0,
+                            keyTime: k => keys[k - 1].time, keyValue: k => keys[k - 1].value }) };
+                },
+            } : null,
         })),
     });
     let payload;
@@ -46,6 +57,61 @@ async function importData(data) {
     vm.runInContext(source('js/export.js'), ctx);
     await ctx.importTimeremapData(data);
     return state.sheets[0];
+}
+
+// Run the actual generated apply callback, without the unrelated ScriptUI dialog.
+function sendToAE(useTimeRemap, initialEffects = []) {
+    const sheet = { name: '往復', frames: 6, fps: 30, layers: [{ id: 'L1', name: 'A' }],
+        data: Object.fromEntries(['1', '1', '', '', '1', '2'].map((value, i) => [i + 1, { L1: value }])) };
+    const ctx = vm.createContext({ getCurrentSheet: () => sheet, getCurrentLanguage: () => 'ja',
+        AppState: { fps: 30 }, generateExtendScriptI18n: () => '  var i18n = {error:{},dialog:{}};\n' });
+    vm.runInContext(source('js/export.js'), ctx);
+    const jsx = ctx.generateJSXSingleComp();
+    const property = keys => ({ keys,
+        get numKeys() { return this.keys.length; },
+        removeKey(k) { this.keys.splice(k - 1, 1); },
+        setValuesAtTimes(times, values) {
+            times.forEach((time, i) => {
+                this.keys = this.keys.filter(k => k.time !== time);
+                this.keys.push({ time, value: values[i] });
+            });
+            this.keys.sort((a, b) => a.time - b.time);
+        },
+        setInterpolationTypeAtKey(k, type) { this.keys[k - 1].interpolation = type; },
+    });
+    const remap = property([]);
+    const effects = [];
+    const addEffect = input => {
+        const completion = property([...(input.keys || [])]);
+        const effect = { ...input, matchName: 'ADBE Venetian Blinds', enabled: true,
+            property: () => completion, completion,
+            remove: () => effects.splice(effects.indexOf(effect), 1) };
+        effects.push(effect); return effect;
+    };
+    initialEffects.forEach(addEffect);
+    const parade = { get numProperties() { return effects.length; },
+        property: key => typeof key === 'number' ? effects[key - 1]
+            : effects.find(effect => effect.name === key || effect.matchName === key) || null,
+        addProperty: () => addEffect({ name: 'Venetian Blinds' }) };
+    class CompItem {}
+    const layer = { name: 'A', index: 1, canSetTimeRemapEnabled: true,
+        source: Object.assign(new CompItem(), { duration: 2 }),
+        set timeRemapEnabled(value) {
+            if (value) remap.keys = [{ time: 0, value: 0 }, { time: 2, value: 2 }];
+        },
+        property: name => name === 'ADBE Time Remapping' ? remap : parade };
+    const app = { settings: { saveSetting() {} }, beginUndoGroup() {}, endUndoGroup() {} };
+    const callback = jsx.slice(jsx.indexOf('  okBtn.onClick = function()'), jsx.indexOf('  cancelBtn.onClick'));
+    const prelude = jsx.slice(jsx.indexOf('  var ADBE_TIME_REMAPPING'), jsx.indexOf('  var comp ='));
+    const columns = jsx.slice(jsx.indexOf('  var columnData = ['), jsx.indexOf('  var tsWin ='));
+    vm.runInNewContext(`${prelude}${columns}${callback}okBtn.onClick();`, {
+        app, CompItem, fps: 30, sortedLayers: [layer], dropdowns: [{ selection: { index: 1 } }],
+        comp: { numLayers: 1, layer: () => layer }, radioComp: { value: useTimeRemap },
+        markerCheck: { value: false }, precompCheck: { value: false }, tsWin: { close() {} }, okBtn: {},
+        KeyframeInterpolationType: { HOLD: 'hold' },
+    });
+    return { duration: 2, keys: remap.keys.map(({ time, value }) => ({ time, value })),
+        effects: effects.map(effect => ({ name: effect.name, keys: effect.completion.keys.map(({ time, value }) => ({ time, value })) })) };
 }
 
 describe('AE time-remap source duration', () => {
@@ -83,5 +149,60 @@ describe('AE time-remap source duration', () => {
         }] });
         expect(sheet.data[1].L1).toBe('1');
         expect(sheet.data[2].L1).toBe('');
+    });
+});
+
+describe('DiTiS-owned Venetian Blinds blanks', () => {
+    it.each([false, true])('round-trips generated blanks (time-remap method: %s) and retains unrelated effects', async method => {
+        const legacy = { name: 'Venetian Blinds', keys: [{ time: 0, value: 100 }] };
+        const artistic = { name: 'Transition', keys: [{ time: 0, value: 50 }] };
+        const sent = sendToAE(method, [legacy, artistic,
+            { name: 'DiTiS Empty Cells', keys: [{ time: 0, value: 100 }] }]);
+        expect(sent.effects.filter(effect => effect.name !== 'DiTiS Empty Cells')).toEqual([legacy, artistic]);
+        expect(sent.effects.filter(effect => effect.name === 'DiTiS Empty Cells')).toHaveLength(method ? 0 : 1);
+        const sheet = await importData(receiveFromAE(6 / 30, [sent]));
+        expect([1, 2, 3, 4, 5, 6].map(f => sheet.data[f].L1)).toEqual(['1', '-', '', '', '1', '2']);
+    });
+
+    it('restores blank transitions between time-remap keys and reopens the same cel', async () => {
+        const data = receiveFromAE(1, [{ duration: 2, keys: [
+            { time: 0, value: 0 }, { time: 5 / 30, value: 1 / 30 },
+        ], effects: [{ name: 'DiTiS Empty Cells', keys: [
+            { time: 0, value: 0 }, { time: 2 / 30, value: 100 }, { time: 4 / 30, value: 0 },
+        ] }] }]);
+        expect(data.layers[0].blankKeyframes).toEqual([
+            { time: 0, value: 0 }, { time: 2 / 30, value: 100 }, { time: 4 / 30, value: 0 },
+        ]);
+        const sheet = await importData(data);
+        expect([1, 2, 3, 4, 5, 6, 7].map(f => sheet.data[f].L1))
+            .toEqual(['1', '-', '', '', '1', '2', '-']);
+    });
+
+    it('keeps source-duration blanks hidden even after the owned effect opens', async () => {
+        const sheet = await importData(receiveFromAE(1, [{ duration: 2, keys: [
+            { time: 0, value: 2 }, { time: 4 / 30, value: 0 },
+        ], effects: [{ name: 'DiTiS Empty Cells', keys: [
+            { time: 0, value: 100 }, { time: 2 / 30, value: 0 },
+        ] }] }]));
+        expect([1, 2, 3, 4, 5, 6].map(f => sheet.data[f].L1))
+            .toEqual(['', '', '', '', '1', '-']);
+    });
+
+    it.each(['effect', 'layer', 'unowned', 'wrong effect'])('ignores a disabled or unrelated effect (%s)', async kind => {
+        const effect = { name: 'DiTiS Empty Cells', value: 100 };
+        if (kind === 'effect') effect.enabled = false;
+        if (kind === 'unowned') effect.name = 'Venetian Blinds';
+        if (kind === 'wrong effect') effect.matchName = 'ADBE Linear Wipe';
+        const data = receiveFromAE(1, [{ duration: 2, keys: [{ time: 0, value: 0 }],
+            effectsActive: kind !== 'layer', effects: [effect] }]);
+        expect(data.layers[0].blankKeyframes).toEqual([]);
+        const sheet = await importData(data);
+        expect([1, 2, 30].map(f => sheet.data[f].L1)).toEqual(['1', '-', '-']);
+    });
+
+    it('reads a constant owned completion value with no effect keys', async () => {
+        const sheet = await importData(receiveFromAE(1, [{ duration: 2, keys: [{ time: 0, value: 0 }],
+            effects: [{ name: 'DiTiS Empty Cells', value: 100 }] }]));
+        expect([1, 30].map(f => sheet.data[f].L1)).toEqual(['', '']);
     });
 });

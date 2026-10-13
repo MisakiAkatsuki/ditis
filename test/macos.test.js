@@ -85,11 +85,16 @@ describe('Finder open-file listener', () => {
         const first = new Promise(resolve => { finishFirst = resolve; });
         const loadFileFromPath = vi.fn().mockImplementationOnce(() => first).mockResolvedValue(undefined);
         const invoke = vi.fn(async command => {
+            if (command === 'acknowledge_open_file') return true;
             expect(command).toBe('frontend_ready');
             expect(listener).toBeTypeOf('function');
-            listener({ payload: '/Users/test/カット 1.ditis' });
-            listener({ payload: '/Users/test/カット 1.ditis' });
-            listener({ payload: '/Users/test/カット 2.ditis' });
+            const delivery = { generation: 0, files: [
+                { id: 1, path: '/Users/test/カット 1.ditis' },
+                { id: 2, path: '/Users/test/カット 2.ditis' },
+            ] };
+            listener({ payload: delivery });
+            listener({ payload: delivery });
+            return delivery;
         });
         const window = {
             __TAURI__: { event: { listen: vi.fn(async (_, cb) => { listener = cb; }) } },

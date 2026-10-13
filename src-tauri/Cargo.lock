@@ -711,7 +711,7 @@ dependencies = [
 
 [[package]]
 name = "ditis"
-version = "26.324.0"
+version = "26.1013.1"
 dependencies = [
  "log",
  "serde",

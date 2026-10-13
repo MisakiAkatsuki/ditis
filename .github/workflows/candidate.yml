@@ -1,0 +1,101 @@
+name: Candidate packages (no publication)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['codex/release-candidate-*']
+    paths:
+      - '.github/workflows/candidate.yml'
+      - 'js/**'
+      - 'css/**'
+      - 'index.html'
+      - 'package*.json'
+      - 'src-tauri/**'
+      - 'tools/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ditis-candidate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: macos-latest
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+          key: candidate-${{ matrix.target }}
+      - run: npm ci
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: 'true'
+      # This uses only the Tauri CLI and uploads workflow artifacts.
+      # It never creates tags, GitHub Releases or an updater deployment.
+      - name: Build and inspect candidate
+        run: node tools/candidate-packages.mjs ${{ matrix.target }}
+        env:
+          CANDIDATE_OUTPUT: ${{ runner.temp }}/ditis-candidate
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - name: Save packages and verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-${{ matrix.target }}
+          path: ${{ runner.temp }}/ditis-candidate
+          if-no-files-found: warn
+          retention-days: 14
+
+  manifest:
+    needs: package
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: candidate-*
+          path: ${{ runner.temp }}/ditis-candidate
+          merge-multiple: true
+      - name: Validate combined updater candidate
+        run: node tools/candidate-packages.mjs --aggregate
+        env:
+          CANDIDATE_OUTPUT: ${{ runner.temp }}/ditis-candidate
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: candidate-readiness
+          path: |
+            ${{ runner.temp }}/ditis-candidate/candidate-readiness.json
+            ${{ runner.temp }}/ditis-candidate/latest.json
+          if-no-files-found: warn
+          retention-days: 14

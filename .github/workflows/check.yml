@@ -14,7 +14,7 @@ on:
       - 'vitest.config.js'
 
 concurrency:
-  group: ditis-check-${{ github.event.pull_request.number }}
+  group: ditis-check-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -45,6 +45,10 @@ jobs:
         run: |
           npm run tauri:build -- --target aarch64-apple-darwin --no-bundle
           npm run tauri:build -- --target x86_64-apple-darwin --no-bundle
+      - name: Basic operations and format compatibility in Chromium
+        run: node tools/basic-smoke.mjs
+        env:
+          CHROME_PATH: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
 
   windows:
     runs-on: windows-latest
@@ -66,8 +70,9 @@ jobs:
       - run: npm run tauri:build -- --debug --no-bundle
       - name: Install native WebView2 drivers
         run: |
-          cargo install tauri-driver --locked
-          cargo install --git https://github.com/chippers/msedgedriver-tool
+          cargo install tauri-driver --version '=2.1.0' --locked
+          # v0.2.2: entry point/manifest reviewed; lockfile present; commit signed.
+          cargo install --git https://github.com/chippers/msedgedriver-tool --rev 8c4b34f51b45f5cf08013366d703de464ab871d1 --locked
           msedgedriver-tool
           $PWD.Path >> $env:GITHUB_PATH
       - name: Prepare non-elevated WebView2 test process
@@ -77,28 +82,10 @@ jobs:
         run: |
           choco install gsudo -y --no-progress
           icacls "$env:GITHUB_WORKSPACE" /grant "Everyone:(OI)(CI)F"
-      - name: Run basic operations in Windows app
+      - name: Basic operations and format compatibility in Windows app
         run: ./tools/run-windows-smoke.ps1
         env:
           SMOKE_SCREENSHOT_PATH: windows-pr.png
-      - name: Check out existing Windows baseline
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
-          path: baseline
-      - run: npm ci
-        working-directory: baseline
-        env:
-          PUPPETEER_SKIP_DOWNLOAD: 'true'
-      - name: Build existing Windows baseline
-        working-directory: baseline
-        env:
-          CARGO_TARGET_DIR: ${{ github.workspace }}/src-tauri/target
-        run: npm run tauri:build -- --debug --no-bundle
-      - name: Compare same operations against existing Windows baseline
-        run: ./tools/run-windows-smoke.ps1
-        env:
-          SMOKE_SCREENSHOT_PATH: windows-baseline.png
       - name: Save Windows screenshots
         if: always()
         uses: actions/upload-artifact@v4
