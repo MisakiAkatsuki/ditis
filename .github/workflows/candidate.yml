@@ -63,6 +63,23 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - name: Install native Windows candidate drivers
+        if: runner.os == 'Windows'
+        run: |
+          cargo install tauri-driver --version '=2.1.0' --locked
+          cargo install --git https://github.com/chippers/msedgedriver-tool --rev 8c4b34f51b45f5cf08013366d703de464ab871d1 --locked
+          msedgedriver-tool
+          $PWD.Path >> $env:GITHUB_PATH
+          choco install gsudo -y --no-progress
+          icacls "$env:GITHUB_WORKSPACE" /grant "Everyone:(OI)(CI)F"
+      - name: Verify Windows candidate embedded frontend
+        if: runner.os == 'Windows'
+        # The build's temporary frontend has already been deleted. Launch the
+        # release executable that was bundled, so a runner-only file URL fails.
+        run: ./tools/run-windows-smoke.ps1
+        env:
+          DITIS_BINARY: ${{ runner.temp }}/ditis-candidate-build/x86_64-pc-windows-msvc/x86_64-pc-windows-msvc/release/ditis.exe
+          SMOKE_SCREENSHOT_PATH: ${{ runner.temp }}/ditis-candidate/windows-candidate.png
       - name: Save packages and verification evidence
         if: always()
         uses: actions/upload-artifact@v4
