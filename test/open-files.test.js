@@ -70,6 +70,7 @@ function actualFrontend(native, files) {
 }
 
 const ditis = name => JSON.stringify({ sheets: [{ name, frames: 1, fps: 24, layers: ['A'], data: [['1']] }] });
+const validSts = () => new Uint8Array([0x11, ...new TextEncoder().encode('ShiraheiTimeSheet'), 1, 1, 0, 0, 0, 1, 0, 1, 65]);
 const acknowledgments = page => page.invoke.mock.calls
     .filter(([command]) => command === 'acknowledge_open_file').map(([, args]) => args.id);
 
@@ -269,7 +270,7 @@ describe('native requests using the real file loader', () => {
 
         const signature = extension === 'tdts' ? 'toeiDigitalTimeSheet' : 'exchangeDigitalTimeSheet';
         const repaired = extension === 'sts'
-            ? new Uint8Array([0x11, ...new TextEncoder().encode('ShiraheiTimeSheet'), 1, 1, 0, 0, 0, 1, 0, 1, 65])
+            ? validSts()
             : `${signature} Save Data\n${JSON.stringify({ version: 5, timeTables: [{
                 name: 'repaired', duration: 1, timeTableHeaders: [{ fieldId: 0, names: ['A'] }],
                 fields: [{ fieldId: 0, tracks: [{ trackNo: 0, frames: [{ frame: 0, data: [{ id: 0, values: ['1'] }] }] }] }],
@@ -279,6 +280,36 @@ describe('native requests using the real file loader', () => {
         await settle();
         expect(page.state.sheets).toHaveLength(1);
         expect(page.state.sheets[0].data[1].L1).toBe('1');
+        expect(acknowledgments(page)).toEqual([file.id]);
+        expect(native.files).toEqual([]);
+    });
+
+    it.each([
+        ['signature without a full header', validSts().slice(0, 18)],
+        ['zero columns', Uint8Array.from(validSts(), (byte, index) => index === 18 ? 0 : byte)],
+        ['zero frames', Uint8Array.from(validSts(), (byte, index) => index === 19 ? 0 : byte)],
+        ['incomplete two-byte cell', validSts().slice(0, 24)],
+    ])('retains STS with %s without adding a tab and retries after repair', async (_name, content) => {
+        const file = request(15, 'カット 15.sts');
+        const native = nativeFiles([file]);
+        const files = new Map([[file.path, content]]);
+        const page = actualFrontend(native, files);
+        const existing = { name: 'existing' };
+        page.state.sheets.push(existing);
+        await page.context.initializeFileOpenEvents();
+        await settle();
+        expect(page.state.sheets).toEqual([existing]);
+        expect(acknowledgments(page)).toEqual([]);
+        expect(native.files).toEqual([file]);
+        expect(page.context.showErrorToast).toHaveBeenCalledWith(expect.stringContaining('読み込みに失敗'), 'error', 5000);
+
+        files.set(file.path, validSts());
+        native.emit();
+        await settle();
+        expect(page.state.sheets).toHaveLength(2);
+        expect(page.state.sheets[0]).toBe(existing);
+        expect(page.state.sheets[1].frames).toBe(1);
+        expect(page.state.sheets[1].data[1].L1).toBe('1');
         expect(acknowledgments(page)).toEqual([file.id]);
         expect(native.files).toEqual([]);
     });
