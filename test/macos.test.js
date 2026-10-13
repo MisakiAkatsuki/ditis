@@ -83,7 +83,7 @@ describe('Finder open-file listener', () => {
         let listener;
         let finishFirst;
         const first = new Promise(resolve => { finishFirst = resolve; });
-        const loadFileFromPath = vi.fn().mockImplementationOnce(() => first).mockResolvedValue(undefined);
+        const loadFileFromPath = vi.fn().mockImplementationOnce(() => first).mockResolvedValue(true);
         const invoke = vi.fn(async command => {
             if (command === 'acknowledge_open_file') return true;
             expect(command).toBe('frontend_ready');
@@ -105,11 +105,13 @@ describe('Finder open-file listener', () => {
         window.loadFileFromPath = loadFileFromPath;
         await ctx.initializeFileOpenEvents();
         expect(loadFileFromPath).toHaveBeenCalledTimes(1);
-        finishFirst();
+        finishFirst(true);
         await new Promise(resolve => setImmediate(resolve));
         expect(loadFileFromPath.mock.calls.map(([p]) => p)).toEqual([
             '/Users/test/カット 1.ditis', '/Users/test/カット 2.ditis',
         ]);
+        expect(invoke.mock.calls.filter(([command]) => command === 'acknowledge_open_file')
+            .map(([, args]) => args.id)).toEqual([1, 2]);
     });
 });
 
