@@ -210,7 +210,7 @@ function importExchangeTimesheet(fileContent, fileName, format) {
                     timesheetSource: { format, version: root.version ?? 5, document: cloneTimesheetData(document), tableIndex, fieldId } };
                 sheet.timesheetSource.layerTrackNos = {};
                 for (let i = 0; i < count; i++) {
-                    sheet.layers.push({ id: `L${i + 1}`, name: names[i] ?? String.fromCharCode(65 + i) });
+                    sheet.layers.push({ id: `L${i + 1}`, name: names[i] ?? getLayerName(i) });
                     sheet.timesheetSource.layerTrackNos[`L${i + 1}`] = i;
                 }
                 for (const track of tracks) {
@@ -218,11 +218,11 @@ function importExchangeTimesheet(fileContent, fileName, format) {
                     for (const frame of track.frames || []) {
                         if (!Number.isInteger(frame.frame)) throw new Error('frameが不正です');
                         if (format === 'XDTS' && frame.frame < 0) throw new Error('frameが負数です');
-                        if (frame.frame >= table.duration) continue;
+                        if (frame.frame < 0 || frame.frame >= table.duration) continue;
                         const instruction = frame.data?.find(d => d.id === 0);
                         if (!instruction) continue;
                         if (!Array.isArray(instruction.values) || typeof instruction.values[0] !== 'string') throw new Error('valuesが不正です');
-                        entries.set(Math.max(0, frame.frame), instruction.values[0]);
+                        entries.set(frame.frame, instruction.values[0]);
                     }
                     let value = '';
                     for (let frame = 0; frame < table.duration; frame++) {

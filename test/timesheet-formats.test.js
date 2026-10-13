@@ -26,6 +26,7 @@ function app() {
     const ctx = vm.createContext({ AppState: { sheets: [] }, ErrorLevel: { INFO: 'info' },
         saveHistory: vi.fn(), renderTabs: vi.fn(), renderSpreadsheet: vi.fn(), updateWindowTitle: vi.fn(),
         showErrorToast: vi.fn(), debugLog: vi.fn(), window: { TauriAPI: { saveFile: vi.fn() } } });
+    vm.runInContext(readFileSync(new URL('../js/utils.js', import.meta.url), 'utf8'), ctx);
     vm.runInContext(readFileSync(process.env.PARSERS_SOURCE || new URL('../js/parsers.js', import.meta.url), 'utf8'), ctx);
     return ctx;
 }
@@ -96,6 +97,97 @@ describe('official XDTS and legacy TDTS import', () => {
         if (invalid === 'values') bad.fields[1].tracks[0].frames[0].data[0].values = [42];
         const content = `${invalid === 'header' ? 'wrong' : 'exchangeDigitalTimeSheet Save Data'}\n${JSON.stringify({ version: 5, timeTables: [table(), bad] })}`;
         expect(() => ctx.parseXdtsFile(content, 'bad.xdts')).toThrow(); expect(ctx.AppState.sheets).toHaveLength(0);
+    });
+    it.each(['TDTS', 'XDTS'])('names unnamed %s columns after Z as AA and AB', format => {
+        const ctx = app(); const t = table();
+        t.fields[1].tracks = [{ trackNo: 27, frames: [entry(0, '1')] }];
+        const sheet = load(ctx, format, { version: 5, timeTables: [t] });
+        expect(sheet.layers.slice(25, 28).map(l => l.name)).toEqual(['Z', 'AA', 'AB']);
+        expect(val(sheet, 1, 'L28')).toBe('1');
+    });
+    it('crops out-of-order negative TDTS dummy frames without replacing frame zero', () => {
+        const ctx = app(); const t = table();
+        t.fields[1].tracks[0].frames = [entry(0, '1'), entry(-1, '99'), entry(12, '98')];
+        const sheet = load(ctx, 'TDTS', { version: 5, timeTables: [t] });
+        expect([1, 12].map(f => val(sheet, f))).toEqual(['1', '1']);
+    });
+    it('rejects negative XDTS frames without partially importing tabs', () => {
+        const ctx = app(); const t = table(); t.fields[1].tracks[0].frames.push(entry(-1, '99'));
+        expect(() => load(ctx, 'XDTS', { version: 5, timeTables: [table(), t] })).toThrow('負数');
+        expect(ctx.AppState.sheets).toHaveLength(0);
+    });
+});
+
+function editingApp() {
+    const ctx = app();
+    Object.assign(ctx.AppState, { history: [], historyIndex: -1, fps: 24, specialDisplayCache: new Map() });
+    Object.assign(ctx, { structuredClone, CONSTANTS: { MAX_HISTORY: 100 },
+        document: { getElementById: () => null, querySelector: () => null },
+        validateFrame: (frame, max) => Number.isInteger(frame) && frame >= 1 && frame <= max,
+        getCurrentSheet: () => ctx.AppState.sheets[ctx.AppState.currentSheetIndex],
+        showInsertFramesDialog: vi.fn(async () => 3),
+        showInsertFramesAtPositionDialog: vi.fn(async () => ({ position: 4, count: 3 })),
+        showShiftFramesDialog: vi.fn(), showConfirmDialog: vi.fn(async () => true),
+        selectA1: vi.fn(), clearSelection: vi.fn(), updateStatusBar: vi.fn(),
+        renderSpreadsheetImmediate: vi.fn(), saveToLocalStorage: vi.fn(), calculateSpecialDisplayCache: vi.fn() });
+    for (const file of ['frameOps', 'history', 'fileOperations']) {
+        vm.runInContext(readFileSync(new URL(`../js/${file}.js`, import.meta.url), 'utf8'), ctx);
+    }
+    ctx.showConfirmDialog = vi.fn(async () => true);
+    return ctx;
+}
+function annotationFrames(ctx, sheet, format) {
+    const root = ctx[format === 'TDTS' ? 'generateTdtsData' : 'generateXdtsData'](sheet);
+    const document = root.timeSheets?.[0] || root;
+    const table = document.timeTables.at(-1);
+    return table.fields.find(f => f.fieldId === sheet.timesheetSource.fieldId).tracks
+        .flatMap(t => t.frames.filter(f => f.data.some(d => d.memo?.text === '注意')).map(f => f.frame));
+}
+describe('retained format annotations follow real row editing operations', () => {
+    it.each(['TDTS', 'XDTS'])('keeps %s annotations aligned through insertion, deletion, Undo/Redo and .ditis', async format => {
+        const ctx = editingApp(); const previous = { ...table(), name: '前回の改訂' };
+        const root = format === 'TDTS' ? { version: 7, timeSheets: [{ timeTables: [previous, table()] }] }
+            : { version: 10, timeTables: [table()] };
+        const sheet = load(ctx, format, root);
+        const sourceBefore = JSON.stringify(sheet.timesheetSource);
+        ctx.AppState.selectedCells = [{ frame: 4, layerId: 'L3' }];
+        await ctx.insertFramesAtSelection();
+        expect(annotationFrames(ctx, ctx.getCurrentSheet(), format)).toEqual([13]);
+        expect(val(ctx.getCurrentSheet(), 14)).toBe('a0002');
+        const source = ctx.getCurrentSheet().timesheetSource;
+        const activeTable = source.document.timeTables[source.tableIndex];
+        expect(activeTable.fields.find(f => f.fieldId === 5)).toEqual(table().fields[0]);
+        expect(activeTable.fields.find(f => f.fieldId === 0).tracks[0].frames.find(f => f.frame === 13).data[0])
+            .toEqual({ id: 0, values: ['a0002'], memo: { text: '注意' }, fontColorId: 2 });
+        if (format === 'TDTS') expect(source.document.timeTables[0]).toEqual(previous);
+        ctx.undo();
+        expect(annotationFrames(ctx, ctx.getCurrentSheet(), format)).toEqual([10]);
+        expect(JSON.stringify(ctx.getCurrentSheet().timesheetSource)).toBe(sourceBefore);
+        ctx.redo();
+        expect(annotationFrames(ctx, ctx.getCurrentSheet(), format)).toEqual([13]);
+        const stored = JSON.parse(ctx.buildDitisJson(ctx.getCurrentSheet())).sheets[0];
+        ctx.loadSheetData(stored);
+        expect(annotationFrames(ctx, stored, format)).toEqual([13]);
+        ctx.AppState.selectedCells = [{ frame: 5, layerId: 'L3' }, { frame: 6, layerId: 'L3' }];
+        await ctx.deleteSelectedFrames();
+        expect(annotationFrames(ctx, ctx.getCurrentSheet(), format)).toEqual([11]);
+        ctx.undo(); expect(annotationFrames(ctx, ctx.getCurrentSheet(), format)).toEqual([13]);
+        ctx.redo(); expect(annotationFrames(ctx, ctx.getCurrentSheet(), format)).toEqual([11]);
+        ctx.AppState.selectedCells = [{ frame: 12, layerId: 'L3' }];
+        await ctx.deleteSelectedFrames();
+        expect(annotationFrames(ctx, ctx.getCurrentSheet(), format)).toEqual([]);
+    });
+    it.each(['insertFramesStart', 'insertFramesMiddle'])('moves annotations with %s', async operation => {
+        const ctx = editingApp(); load(ctx, 'XDTS', { version: 10, timeTables: [table()] });
+        await ctx[operation]();
+        expect(annotationFrames(ctx, ctx.getCurrentSheet(), 'XDTS')).toEqual([13]);
+    });
+    it.each([[-3, [7]], [1, [11]], [3, []]])('moves or drops annotations with a %s-row shift', async (amount, expected) => {
+        const ctx = editingApp(); load(ctx, 'XDTS', { version: 10, timeTables: [table()] });
+        ctx.AppState.selectedCells = [{ frame: 4, layerId: 'L3' }];
+        ctx.showShiftFramesDialog.mockResolvedValue(amount);
+        await ctx.shiftDataDownFromFrame();
+        expect(annotationFrames(ctx, ctx.getCurrentSheet(), 'XDTS')).toEqual(expected);
     });
 });
 describe('timesheet export interoperability', () => {

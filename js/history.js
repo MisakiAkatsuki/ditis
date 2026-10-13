@@ -29,6 +29,9 @@ function saveHistory(label = '') {
                 disabledFrames: currentSheet.disabledFrames ? [...currentSheet.disabledFrames] : [],
                 visibleRows: currentSheet.visibleRows,
                 columnWidths: currentSheet.columnWidths ? { ...currentSheet.columnWidths } : undefined,
+                // Row edits replace this immutable source; sharing it avoids
+                // copying the entire imported document at every cell edit.
+                timesheetSource: currentSheet.timesheetSource,
             },
             sheetsLength: AppState.sheets.length,
             fps: AppState.fps,
@@ -157,6 +160,7 @@ function restoreHistory() {
         disabledFrames: snapshot.disabledFrames ? [...snapshot.disabledFrames] : [],
         visibleRows: snapshot.visibleRows,
         columnWidths: snapshot.columnWidths ? { ...snapshot.columnWidths } : undefined,
+        timesheetSource: snapshot.timesheetSource,
     };
     AppState.currentSheetIndex = state.sheetIndex;
     AppState.fps = state.fps;
