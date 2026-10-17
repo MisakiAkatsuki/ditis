@@ -1,0 +1,65 @@
+name: Optional import plugin (no publication)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/import-plugin.yml'
+      - 'addons/openai-timesheet/**'
+      - 'crates/**'
+      - 'Cargo.*'
+      - 'tools/import-plugin-smoke.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ditis-import-plugin-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: macos-latest
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            addons/openai-timesheet/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            addons/openai-timesheet/src-tauri -> target
+          key: import-plugin-${{ matrix.target }}
+      - run: npm ci
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: 'true'
+      - run: npm ci --prefix addons/openai-timesheet
+      - name: Plugin contract, TGA and conversion tests
+        run: cargo test --locked
+      # Build only an optional executable. No tags, Releases or updater changes.
+      - name: Build optional plugin
+        run: npm run build --prefix addons/openai-timesheet -- --no-bundle --target ${{ matrix.target }}
+      - name: Prepare plugin folder and standalone executable
+        run: npm run package:plugin --prefix addons/openai-timesheet -- --target=${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openai-timesheet-${{ matrix.target }}
+          path: addons/openai-timesheet/plugin-package/
+          retention-days: 14

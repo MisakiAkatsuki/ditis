@@ -1,0 +1,27 @@
+{
+  "type": "object", "additionalProperties": false,
+  "required": ["regions", "warnings"],
+  "properties": {
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "regions": {"type": "array", "items": {
+      "type": "object", "additionalProperties": false, "required": ["index", "layers"],
+      "properties": {
+        "index": {"type": "integer"},
+        "layers": {"type": "array", "items": {
+          "type": "object", "additionalProperties": false, "required": ["name", "exposures"],
+          "properties": {
+            "name": {"type": "string"},
+            "exposures": {"type": "array", "items": {
+              "type": "object", "additionalProperties": false,
+              "required": ["start", "end", "value", "uncertain"],
+              "properties": {
+                "start": {"type": "integer"}, "end": {"type": "integer"},
+                "value": {"type": ["string", "null"]}, "uncertain": {"type": "boolean"}
+              }
+            }}
+          }
+        }}
+      }
+    }}
+  }
+}

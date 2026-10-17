@@ -77,3 +77,7 @@ test/test-optimization.js
 test/virtual-scroll-test.html
 test/manual-test-checklist.md
 test/quality-improvement-plan.md
+
+# Optional importer / shared Rust crates
+target/
+addons/openai-timesheet/plugin-package/

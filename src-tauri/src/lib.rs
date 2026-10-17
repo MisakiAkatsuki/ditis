@@ -1,6 +1,8 @@
 #[cfg(target_os = "macos")]
 mod macos_ae;
 mod open_files;
+mod import_plugins;
+use import_plugins::{run_import_plugin, cancel_import_plugin, reload_import_plugins, open_import_plugin_folder};
 use open_files::{OpenFileDelivery, OpenFiles};
 
 use tauri::menu::{MenuBuilder, SubmenuBuilder, MenuItemBuilder, PredefinedMenuItem, CheckMenuItemBuilder, CheckMenuItem};
@@ -673,6 +675,7 @@ async fn rebuild_menu(
         .item(&SubmenuBuilder::new(&app, &texts.file)
           .item(&MenuItemBuilder::new(&texts.file_new).id("new-sheet").accelerator("CmdOrCtrl+N").build(&app).map_err(|e| e.to_string())?)
           .item(&MenuItemBuilder::new(&texts.file_open).id("open-file").accelerator("CmdOrCtrl+O").build(&app).map_err(|e| e.to_string())?)
+          .item(&import_plugins::submenu(&app, &lang).map_err(|e| e.to_string())?)
           .item(&recent_submenu)
           .separator()
           .item(&MenuItemBuilder::new(&texts.file_save).id("save-file").accelerator("CmdOrCtrl+S").build(&app).map_err(|e| e.to_string())?)
@@ -1645,6 +1648,7 @@ pub fn run() {
     .plugin(tauri_plugin_fs::init())
     .manage(menu_items)
     .manage(Mutex::new(OpenFiles::default()))
+    .manage(Arc::new(ditis_import_protocol::ImportRuntime::default()))
     .plugin(tauri::plugin::Builder::<tauri::Wry, ()>::new("associated-file-navigation")
         .on_navigation(|webview, _url| {
             associated_file_navigation_started(webview);
@@ -1658,6 +1662,10 @@ pub fn run() {
         }
     })
     .invoke_handler(tauri::generate_handler![
+        run_import_plugin,
+        cancel_import_plugin,
+        reload_import_plugins,
+        open_import_plugin_folder,
         frontend_ready,
         acknowledge_open_file,
         save_file,
@@ -1704,6 +1712,7 @@ pub fn run() {
         .item(&SubmenuBuilder::new(app, "ファイル")
           .item(&MenuItemBuilder::new("新規作成").id("new-sheet").accelerator("CmdOrCtrl+N").build(app)?)
           .item(&MenuItemBuilder::new("開く").id("open-file").accelerator("CmdOrCtrl+O").build(app)?)
+          .item(&import_plugins::submenu(app.handle(), "ja")?)
           .separator()
           .item(&MenuItemBuilder::new("保存").id("save-file").accelerator("CmdOrCtrl+S").build(app)?)
           .item(&MenuItemBuilder::new("名前を付けて保存...").id("save-as-file").accelerator("CmdOrCtrl+Shift+S").build(app)?)
@@ -2002,6 +2011,9 @@ pub fn run() {
     .build(tauri::generate_context!())
     .expect("error while building tauri application")
     .run(|app, event| {
+      if matches!(&event, tauri::RunEvent::Exit) {
+        app.state::<Arc<ditis_import_protocol::ImportRuntime>>().cancel();
+      }
       #[cfg(target_os = "macos")]
       if let tauri::RunEvent::Opened { urls } = event {
         for url in urls {

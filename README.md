@@ -25,6 +25,10 @@ DiTiS は、アニメ撮影で使用されるタイムシートをデジタル�
 - **マルチシート** - タブで複数シートを管理（ドラッグ&ドロップ並べ替え）
 - **クロスプラットフォーム** - Windows / macOS / Linux
 
+## 任意導入の読み込みプラグイン
+
+画像・PDF・TGAの原画欄・動画欄を読み込む[OpenAIプラグイン](addons/openai-timesheet/README.md)を別途ビルド・導入できます。本体にはAI処理を同梱しません。[プラグインの仕組み](PLUGINS.md)も参照してください。
+
 ## インストール
 
 [Releases](https://github.com/MisakiAkatsuki/ditis/releases) ページから最新のインストーラーをダウンロードしてください。

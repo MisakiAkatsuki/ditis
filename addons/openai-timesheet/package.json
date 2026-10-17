@@ -1,0 +1,17 @@
+{
+  "name": "ditis-openai-importer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:ui": "node build-ui.mjs",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "package:plugin": "node package-plugin.mjs"
+  },
+  "dependencies": {
+    "pdfjs-dist": "6.4.299",
+    "tesseract.js": "7.0.0",
+    "@tesseract.js-data/jpn": "1.0.0"
+  }
+}

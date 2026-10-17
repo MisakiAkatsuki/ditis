@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "DiTiS AI Import",
+  "version": "0.1.0",
+  "identifier": "com.ditis.openai-importer",
+  "build": {
+    "frontendDist": "../dist",
+    "beforeDevCommand": "npm run build:ui",
+    "beforeBuildCommand": "npm run build:ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "DiTiS — 画像・PDFから読み込み",
+        "width": 1250,
+        "height": 900,
+        "minWidth": 850,
+        "minHeight": 650
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ipc: http://ipc.localhost; font-src 'self' data:"
+    }
+  },
+  "bundle": {
+    "active": false,
+    "icon": [
+      "../../../src-tauri/icons/icon.png",
+      "../../../src-tauri/icons/icon.ico",
+      "../../../src-tauri/icons/icon.icns"
+    ]
+  }
+}

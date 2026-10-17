@@ -830,6 +830,11 @@ window.handleMenuEvent = async function(menuId) {
 
     // メニューが選択されたらコンテキストメニューを閉じる
     closeAllContextMenus();
+    if ((menuId.startsWith('import-plugin:') || menuId === 'open-import-plugin-folder' || menuId === 'reload-import-plugins') &&
+        typeof handleImportPluginMenu === 'function') {
+        await handleImportPluginMenu(menuId);
+        return;
+    }
     
     // メニューIDに応じて対応する関数を呼び出し
     const handlers = {
