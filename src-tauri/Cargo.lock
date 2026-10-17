@@ -713,6 +713,7 @@ dependencies = [
 name = "ditis"
 version = "26.1013.2"
 dependencies = [
+ "ditis-import-protocol",
  "log",
  "serde",
  "serde_json",
@@ -725,6 +726,15 @@ dependencies = [
  "tauri-plugin-process",
  "tauri-plugin-updater",
  "windows 0.58.0",
+]
+
+[[package]]
+name = "ditis-import-protocol"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

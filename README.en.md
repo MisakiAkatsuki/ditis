@@ -25,6 +25,10 @@ DiTiS is a desktop application that digitizes the timesheets used in anime produ
 - **Multi-sheet** - Manage multiple sheets with tabs (drag & drop reordering)
 - **Cross-platform** - Windows / macOS / Linux
 
+## Optional import plugins
+
+The separately installed [OpenAI image/PDF/TGA importer](addons/openai-timesheet/README.md) reads animation exposure sheets from the File menu. AI processing and local OCR assets are not bundled with the main app. See the [plugin contract](PLUGINS.md) for integration details.
+
 ## Installation
 
 Download the latest installer from the [Releases](https://github.com/MisakiAkatsuki/ditis/releases) page.

@@ -1,0 +1,21 @@
+import { cpSync, mkdirSync, rmSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const root = dirname(fileURLToPath(import.meta.url));
+const out = join(root, 'dist');
+rmSync(out, { recursive: true, force: true });
+cpSync(join(root, 'ui'), out, { recursive: true });
+const copy = (from, to) => {
+    mkdirSync(dirname(join(out, to)), { recursive: true });
+    cpSync(join(root, 'node_modules', from), join(out, to), { recursive: true });
+};
+copy('pdfjs-dist/build/pdf.mjs', 'vendor/pdf/pdf.mjs');
+copy('pdfjs-dist/build/pdf.worker.mjs', 'vendor/pdf/pdf.worker.mjs');
+for (const dir of ['cmaps', 'standard_fonts', 'wasm']) copy('pdfjs-dist/' + dir, 'vendor/pdf/' + dir);
+copy('pdfjs-dist/LICENSE', 'vendor/pdf/LICENSE');
+copy('tesseract.js/dist/tesseract.min.js', 'vendor/tesseract/tesseract.min.js');
+copy('tesseract.js/LICENSE.md', 'vendor/tesseract/LICENSE.md');
+copy('tesseract.js/dist/worker.min.js', 'vendor/tesseract/worker.min.js');
+copy('tesseract.js-core', 'vendor/tesseract/core');
+copy('@tesseract.js-data/jpn/4.0.0', 'vendor/tesseract/lang');
+cpSync(join(root, 'licenses/tessdata-LICENSE'), join(out, 'vendor/tesseract/lang/LICENSE'));

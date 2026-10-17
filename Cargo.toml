@@ -1,0 +1,4 @@
+[workspace]
+resolver = "2"
+members = ["crates/ditis-import-protocol", "addons/openai-timesheet/core"]
+exclude = ["src-tauri", "addons/openai-timesheet/src-tauri"]

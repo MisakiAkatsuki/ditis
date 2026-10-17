@@ -1,0 +1,12 @@
+[package]
+name = "ditis-openai-import-core"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+ditis-import-protocol = { path = "../../../crates/ditis-import-protocol" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "tga"] }
