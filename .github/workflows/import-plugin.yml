@@ -1,19 +1,13 @@
 name: Optional import plugin (no publication)
 
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/import-plugin.yml'
-      - 'addons/openai-timesheet/**'
-      - 'crates/**'
-      - 'Cargo.*'
-      - 'tools/import-plugin-smoke.mjs'
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ditis-import-plugin-${{ github.event.pull_request.number }}
+  group: ditis-import-plugin-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
