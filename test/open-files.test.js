@@ -20,7 +20,7 @@ function nativeFiles(files = []) {
     };
 }
 
-function frontend(native, load = vi.fn().mockResolvedValue(undefined), ready) {
+function frontend(native, load = vi.fn().mockResolvedValue(true), ready) {
     const events = new Map();
     const unlisten = vi.fn(() => { native.listener = null; });
     const invoke = vi.fn(async (command, args) => {
@@ -39,23 +39,54 @@ function frontend(native, load = vi.fn().mockResolvedValue(undefined), ready) {
     };
     const context = vm.createContext({ window, console: { error: vi.fn() } });
     vm.runInContext(source, context);
-    window.loadFileFromPath = load;
+    if (load) window.loadFileFromPath = load;
     return { context, load, invoke, unload: () => events.get('pagehide')(), unlisten };
 }
+
+function actualFrontend(native, files) {
+    const page = frontend(native, null);
+    const loadFile = vi.fn(async path => {
+        const content = files.get(path);
+        if (content instanceof Error) throw content;
+        return content;
+    });
+    Object.assign(page.context, {
+        AppState: { sheets: [], recentFiles: [], fps: 24 },
+        ErrorLevel: { ERROR: 'error', INFO: 'info' },
+        debugLog: vi.fn(), showErrorToast: vi.fn(), saveHistory: vi.fn(),
+        renderTabs: vi.fn(), renderSpreadsheet: vi.fn(), selectA1: vi.fn(),
+        updateWindowTitle: vi.fn(), updateStatusBar: vi.fn(), updateDurationDisplay: vi.fn(),
+        saveToLocalStorage: vi.fn(), TextDecoder,
+    });
+    page.context.window.TauriAPI = {
+        isRunningInTauri: () => true,
+        loadFile,
+        loadBinaryFile: loadFile,
+    };
+    for (const module of ['utils', 'parsers']) {
+        vm.runInContext(readFileSync(new URL(`../js/${module}.js`, import.meta.url), 'utf8'), page.context);
+    }
+    return { ...page, loadFile, state: page.context.AppState };
+}
+
+const ditis = name => JSON.stringify({ sheets: [{ name, frames: 1, fps: 24, layers: ['A'], data: [['1']] }] });
+const validSts = () => new Uint8Array([0x11, ...new TextEncoder().encode('ShiraheiTimeSheet'), 1, 1, 0, 0, 0, 1, 0, 1, 65]);
+const acknowledgments = page => page.invoke.mock.calls
+    .filter(([command]) => command === 'acknowledge_open_file').map(([, args]) => args.id);
 
 describe('native file requests across page initialization and navigation', () => {
     it('loads multiple files in order and only acknowledges completed loads', async () => {
         const native = nativeFiles([request(1), request(2)]);
         let complete;
         const first = new Promise(resolve => { complete = resolve; });
-        const page = frontend(native, vi.fn().mockImplementationOnce(() => first).mockResolvedValue(undefined));
+        const page = frontend(native, vi.fn().mockImplementationOnce(() => first).mockResolvedValue(true));
         await page.context.initializeFileOpenEvents();
         await settle();
         native.emit(); // Retransmission while the first file is loading.
         await settle();
         expect(page.load.mock.calls.map(([path]) => path)).toEqual(['カット 1.ditis']);
         expect(native.files).toHaveLength(2);
-        complete();
+        complete(true);
         await settle();
         expect(page.load.mock.calls.map(([path]) => path)).toEqual(['カット 1.ditis', 'カット 2.ditis']);
         expect(native.files).toEqual([]);
@@ -86,7 +117,7 @@ describe('native file requests across page initialization and navigation', () =>
         await settle();
         oldPage.unload();
         native.navigate();
-        finishOld();
+        finishOld(true);
         await settle();
         expect(oldPage.invoke.mock.calls.filter(([command]) => command === 'acknowledge_open_file')).toEqual([]);
         expect(native.files).toHaveLength(1);
@@ -133,5 +164,153 @@ describe('native file requests across page initialization and navigation', () =>
         await settle();
         expect(page.load).not.toHaveBeenCalled();
         expect(native.files).toHaveLength(1);
+    });
+});
+
+describe('native requests using the real file loader', () => {
+    it('retains a read failure, opens the next file, and retries after the file is repaired', async () => {
+        const failed = request(9), valid = request(10);
+        const native = nativeFiles([failed, valid]);
+        const files = new Map([[failed.path, new Error('temporary read failure')], [valid.path, ditis('next')]]);
+        const page = actualFrontend(native, files);
+        await page.context.initializeFileOpenEvents();
+        await settle();
+        expect(page.loadFile.mock.calls.map(([path]) => path)).toEqual([failed.path, valid.path]);
+        expect(page.state.sheets.map(sheet => sheet.name)).toEqual(['next']);
+        expect(acknowledgments(page)).toEqual([valid.id]);
+        expect(native.files).toEqual([failed]);
+
+        files.set(failed.path, ditis('repaired'));
+        native.emit();
+        await settle();
+        expect(page.loadFile.mock.calls.map(([path]) => path)).toEqual([failed.path, valid.path, failed.path]);
+        expect(page.state.sheets.map(sheet => sheet.name)).toEqual(['next', 'repaired']);
+        expect(acknowledgments(page)).toEqual([valid.id, failed.id]);
+        expect(native.files).toEqual([]);
+    });
+
+    it('replays an actual failed load after page reload', async () => {
+        const file = request(11);
+        const native = nativeFiles([file]);
+        const files = new Map([[file.path, new Error('file unavailable')]]);
+        const oldPage = actualFrontend(native, files);
+        await oldPage.context.initializeFileOpenEvents();
+        await settle();
+        expect(acknowledgments(oldPage)).toEqual([]);
+        oldPage.unload();
+        native.navigate();
+        files.set(file.path, ditis('available after reload'));
+        const newPage = actualFrontend(native, files);
+        await newPage.context.initializeFileOpenEvents();
+        await settle();
+        expect(newPage.state.sheets.map(sheet => sheet.name)).toEqual(['available after reload']);
+        expect(acknowledgments(newPage)).toEqual([file.id]);
+        expect(native.files).toEqual([]);
+    });
+
+    it.each([
+        ['invalid JSON', '{not JSON}'],
+        ['null document', 'null'],
+        ['invalid sheets', JSON.stringify({ sheets: {} })],
+        ['empty sheets', JSON.stringify({ sheets: [] })],
+    ])('keeps %s pending until a valid file is delivered', async (_name, content) => {
+        const file = request(12);
+        const native = nativeFiles([file]);
+        const files = new Map([[file.path, content]]);
+        const page = actualFrontend(native, files);
+        await page.context.initializeFileOpenEvents();
+        await settle();
+        expect(page.state.sheets).toEqual([]);
+        expect(acknowledgments(page)).toEqual([]);
+        expect(native.files).toEqual([file]);
+        expect(page.context.showErrorToast).toHaveBeenCalledWith(expect.any(String), 'error', 5000);
+
+        files.set(file.path, ditis('repaired'));
+        native.emit();
+        await settle();
+        expect(page.state.sheets.map(sheet => sheet.name)).toEqual(['repaired']);
+        expect(acknowledgments(page)).toEqual([file.id]);
+        expect(native.files).toEqual([]);
+    });
+
+    it('keeps existing tabs unchanged when a later JSON sheet is invalid and retries without duplicate tabs', async () => {
+        const file = request(14);
+        const first = JSON.parse(ditis('first')).sheets[0];
+        const second = JSON.parse(ditis('second')).sheets[0];
+        const native = nativeFiles([file]);
+        const files = new Map([[file.path, JSON.stringify({ sheets: [first, null] })]]);
+        const page = actualFrontend(native, files);
+        const existing = { name: 'existing' };
+        page.state.sheets.push(existing);
+        await page.context.initializeFileOpenEvents();
+        await settle();
+        expect(page.state.sheets).toEqual([existing]);
+        expect(acknowledgments(page)).toEqual([]);
+        expect(native.files).toEqual([file]);
+
+        files.set(file.path, JSON.stringify({ sheets: [first, second] }));
+        native.emit();
+        await settle();
+        expect(page.state.sheets.map(sheet => sheet.name)).toEqual(['existing', 'first', 'second']);
+        expect(acknowledgments(page)).toEqual([file.id]);
+        expect(native.files).toEqual([]);
+    });
+
+    it.each(['sts', 'tdts', 'xdts'])('keeps a real %s parser failure pending and acknowledges a repaired file', async extension => {
+        const file = request(13, `カット 13.${extension}`);
+        const native = nativeFiles([file]);
+        const files = new Map([[file.path, extension === 'sts' ? new Uint8Array([0]) : 'invalid signature\n{}']]);
+        const page = actualFrontend(native, files);
+        await page.context.initializeFileOpenEvents();
+        await settle();
+        expect(page.state.sheets).toEqual([]);
+        expect(acknowledgments(page)).toEqual([]);
+        expect(native.files).toEqual([file]);
+        expect(page.context.showErrorToast).toHaveBeenCalledWith(expect.stringContaining('読み込みに失敗'), 'error', 5000);
+
+        const signature = extension === 'tdts' ? 'toeiDigitalTimeSheet' : 'exchangeDigitalTimeSheet';
+        const repaired = extension === 'sts'
+            ? validSts()
+            : `${signature} Save Data\n${JSON.stringify({ version: 5, timeTables: [{
+                name: 'repaired', duration: 1, timeTableHeaders: [{ fieldId: 0, names: ['A'] }],
+                fields: [{ fieldId: 0, tracks: [{ trackNo: 0, frames: [{ frame: 0, data: [{ id: 0, values: ['1'] }] }] }] }],
+            }] })}`;
+        files.set(file.path, repaired);
+        native.emit();
+        await settle();
+        expect(page.state.sheets).toHaveLength(1);
+        expect(page.state.sheets[0].data[1].L1).toBe('1');
+        expect(acknowledgments(page)).toEqual([file.id]);
+        expect(native.files).toEqual([]);
+    });
+
+    it.each([
+        ['signature without a full header', validSts().slice(0, 18)],
+        ['zero columns', Uint8Array.from(validSts(), (byte, index) => index === 18 ? 0 : byte)],
+        ['zero frames', Uint8Array.from(validSts(), (byte, index) => index === 19 ? 0 : byte)],
+        ['incomplete two-byte cell', validSts().slice(0, 24)],
+    ])('retains STS with %s without adding a tab and retries after repair', async (_name, content) => {
+        const file = request(15, 'カット 15.sts');
+        const native = nativeFiles([file]);
+        const files = new Map([[file.path, content]]);
+        const page = actualFrontend(native, files);
+        const existing = { name: 'existing' };
+        page.state.sheets.push(existing);
+        await page.context.initializeFileOpenEvents();
+        await settle();
+        expect(page.state.sheets).toEqual([existing]);
+        expect(acknowledgments(page)).toEqual([]);
+        expect(native.files).toEqual([file]);
+        expect(page.context.showErrorToast).toHaveBeenCalledWith(expect.stringContaining('読み込みに失敗'), 'error', 5000);
+
+        files.set(file.path, validSts());
+        native.emit();
+        await settle();
+        expect(page.state.sheets).toHaveLength(2);
+        expect(page.state.sheets[0]).toBe(existing);
+        expect(page.state.sheets[1].frames).toBe(1);
+        expect(page.state.sheets[1].data[1].L1).toBe('1');
+        expect(acknowledgments(page)).toEqual([file.id]);
+        expect(native.files).toEqual([]);
     });
 });

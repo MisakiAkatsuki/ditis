@@ -383,6 +383,10 @@ function parseStsFile(fileContent, fileName) {
         ? new TextEncoder().encode(fileContent)
         : new Uint8Array(fileContent);
     
+    if (data.length < 23) {
+        throw new Error('STSファイルのヘッダーが欠けています');
+    }
+
     // ヘッダーチェック（オフセット1から"ShiraheiTimeSheet"）
     const headerText = String.fromCharCode(...data.slice(1, 18));
     if (!headerText.includes('ShiraheiTimeSheet')) {
@@ -394,6 +398,15 @@ function parseStsFile(fileContent, fileName) {
     
     // byte 19 - フレーム数
     const totalFrames = data[19];
+
+    if (savedLayers < 1 || totalFrames < 1) {
+        throw new Error('STSファイルの列数またはフレーム数が不正です');
+    }
+    const dataSectionSize = savedLayers * totalFrames * 2;
+    const layerNamesOffset = 23 + dataSectionSize;
+    if (data.length < layerNamesOffset) {
+        throw new Error('STSファイルのセルデータが不足しています');
+    }
     
     // byte 20 - FPS (STSファイルにはFPS情報が含まれていないため、デフォルト値を使用)
     const fps = AppState.fps;  // 現在のFPSを維持
@@ -420,8 +433,6 @@ function parseStsFile(fileContent, fileName) {
     
     // データセクションのサイズを計算（Column-major、2バイト/セル）
     const framesPerColumn = totalFrames;  // Byte 19の値
-    const dataSectionSize = savedLayers * framesPerColumn * 2;
-    const layerNamesOffset = 23 + dataSectionSize;  // ヘッダー23バイト + データ
     
     // 列名を読み取る（[長さバイト][文字バイト列] のPascal文字列形式）
     const layerNames = [];
