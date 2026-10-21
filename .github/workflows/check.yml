@@ -9,6 +9,8 @@ on:
       - 'index.html'
       - 'package*.json'
       - 'src-tauri/**'
+      - 'crates/**'
+      - 'Cargo.*'
       - 'test/**'
       - 'tools/**'
       - 'vitest.config.js'

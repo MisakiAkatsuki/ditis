@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DiTiS — 画像・PDFから読み込み</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="vendor/tesseract/tesseract.min.js" defer></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header><div><p class="eyebrow">DiTiS / OPTIONAL IMPORT PLUGIN</p><h1>画像・PDFから読み込み</h1></div><span id="mode-badge" class="badge">画像を準備</span></header>
+  <main>
+    <p class="notice">送信するのは、原画欄・動画欄から切り出して下に表示する画像だけです。元ファイル・PDF・ファイル名は送信しません。自動検出とPDFの画像化はこの端末内で行います。</p>
+    <section class="card">
+      <div class="section-title"><h2>1. 読み込みと範囲指定</h2><button id="choose">画像・PDFを選ぶ</button></div>
+      <p class="muted">PNG / JPEG / WebP / TGA / PDF · ファイルは一度に8個まで</p>
+      <div class="fields">
+        <label>範囲の指定方法<select id="selection-mode"><option value="auto">自動検出（端末内）</option><option value="manual">手動で選択</option></select></label>
+        <label>FPS<input id="fps" type="number" min="1" max="240" step="0.001" value="24"></label>
+        <label>1ページのコマ数<input id="page-frames" type="number" min="1" max="2000" value="144"></label>
+        <label>シート名（端末内だけで使用）<input id="sheet-name" maxlength="100" value="読み込みシート"></label>
+      </div>
+      <div id="editor" hidden>
+        <div class="fields">
+          <label>表示するページ<select id="page"></select></label>
+          <label>追加する欄<select id="kind"><option value="inbetween">動画欄</option><option value="key">原画欄</option></select></label>
+          <label>開始コマ<input id="start-frame" type="number" min="1" max="20000" value="1"></label>
+          <label>この範囲のコマ数<input id="frame-count" type="number" min="1" max="2000" value="144"></label>
+        </div>
+        <div class="toolbar"><button id="detect" class="secondary">このページの欄を自動検出</button><button id="detect-all" class="secondary">全ページの欄を自動検出</button><button id="add-region" class="secondary" disabled>選択範囲を追加</button><button id="rotate" class="secondary">90°回転</button><span id="selection-hint" class="muted"></span></div>
+        <p class="muted">タイトルやカット名を含めず、欄名・列名とコマの罫線を含む範囲を指定してください。自動検出後も範囲を削除し、ドラッグで指定し直せます。開始コマとコマ数は用紙に合わせて確認してください。</p>
+        <div class="canvas-scroll"><canvas id="source-canvas" aria-label="原画欄・動画欄の範囲を選択する元画像"></canvas></div>
+        <p id="page-status" class="muted" role="status"></p>
+      </div>
+    </section>
+    <section class="card">
+      <div class="section-title"><h2>2. 送信画像を確認</h2><span id="region-count" class="badge">0範囲</span></div>
+      <p class="muted">ここに表示された画像だけをOpenAIに送信します。不要な範囲は削除してください。API利用料は設定したキーのアカウントに発生します。</p>
+      <div id="regions" class="region-grid"><p class="empty">原画欄・動画欄を自動検出するか、手動で追加してください。</p></div>
+      <div class="fields">
+        <label class="wide">OpenAI APIキー（この起動中だけ使用）<input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…"></label>
+        <label>モデル<input id="model" value="gpt-4.1" spellcheck="false"></label>
+      </div>
+      <button id="recognize" disabled>表示中の画像を送信して認識</button>
+      <p id="api-status" class="muted" role="status">キーは保存しません。画像入力とStructured Outputsに対応するモデルを指定してください。</p>
+    </section>
+    <section id="review-section" class="card" hidden>
+      <div class="section-title"><h2>3. 認識結果を確認・修正</h2><span id="unresolved" class="badge"></span></div>
+      <p class="muted">原画欄と動画欄はそれぞれ別タブに取り込みます。黄色の行は値・コマ位置を確認して「確認済み」を選んでください。空欄のまま確認すると、未入力のセルとして取り込みます。</p>
+      <ul id="warnings"></ul>
+      <div class="table-scroll"><table><thead><tr><th>欄</th><th>列名</th><th>開始</th><th>終了</th><th>セル値</th><th>確認済み</th></tr></thead><tbody id="review-rows"></tbody></table></div>
+      <div class="toolbar"><button id="finish" hidden>DiTiSに取り込む</button><button id="save" class="secondary">.ditisファイルに保存</button></div>
+    </section>
+    <p id="error" role="alert" hidden></p>
+    <dialog id="preview-dialog">
+      <div class="section-title"><strong id="preview-title">送信画像</strong><button id="close-preview" class="secondary">閉じる</button></div>
+      <p class="muted">この画像だけを送信します。スクロールして全体を確認できます。</p>
+      <div class="preview-scroll"><img id="preview-image" alt="送信画像の原寸プレビュー"></div>
+    </dialog>
+  </main>
+</body>
+</html>
